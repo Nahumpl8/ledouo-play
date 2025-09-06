@@ -137,12 +137,12 @@ export const Footer = () => {
           <FooterSection>
             <h3>Ubicación</h3>
             <p>
-              📍 Av. Álvaro Obregón 123<br />
+              📍 Calle Coahuila #111,<br />
               Colonia Roma Norte<br />
               06700 Ciudad de México
             </p>
             <p>
-              📞 +52 55 1234 5678<br />
+              📞 +52 771 129 59 38<br />
               ✉️ hola@leduo.mx
             </p>
           </FooterSection>

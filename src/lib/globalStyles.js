@@ -3,11 +3,10 @@ import styled, { createGlobalStyle } from 'styled-components';
 export const GlobalStyles = createGlobalStyle`
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
   
-  /* TODO: Add Apollo font files to src/assets/fonts/ */
   @font-face {
     font-family: 'Apollo';
-    src: url('./assets/fonts/Apollo-Regular.woff2') format('woff2'),
-         url('./assets/fonts/Apollo-Regular.woff') format('woff');
+    src: url('./public/fonts/APOLLO.otf') format('opentype'),
+         url('./public/fonts/APOLLOItalic.otf') format('opentype');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -15,8 +14,8 @@ export const GlobalStyles = createGlobalStyle`
   
   @font-face {
     font-family: 'Apollo';
-    src: url('./assets/fonts/Apollo-Bold.woff2') format('woff2'),
-         url('./assets/fonts/Apollo-Bold.woff') format('woff');
+    src: url('./public/fonts/APOLLO.otf') format('opentype'),
+         url('./public/fonts/APOLLOItalic.otf') format('opentype');
     font-weight: 700;
     font-style: normal;
     font-display: swap;
