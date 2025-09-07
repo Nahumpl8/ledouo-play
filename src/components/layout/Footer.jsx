@@ -2,7 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Container } from '../common/Container';
 // import logo from '../../assets/images/logo-leduo.png';
-const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
+const logo = '/lovable-uploads/logoWhite.jpg';
 
 const FooterWrapper = styled.footer`
   background: ${props => props.theme.colors.accent};

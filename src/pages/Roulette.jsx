@@ -35,6 +35,16 @@ const WheelContainer = styled.div`
   width: 300px;
   height: 300px;
   margin: 0 auto ${props => props.theme.spacing.lg} auto;
+
+  @media (max-width: ${props => props.theme.breakpoints.tablet}) {
+    width: 280px;
+    height: 280px;
+  }
+  @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+    width: 220px;
+    height: 220px;
+  }
+  
 `;
 
 const Wheel = styled.div`
@@ -67,14 +77,20 @@ const Segment = styled.div`
   
   .segment-text {
     position: absolute;
-    top: 20%;
-    left: 10%;
-    transform: rotate(-45deg);
-    font-size: 12px;
+    z-index: 5;
+    left: 50%;
+    top: 50%;
+    /* Centra el texto en el segmento y lo orienta horizontalmente */
+    transform:
+      rotate(-30deg)
+      translate(45px, -30px)
+      rotate(30deg);
+    font-size: 10px;
     font-weight: bold;
     color: ${props => props.theme.colors.white};
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     white-space: nowrap;
+    pointer-events: none;
   }
 `;
 

@@ -324,10 +324,10 @@ export const AppHome = () => {
               <Button as={Link} to="/app/cuenta" variant="ghost" size="sm">
                 👤 Mi Cuenta
               </Button>
-              <Button as="a" href="tel:+5255123456" variant="ghost" size="sm">
+              <Button as="a" href="tel:+7711295938" variant="ghost" size="sm">
                 📞 Llamar a LeDuo
               </Button>
-              <Button as="a" href="https://maps.google.com" target="_blank" variant="ghost" size="sm">
+              <Button as="a" href="https://maps.app.goo.gl/j1VUSDoehyfLLZUUA" target="_blank" variant="ghost" size="sm">
                 📍 Cómo llegar
               </Button>
             </div>
