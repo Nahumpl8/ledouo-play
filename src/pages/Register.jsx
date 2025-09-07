@@ -160,10 +160,8 @@ export const Register = () => {
               </p>
               
               <div className="instructions">
-                <h3>Para activar tu cuenta:</h3>
+                <h3>Para empezar a acumular tus puntos:</h3>
                 <ol>
-                  <li>Dirígete a la caja en nuestra cafetería</li>
-                  <li>Proporciona tu número de teléfono registrado</li>
                   <li>Realiza tu primera compra</li>
                   <li>¡Comienza a acumular puntos y sellos!</li>
                 </ol>
@@ -238,6 +236,15 @@ export const Register = () => {
               <option value="otro">Otro</option>
               <option value="prefiero-no-decir">Prefiero no decir</option>
             </Select>
+
+            <Input
+              type="date"
+              name="dob"
+              label="Fecha de nacimiento (opcional)"
+              value={formData.dob}
+              onChange={handleChange}
+              max={new Date().toISOString().split('T')[0]}
+            />
 
             <Button type="submit" size="lg" disabled={loading}>
               {loading ? 'Registrando...' : 'Crear cuenta'}

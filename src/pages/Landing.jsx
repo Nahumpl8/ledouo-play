@@ -6,7 +6,7 @@ import { Card } from '../components/common/Card';
 import { useOnScrollReveal } from '../hooks/useOnScrollReveal';
 // import logo from '../assets/images/logo-leduo.png';
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
-const barista = '/public/baristaHero.png'
+const barista = '/baristaHero.png';
 
 const Hero = styled.section`
   min-height: 90vh;
@@ -148,21 +148,29 @@ const LoyaltyGrid = styled.div`
 const LoyaltyCard = styled(Card)`
   text-align: center;
   padding: ${props => props.theme.spacing.lg};
+  gap: ${props => props.theme.spacing.sm};
   
   .icon {
     font-size: 3rem;
-    margin-bottom: ${props => props.theme.spacing.md};
     display: block;
+    margin-bottom: ${props => props.theme.spacing.sm};
   }
   
   h3 {
     color: ${props => props.theme.colors.primary};
-    margin-bottom: ${props => props.theme.spacing.sm};
+    font-size: 1.8rem;
+    @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+      font-size: 1.4rem;
+    }
   }
   
   p {
     color: ${props => props.theme.colors.text};
     line-height: 1.5;
+    font-size: 1rem;
+    @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+      font-size: 0.9rem;
+    }
   }
 `;
 
@@ -178,6 +186,10 @@ const StepsGrid = styled.div`
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
     grid-template-columns: repeat(3, 1fr);
   }
+  @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+    gap: 10px;
+  }
+  
 `;
 
 const Button = styled.button`
@@ -214,6 +226,11 @@ const Button = styled.button`
 const StepCard = styled.div`
   text-align: center;
   padding: ${props => props.theme.spacing.lg};
+
+  @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+    padding: ${props => props.theme.spacing.sm};
+  }
+  
   
   .step-number {
     display: inline-flex;
@@ -232,11 +249,19 @@ const StepCard = styled.div`
   h3 {
     color: ${props => props.theme.colors.primary};
     margin-bottom: ${props => props.theme.spacing.sm};
+    font-size: 1.5rem;
+    @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+      font-size: 1.4rem;
+    }
   }
   
   p {
     color: ${props => props.theme.colors.text};
     line-height: 1.5;
+    font-size: 1rem;
+    @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+      font-size: 0.9rem;
+    }
   }
 `;
 
@@ -248,7 +273,11 @@ const BenefitsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: ${props => props.theme.spacing.md};
-  
+
+  @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+    gap: 10px;
+  }
+
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -273,12 +302,19 @@ const BenefitCard = styled(Card)`
     h4 {
       color: ${props => props.theme.colors.primary};
       margin-bottom: 4px;
+      font-size: 1.6rem;
+      @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+        font-size: 1.4rem;
+      }
     }
     
     p {
       color: ${props => props.theme.colors.text};
       font-size: 0.9rem;
       line-height: 1.4;
+      @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+        font-size: 0.8rem;
+      }
     }
   }
 `;
@@ -377,7 +413,7 @@ export const Landing = () => {
             <StepCard className="slide-in">
               <div className="step-number">1</div>
               <h3>Regístrate</h3>
-              <p>Escanea el código QR en caja o regístrate en línea para crear tu cuenta LeDuo.</p>
+              <p>Escanea el código QR y registrate en nuestra sucursal LeDuo en Coahhuila #111, Roma Norte, CDMX.</p>
             </StepCard>
             
             <StepCard className="slide-in">

@@ -5,7 +5,7 @@ import { Container } from '../common/Container';
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
 
 const FooterWrapper = styled.footer`
-  background: ${props => props.theme.colors.primary};
+  background: ${props => props.theme.colors.accent};
   color: ${props => props.theme.colors.white};
   padding: ${props => props.theme.spacing.xl} 0 ${props => props.theme.spacing.md} 0;
 `;
@@ -61,7 +61,6 @@ const LogoSection = styled.div`
   img {
     height: 60px;
     width: auto;
-    filter: brightness(0) invert(1);
   }
 `;
 

@@ -1,10 +1,10 @@
 export const theme = {
   colors: {
-    bg: '#F0EEE5',
+    bg: '#e5e0d8',
     bgAlt: '#E0D9CF',
-    primary: '#686145',
+    primary: '#B3B792',
     secondary: '#919888',
-    accent: '#B3B792',
+    accent: '#686145',
     text: '#2B2B2B',
     white: '#FFFFFF',
     black: '#000000'
@@ -14,7 +14,7 @@ export const theme = {
   fontPrimary: 'Apollo, Georgia, "Times New Roman", serif',
   fontSecondary: '"Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   breakpoints: {
-    mobile: '360px',
+    mobile: '420px',
     tablet: '768px',
     desktop: '1024px',
     wide: '1440px'

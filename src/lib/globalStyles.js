@@ -5,8 +5,8 @@ export const GlobalStyles = createGlobalStyle`
   
   @font-face {
     font-family: 'Apollo';
-    src: url('./public/fonts/APOLLO.otf') format('opentype'),
-         url('./public/fonts/APOLLOItalic.otf') format('opentype');
+    src: url('/fonts/APOLLO.otf') format('opentype'),
+         url('/fonts/APOLLOItalic.otf') format('opentype');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -14,8 +14,8 @@ export const GlobalStyles = createGlobalStyle`
   
   @font-face {
     font-family: 'Apollo';
-    src: url('./public/fonts/APOLLO.otf') format('opentype'),
-         url('./public/fonts/APOLLOItalic.otf') format('opentype');
+    src: url('/fonts/APOLLO.otf') format('opentype'),
+         url('/fonts/APOLLOItalic.otf') format('opentype');
     font-weight: 700;
     font-style: normal;
     font-display: swap;
