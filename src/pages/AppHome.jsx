@@ -6,6 +6,7 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { stateStorage, customerStorage } from '../lib/storage';
+import { addToGoogleWallet, demoAddToGoogleWallet, getConfigurationStatus } from '../services/googleWallet';
 
 const AppWrapper = styled.div`
   min-height: 80vh;
@@ -146,13 +147,47 @@ const RouletteStatus = styled.div`
 export const AppHome = () => {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState('');
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletMessage, setWalletMessage] = useState('');
   
   const customer = customerStorage.get();
   const state = stateStorage.get();
 
   const openWalletModal = (wallet) => {
     setSelectedWallet(wallet);
+    setWalletMessage('');
     setWalletModalOpen(true);
+  };
+
+  const handleAddToWallet = async () => {
+    if (selectedWallet !== 'google') return;
+    
+    setWalletLoading(true);
+    setWalletMessage('');
+    
+    try {
+      const configStatus = getConfigurationStatus();
+      
+      if (!configStatus.configured) {
+        // Usar versión demo si no está configurado
+        const result = await demoAddToGoogleWallet(customer);
+        setWalletMessage(result.message + (result.demo ? ' (Modo Demo)' : ''));
+      } else {
+        // Usar API real si está configurado
+        const result = await addToGoogleWallet(customer);
+        setWalletMessage(result.message);
+        
+        // Cerrar modal después de redirigir exitosamente
+        setTimeout(() => {
+          setWalletModalOpen(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error añadiendo a wallet:', error);
+      setWalletMessage(error.message || 'Error al añadir a Google Wallet');
+    } finally {
+      setWalletLoading(false);
+    }
   };
 
   // Calculate roulette status
@@ -345,19 +380,64 @@ export const AppHome = () => {
           <div style={{fontSize: '4rem', marginBottom: '16px'}}>
             {selectedWallet === 'apple' ? '📱' : '🤖'}
           </div>
-          <h3 style={{marginBottom: '16px', color: '#686145'}}>
-            Función disponible próximamente
-          </h3>
-          <p style={{marginBottom: '24px', lineHeight: 1.6}}>
-            Estamos trabajando en la integración con {selectedWallet === 'apple' ? 'Apple' : 'Google'} Wallet. 
-            Pronto podrás guardar tu tarjeta LeDuo directamente en tu dispositivo móvil.
-          </p>
-          <p style={{fontSize: '0.9rem', color: '#666', marginBottom: '24px'}}>
-            Por ahora, simplemente muestra tu app en caja para identificarte.
-          </p>
-          <Button onClick={() => setWalletModalOpen(false)} variant="primary">
-            Entendido
-          </Button>
+          
+          {selectedWallet === 'google' ? (
+            <>
+              <h3 style={{marginBottom: '16px', color: '#686145'}}>
+                Tarjeta de Lealtad LeDuo
+              </h3>
+              <div style={{marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left'}}>
+                <p><strong>Nombre:</strong> {customer?.name || 'Cliente Demo'}</p>
+                <p><strong>Puntos:</strong> {state?.cashbackPoints || 0} puntos</p>
+                <p><strong>Sellos:</strong> {state?.stamps || 0} de 8</p>
+              </div>
+              
+              {walletMessage && (
+                <div style={{
+                  marginBottom: '16px', 
+                  padding: '12px', 
+                  backgroundColor: walletMessage.includes('Error') ? '#ffe6e6' : '#e6ffe6',
+                  borderRadius: '6px',
+                  fontSize: '0.9rem'
+                }}>
+                  {walletMessage}
+                </div>
+              )}
+              
+              <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
+                <Button 
+                  onClick={handleAddToWallet} 
+                  variant="primary"
+                  disabled={walletLoading}
+                >
+                  {walletLoading ? '⏳ Añadiendo...' : '📱 Añadir a Google Wallet'}
+                </Button>
+                <Button 
+                  onClick={() => setWalletModalOpen(false)} 
+                  variant="outline"
+                  disabled={walletLoading}
+                >
+                  Cancelar
+                </Button>
+              </div>
+              
+              <p style={{fontSize: '0.8rem', color: '#666', marginTop: '16px'}}>
+                💡 <strong>Tip:</strong> Con la tarjeta en tu wallet, solo escanea tu código QR en caja
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 style={{marginBottom: '16px', color: '#686145'}}>
+                Próximamente disponible
+              </h3>
+              <p style={{marginBottom: '24px', lineHeight: 1.6}}>
+                Apple Wallet requiere configuración adicional con certificados de desarrollador de Apple.
+              </p>
+              <Button onClick={() => setWalletModalOpen(false)} variant="primary">
+                Entendido
+              </Button>
+            </>
+          )}
         </div>
       </Modal>
     </AppWrapper>
