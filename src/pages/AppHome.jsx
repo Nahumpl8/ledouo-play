@@ -1,3 +1,4 @@
+// src/pages/AppHome.jsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
@@ -118,8 +119,8 @@ const WalletButtons = styled.div`
 
 const RouletteStatus = styled.div`
   padding: ${props => props.theme.spacing.md};
-  background: ${props => props.canSpin ? 
-    'linear-gradient(135deg, #10B981, #059669)' : 
+  background: ${props => props.canSpin ?
+    'linear-gradient(135deg, #10B981, #059669)' :
     props.theme.colors.bgAlt
   };
   color: ${props => props.canSpin ? props.theme.colors.white : props.theme.colors.text};
@@ -149,9 +150,30 @@ export const AppHome = () => {
   const [selectedWallet, setSelectedWallet] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMessage, setWalletMessage] = useState('');
-  
-  const customer = customerStorage.get();
-  const state = stateStorage.get();
+
+  // Fallbacks seguros si el storage está vacío
+  const rawState = stateStorage.get();
+  const state = rawState ?? {
+    cashbackPoints: 100,          // valor demo visible en el modal
+    stamps: 0,
+    lastVisit: null,
+    roulette: {
+      lastSpinAt: null,
+      mode: 'weekly',
+      cooldownDays: 7,
+      visitsSinceLastSpin: 0,
+      requiredVisits: 3
+    }
+  };
+
+  const rawCustomer = customerStorage.get();
+  const customer = rawCustomer ?? {
+    id: null,
+    name: 'Cliente Demo',
+    cashbackPoints: state.cashbackPoints,
+    stamps: state.stamps,
+    createdAt: Date.now()
+  };
 
   const openWalletModal = (wallet) => {
     setSelectedWallet(wallet);
@@ -161,48 +183,47 @@ export const AppHome = () => {
 
   const handleAddToWallet = async () => {
     if (selectedWallet !== 'google') return;
-    
     setWalletLoading(true);
     setWalletMessage('');
-    
+
     try {
-      const configStatus = getConfigurationStatus();
-      
-      if (!configStatus.configured) {
-        // Usar versión demo si no está configurado
+      // Si mantienes getConfigurationStatus en el servicio, úsalo:
+      const config = typeof getConfigurationStatus === 'function'
+        ? getConfigurationStatus()
+        : { configured: true };
+
+      if (!config.configured) {
         const result = await demoAddToGoogleWallet(customer);
         setWalletMessage(result.message + (result.demo ? ' (Modo Demo)' : ''));
       } else {
-        // Usar API real si está configurado
         const result = await addToGoogleWallet(customer);
-        setWalletMessage(result.message);
-        
-        // Cerrar modal después de redirigir exitosamente
-        setTimeout(() => {
-          setWalletModalOpen(false);
-        }, 2000);
+        setWalletMessage(result.message || 'Redirigiendo a Google Wallet…');
+        setTimeout(() => setWalletModalOpen(false), 2000);
       }
     } catch (error) {
       console.error('Error añadiendo a wallet:', error);
-      setWalletMessage(error.message || 'Error al añadir a Google Wallet');
+      // Fallback a demo si algo falla
+      try {
+        const demo = await demoAddToGoogleWallet(customer);
+        setWalletMessage((error?.message ? error.message + ' • ' : '') + demo.message + ' (Modo Demo)');
+      } catch {
+        setWalletMessage(error.message || 'Error al añadir a Google Wallet');
+      }
     } finally {
       setWalletLoading(false);
     }
   };
 
-  // Calculate roulette status
+  // Helpers de ruleta con state seguro
   const canSpinRoulette = () => {
-    if (!state.roulette.lastSpinAt) return true;
-    
+    if (!state?.roulette?.lastSpinAt) return true;
     const lastSpin = new Date(state.roulette.lastSpinAt);
     const now = new Date();
     const daysSinceLastSpin = Math.floor((now - lastSpin) / (1000 * 60 * 60 * 24));
-    
     if (state.roulette.mode === 'weekly') {
-      return daysSinceLastSpin >= state.roulette.cooldownDays;
-    } else {
-      return state.roulette.visitsSinceLastSpin >= state.roulette.requiredVisits;
+      return daysSinceLastSpin >= (state.roulette.cooldownDays ?? 7);
     }
+    return (state.roulette.visitsSinceLastSpin ?? 0) >= (state.roulette.requiredVisits ?? 3);
   };
 
   const getRouletteStatusText = () => {
@@ -213,40 +234,32 @@ export const AppHome = () => {
         detail: 'Haz clic para ganar premios increíbles'
       };
     }
-    
     if (state.roulette.mode === 'weekly') {
       const lastSpin = new Date(state.roulette.lastSpinAt);
       const nextSpin = new Date(lastSpin);
-      nextSpin.setDate(nextSpin.getDate() + state.roulette.cooldownDays);
+      nextSpin.setDate(nextSpin.getDate() + (state.roulette.cooldownDays ?? 7));
       const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
-      
       return {
         icon: '⏰',
         text: 'Ruleta en cooldown',
         detail: `Podrás girar en ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`
       };
-    } else {
-      const visitsNeeded = state.roulette.requiredVisits - state.roulette.visitsSinceLastSpin;
-      return {
-        icon: '📍',
-        text: 'Acumula más visitas',
-        detail: `Te faltan ${visitsNeeded} visita${visitsNeeded !== 1 ? 's' : ''} para girar`
-      };
     }
+    const visitsNeeded = (state.roulette.requiredVisits ?? 3) - (state.roulette.visitsSinceLastSpin ?? 0);
+    return {
+      icon: '📍',
+      text: 'Acumula más visitas',
+      detail: `Te faltan ${visitsNeeded} visita${visitsNeeded !== 1 ? 's' : ''} para girar`
+    };
   };
 
   const rouletteStatus = getRouletteStatusText();
   const canSpin = canSpinRoulette();
 
-  // Format last visit
   const formatLastVisit = (dateString) => {
     if (!dateString) return 'Nunca';
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-MX', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   return (
@@ -258,37 +271,37 @@ export const AppHome = () => {
         </WelcomeSection>
 
         <StatsGrid>
-          <StatCard 
+          <StatCard
             gradient="linear-gradient(135deg, #686145, #919888)"
             textColor="#FFFFFF"
             valueColor="#FFFFFF"
           >
             <span className="icon">💰</span>
-            <div className="value">{state.cashbackPoints}</div>
+            <div className="value">{state?.cashbackPoints ?? 0}</div>
             <div className="label">Puntos de cashback</div>
           </StatCard>
 
-          <StatCard 
+          <StatCard
             gradient="linear-gradient(135deg, #919888, #B3B792)"
             textColor="#FFFFFF"
             valueColor="#FFFFFF"
           >
             <span className="icon">🎯</span>
-            <div className="value">{state.stamps}/10</div>
+            <div className="value">{(state?.stamps ?? 0)}/10</div>
             <div className="label">Sellos coleccionados</div>
           </StatCard>
 
           <StatCard>
             <span className="icon">📅</span>
-            <div className="value" style={{fontSize: '1.2rem'}}>
-              {formatLastVisit(state.lastVisit)}
+            <div className="value" style={{ fontSize: '1.2rem' }}>
+              {formatLastVisit(state?.lastVisit)}
             </div>
             <div className="label">Última visita</div>
           </StatCard>
 
           <StatCard>
             <span className="icon">🔥</span>
-            <div className="value">{state.roulette.visitsSinceLastSpin}</div>
+            <div className="value">{state?.roulette?.visitsSinceLastSpin ?? 0}</div>
             <div className="label">Visitas desde último giro</div>
           </StatCard>
         </StatsGrid>
@@ -300,19 +313,19 @@ export const AppHome = () => {
               <h3>Añadir a Wallet</h3>
             </div>
             <p>
-              Guarda tu tarjeta LeDuo en tu wallet móvil para acceso rápido y 
+              Guarda tu tarjeta LeDuo en tu wallet móvil para acceso rápido y
               pagos sin contacto en nuestra cafetería.
             </p>
             <WalletButtons>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => openWalletModal('apple')}
               >
                 📱 Apple Wallet
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => openWalletModal('google')}
               >
@@ -326,20 +339,20 @@ export const AppHome = () => {
               <span className="icon">🎰</span>
               <h3>Ruleta LeDuo</h3>
             </div>
-            
+
             <RouletteStatus canSpin={canSpin}>
               <span className="status-icon">{rouletteStatus.icon}</span>
               <div className="status-text">{rouletteStatus.text}</div>
               <div className="status-detail">{rouletteStatus.detail}</div>
             </RouletteStatus>
 
-            <Button 
-              as={Link} 
-              to="/app/ruleta" 
+            <Button
+              as={Link}
+              to="/app/ruleta"
               variant={canSpin ? "primary" : "outline"}
               size="lg"
               disabled={!canSpin}
-              style={{width: '100%'}}
+              style={{ width: '100%' }}
             >
               {canSpin ? '🎰 Girar Ruleta' : '⏰ Ver Ruleta'}
             </Button>
@@ -348,12 +361,12 @@ export const AppHome = () => {
 
         {/* Quick Actions */}
         <Card>
-          <div style={{padding: '24px', textAlign: 'center'}}>
-            <h3 style={{marginBottom: '16px', color: '#686145'}}>Acciones rápidas</h3>
+          <div style={{ padding: '24px', textAlign: 'center' }}>
+            <h3 style={{ marginBottom: '16px', color: '#686145' }}>Acciones rápidas</h3>
             <div style={{
-              display: 'flex', 
-              gap: '12px', 
-              flexWrap: 'wrap', 
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
               justifyContent: 'center'
             }}>
               <Button as={Link} to="/app/cuenta" variant="ghost" size="sm">
@@ -376,26 +389,26 @@ export const AppHome = () => {
         onClose={() => setWalletModalOpen(false)}
         title={`Añadir a ${selectedWallet === 'apple' ? 'Apple' : 'Google'} Wallet`}
       >
-        <div style={{textAlign: 'center'}}>
-          <div style={{fontSize: '4rem', marginBottom: '16px'}}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '16px' }}>
             {selectedWallet === 'apple' ? '📱' : '🤖'}
           </div>
-          
+
           {selectedWallet === 'google' ? (
             <>
-              <h3 style={{marginBottom: '16px', color: '#686145'}}>
+              <h3 style={{ marginBottom: '16px', color: '#686145' }}>
                 Tarjeta de Lealtad LeDuo
               </h3>
-              <div style={{marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left'}}>
+              <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
                 <p><strong>Nombre:</strong> {customer?.name || 'Cliente Demo'}</p>
-                <p><strong>Puntos:</strong> {state?.cashbackPoints || 0} puntos</p>
-                <p><strong>Sellos:</strong> {state?.stamps || 0} de 8</p>
+                <p><strong>Puntos:</strong> {(state?.cashbackPoints ?? 0)} puntos</p>
+                <p><strong>Sellos:</strong> {(state?.stamps ?? 0)} de 8</p>
               </div>
-              
+
               {walletMessage && (
                 <div style={{
-                  marginBottom: '16px', 
-                  padding: '12px', 
+                  marginBottom: '16px',
+                  padding: '12px',
                   backgroundColor: walletMessage.includes('Error') ? '#ffe6e6' : '#e6ffe6',
                   borderRadius: '6px',
                   fontSize: '0.9rem'
@@ -403,34 +416,34 @@ export const AppHome = () => {
                   {walletMessage}
                 </div>
               )}
-              
-              <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
-                <Button 
-                  onClick={handleAddToWallet} 
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <Button
+                  onClick={handleAddToWallet}
                   variant="primary"
                   disabled={walletLoading}
                 >
                   {walletLoading ? '⏳ Añadiendo...' : '📱 Añadir a Google Wallet'}
                 </Button>
-                <Button 
-                  onClick={() => setWalletModalOpen(false)} 
+                <Button
+                  onClick={() => setWalletModalOpen(false)}
                   variant="outline"
                   disabled={walletLoading}
                 >
                   Cancelar
                 </Button>
               </div>
-              
-              <p style={{fontSize: '0.8rem', color: '#666', marginTop: '16px'}}>
+
+              <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
                 💡 <strong>Tip:</strong> Con la tarjeta en tu wallet, solo escanea tu código QR en caja
               </p>
             </>
           ) : (
             <>
-              <h3 style={{marginBottom: '16px', color: '#686145'}}>
+              <h3 style={{ marginBottom: '16px', color: '#686145' }}>
                 Próximamente disponible
               </h3>
-              <p style={{marginBottom: '24px', lineHeight: 1.6}}>
+              <p style={{ marginBottom: '24px', lineHeight: 1.6 }}>
                 Apple Wallet requiere configuración adicional con certificados de desarrollador de Apple.
               </p>
               <Button onClick={() => setWalletModalOpen(false)} variant="primary">
