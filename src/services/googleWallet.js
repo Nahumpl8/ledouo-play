@@ -2,7 +2,7 @@
 // Cliente: NO uses 'jsonwebtoken' aquí. Este módulo llama a /api/wallet/save en tu backend.
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
-export const GOOGLE_WALLET_API_PATH = `${API_BASE}/api/wallet/save`;
+export const GOOGLE_WALLET_API_PATH = '/api/wallet/save';
 
 // Detecta si estamos en navegador
 const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
