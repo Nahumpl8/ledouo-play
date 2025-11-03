@@ -1,13 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { authStorage } from '../../lib/storage';
+import { supabase } from '../../integrations/supabase/client';
 
 export const RequireAuth = ({ children }) => {
-  const isLoggedIn = authStorage.isLoggedIn();
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
   const location = useLocation();
 
-  if (!isLoggedIn) {
-    // Redirect to login page with return url
+  useEffect(() => {
+    // Verificar sesión actual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Escuchar cambios en la autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh' 
+      }}>
+        Cargando...
+      </div>
+    );
+  }
+
+  if (!session) {
     return <Navigate to="/app/login" state={{ from: location }} replace />;
   }
 

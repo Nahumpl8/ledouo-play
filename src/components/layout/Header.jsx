@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Container } from '../common/Container';
 import { Button } from '../common/Button';
-import { authStorage } from '../../lib/storage';
+import { supabase } from '../../integrations/supabase/client';
 // import logo from '../../assets/images/logo-leduo.png';
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
 
@@ -117,13 +117,27 @@ const DesktopNav = styled.div`
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [session, setSession] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const isLoggedIn = authStorage.isLoggedIn();
   const isAppRoute = location.pathname.startsWith('/app');
 
-  const handleLogout = () => {
-    authStorage.logout();
+  useEffect(() => {
+    // Verificar sesión actual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Escuchar cambios en autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/');
     setMobileMenuOpen(false);
   };
@@ -136,7 +150,7 @@ export const Header = () => {
     <HeaderWrapper>
       <Container>
         <HeaderContent>
-          <Logo to={isLoggedIn ? '/app' : '/'}>
+          <Logo to={session ? '/app' : '/'}>
             <img src={logo} alt="LeDuo" />
             <LogoText>
               <h1>LeDuo</h1>
@@ -153,7 +167,7 @@ export const Header = () => {
             </MobileMenuButton>
 
             <DesktopNav>
-              {isLoggedIn && isAppRoute ? (
+              {session && isAppRoute ? (
                 <>
                   <Button as={Link} to="/app" variant="ghost" size="sm">
                     Inicio
@@ -176,7 +190,7 @@ export const Header = () => {
                   <Button as={Link} to="/#beneficios" variant="ghost" size="sm">
                     Beneficios
                   </Button>
-                  {!isLoggedIn && (
+                  {!session && (
                     <Button as={Link} to="/app/login" variant="primary" size="sm">
                       Ingresar
                     </Button>
@@ -188,7 +202,7 @@ export const Header = () => {
         </HeaderContent>
 
         <MobileMenu isOpen={mobileMenuOpen}>
-          {isLoggedIn && isAppRoute ? (
+          {session && isAppRoute ? (
             <>
               <Button as={Link} to="/app" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
                 Inicio
@@ -211,7 +225,7 @@ export const Header = () => {
               <Button as={Link} to="/#beneficios" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
                 Beneficios
               </Button>
-              {!isLoggedIn && (
+              {!session && (
                 <Button as={Link} to="/app/login" variant="primary" size="sm" style={{width: '100%'}}>
                   Ingresar
                 </Button>
