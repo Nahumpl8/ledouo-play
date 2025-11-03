@@ -1,13 +1,14 @@
 // vite.config.js
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react-swc'
+import path from 'node:path'
+import { componentTagger } from 'lovable-tagger'
 
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: '::',
     port: 8080,
+    // En dev proxy hacia tu API local
     proxy: mode === 'development'
       ? { '/api': 'http://localhost:3001' }
       : undefined
@@ -18,20 +19,18 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      react: path.resolve(__dirname, "node_modules/react"),
-      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
-      "react/jsx-runtime": path.resolve(__dirname, "node_modules/react/jsx-runtime.js"),
-      "react/jsx-dev-runtime": path.resolve(__dirname, "node_modules/react/jsx-dev-runtime.js"),
-      "styled-components": path.resolve(__dirname, "node_modules/styled-components"),
+      '@': path.resolve(__dirname, './src'),
     },
-    dedupe: ["react", "react-dom", "styled-components"],
-  },
-  define: {
-    'process.env.NODE_ENV': JSON.stringify(mode),
+    // Muy importante para evitar doble React en Lovable / monorepos
+    dedupe: ['react', 'react-dom', 'styled-components'],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "styled-components"],
+    // ayuda al prebundle a no “duplicar”
+    include: ['react', 'react-dom', 'styled-components'],
   },
-  build: { rollupOptions: { external: [] } },
-}));
+  // No es necesario definir process.env.NODE_ENV;
+  // usa import.meta.env.MODE en tu código si lo necesitas
+  build: {
+    rollupOptions: { external: [] },
+  },
+}))
