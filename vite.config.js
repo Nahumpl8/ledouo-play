@@ -18,7 +18,10 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
+    dedupe: ["react", "react-dom", "styled-components"],
   },
-  define: { 'process.env': {} },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(mode),
+  },
   build: { rollupOptions: { external: [] } },
 }));
