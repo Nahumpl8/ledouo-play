@@ -18,7 +18,10 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src")
+      "@": path.resolve(__dirname, "./src"),
+      "react": path.resolve(__dirname, "./node_modules/react"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
+      "styled-components": path.resolve(__dirname, "./node_modules/styled-components")
     },
     dedupe: ["react", "react-dom", "styled-components"]
   },
