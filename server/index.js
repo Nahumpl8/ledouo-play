@@ -36,6 +36,18 @@ function ensureEnv(res) {
   return true;
 }
 
+// Función para obtener la URL de la imagen de sellos según el progreso
+function getStampsImageUrl(stamps) {
+  const normalized = stamps % 8; // Resetear después de 8 sellos
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://your-production-url.com' // NOTA: Cambiar por tu URL de producción
+    : 'http://localhost:8080';
+  
+  // Por ahora, usando imágenes estáticas locales
+  // TODO: Subir a ImgBB y usar URLs permanentes
+  return `${baseUrl}/wallet-stamps/stamps-${normalized}.png`;
+}
+
 // === API ===
 app.post('/api/wallet/save', (req, res) => {
   try {
@@ -105,15 +117,15 @@ app.post('/api/wallet/save', (req, res) => {
             }
           },
           
-          // Imagen del chef como hero
+          // Grid de chefs mostrando progreso de sellos
           heroImage: {
             sourceUri: {
-              uri: 'https://i.ibb.co/fRrrygx/sello-Leduo.png'
+              uri: getStampsImageUrl(stamps)
             },
             contentDescription: {
               defaultValue: {
                 language: 'es',
-                value: 'Chef LeDuo'
+                value: `Progreso: ${stamps % 8} de 8 sellos completados`
               }
             }
           },
