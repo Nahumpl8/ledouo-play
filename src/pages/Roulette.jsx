@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
-import { stateStorage } from '../lib/storage';
-import { mockAPI } from '../services/api';
+import { supabase } from '../integrations/supabase/client';
 
 const RouletteWrapper = styled.div`
   min-height: 80vh;
@@ -176,8 +175,65 @@ export const Roulette = () => {
   const [rotation, setRotation] = useState(0);
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  
-  const state = stateStorage.get();
+  const [loading, setLoading] = useState(true);
+  const [customerState, setCustomerState] = useState(null);
+
+  useEffect(() => {
+    loadCustomerState();
+  }, []);
+
+  const loadCustomerState = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: stateData } = await supabase
+        .from('customer_state')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      setCustomerState(stateData);
+    } catch (error) {
+      console.error('Error loading customer state:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <RouletteWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            Cargando...
+          </div>
+        </Section>
+      </RouletteWrapper>
+    );
+  }
+
+  if (!customerState) {
+    return (
+      <RouletteWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            No se pudo cargar el estado del usuario
+          </div>
+        </Section>
+      </RouletteWrapper>
+    );
+  }
+
+  const state = {
+    roulette: {
+      lastSpinAt: customerState.roulette_last_spin_at,
+      mode: customerState.roulette_mode || 'weekly',
+      cooldownDays: customerState.roulette_cooldown_days || 7,
+      visitsSinceLastSpin: customerState.roulette_visits_since_last_spin || 0,
+      requiredVisits: customerState.roulette_required_visits || 3
+    }
+  };
 
   // Calculate if user can spin
   const canSpinRoulette = () => {
@@ -230,38 +286,78 @@ export const Roulette = () => {
     setSpinning(true);
     
     try {
-      // Get result from API
-      const response = await mockAPI.spinRoulette();
-      const { reward, spinAngle } = response.data;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Determine winner segment
+      const randomIndex = Math.floor(Math.random() * segments.length);
+      const winningSegment = segments[randomIndex];
+      
+      // Calculate spin angle
+      const degreesPerSegment = 360 / segments.length;
+      const segmentAngle = randomIndex * degreesPerSegment;
+      const extraSpins = 1440; // 4 full rotations
+      const spinAngle = extraSpins + (360 - segmentAngle) + (degreesPerSegment / 2);
       
       // Spin animation
       const finalRotation = rotation + spinAngle;
       setRotation(finalRotation);
       
       // Wait for animation to complete
-      setTimeout(() => {
-        setLastResult(reward);
+      setTimeout(async () => {
+        // Determine reward details
+        let rewardType = 'discount';
+        let rewardValue = winningSegment.label;
+        let pointsToAdd = 0;
+        let stampsToAdd = 0;
+
+        if (winningSegment.label.includes('puntos')) {
+          rewardType = 'points';
+          pointsToAdd = parseInt(winningSegment.label);
+        } else if (winningSegment.label.includes('sello')) {
+          rewardType = 'stamp';
+          stampsToAdd = 1;
+        }
+
+        // Insert reward
+        await supabase
+          .from('rewards')
+          .insert({
+            user_id: user.id,
+            type: rewardType,
+            value: rewardValue,
+            description: `Premio de ruleta: ${winningSegment.label}`,
+            source: 'roulette'
+          });
+
+        // Update customer state
+        const updates = {
+          roulette_last_spin_at: new Date().toISOString(),
+          roulette_visits_since_last_spin: 0
+        };
+
+        if (pointsToAdd > 0) {
+          updates.cashback_points = customerState.cashback_points + pointsToAdd;
+        }
+        if (stampsToAdd > 0) {
+          updates.stamps = Math.min(customerState.stamps + stampsToAdd, 10);
+        }
+
+        await supabase
+          .from('customer_state')
+          .update(updates)
+          .eq('user_id', user.id);
+
+        setLastResult({
+          type: rewardType,
+          label: winningSegment.label,
+          icon: winningSegment.icon
+        });
         setResultModalOpen(true);
         setSpinning(false);
         
-        // Update storage
-        const currentState = stateStorage.get();
-        const updates = {
-          roulette: {
-            ...currentState.roulette,
-            lastSpinAt: new Date().toISOString(),
-            visitsSinceLastSpin: 0
-          }
-        };
-        
-        // Apply reward
-        if (reward.type === 'points') {
-          updates.cashbackPoints = currentState.cashbackPoints + reward.value;
-        } else if (reward.type === 'stamp') {
-          updates.stamps = Math.min(currentState.stamps + reward.value, 10);
-        }
-        
-        stateStorage.update(updates);
+        // Reload customer state
+        await loadCustomerState();
       }, 3000);
       
     } catch (error) {

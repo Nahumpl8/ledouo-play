@@ -1,12 +1,12 @@
 // src/pages/AppHome.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
-import { stateStorage, customerStorage } from '../lib/storage';
+import { supabase } from '../integrations/supabase/client';
 import { addToGoogleWallet, demoAddToGoogleWallet, getConfigurationStatus } from '../services/googleWallet';
 
 const AppWrapper = styled.div`
@@ -150,30 +150,75 @@ export const AppHome = () => {
   const [selectedWallet, setSelectedWallet] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMessage, setWalletMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [customerState, setCustomerState] = useState(null);
 
-  // Fallbacks seguros si el storage está vacío
-  const rawState = stateStorage.get();
-  const state = rawState ?? {
-    cashbackPoints: 100,          // valor demo visible en el modal
-    stamps: 0,
-    lastVisit: null,
-    roulette: {
-      lastSpinAt: null,
-      mode: 'weekly',
-      cooldownDays: 7,
-      visitsSinceLastSpin: 0,
-      requiredVisits: 3
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      // Load customer state
+      const { data: stateData } = await supabase
+        .from('customer_state')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      setProfile(profileData);
+      setCustomerState(stateData);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const rawCustomer = customerStorage.get();
-  const customer = rawCustomer ?? {
-    id: null,
-    name: 'Cliente Demo',
-    cashbackPoints: state.cashbackPoints,
-    stamps: state.stamps,
-    createdAt: Date.now()
-  };
+  if (loading) {
+    return (
+      <AppWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            Cargando...
+          </div>
+        </Section>
+      </AppWrapper>
+    );
+  }
+
+  const customer = profile ? {
+    id: profile.id,
+    name: profile.name,
+    email: profile.email,
+    cashbackPoints: customerState?.cashback_points || 0,
+    stamps: customerState?.stamps || 0,
+    createdAt: profile.created_at
+  } : null;
+
+  const state = customerState ? {
+    cashbackPoints: customerState.cashback_points || 0,
+    stamps: customerState.stamps || 0,
+    lastVisit: customerState.last_visit,
+    roulette: {
+      lastSpinAt: customerState.roulette_last_spin_at,
+      mode: customerState.roulette_mode || 'weekly',
+      cooldownDays: customerState.roulette_cooldown_days || 7,
+      visitsSinceLastSpin: customerState.roulette_visits_since_last_spin || 0,
+      requiredVisits: customerState.roulette_required_visits || 3
+    }
+  } : null;
 
   const openWalletModal = (wallet) => {
     setSelectedWallet(wallet);

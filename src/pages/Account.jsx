@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Select } from '../components/common/Select';
 import { Button } from '../components/common/Button';
-import { customerStorage, stateStorage } from '../lib/storage';
+import { supabase } from '../integrations/supabase/client';
 
 const AccountWrapper = styled.div`
   min-height: 80vh;
@@ -137,31 +137,75 @@ const InfoBox = styled.div`
 `;
 
 export const Account = () => {
-  const [customer, setCustomer] = useState(customerStorage.get() || {});
-  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [customerState, setCustomerState] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  
-  const state = stateStorage.get();
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      // Load customer state
+      const { data: stateData } = await supabase
+        .from('customer_state')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      setProfile(profileData || {});
+      setCustomerState(stateData || {});
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
 
     try {
-      // Save to localStorage
-      customerStorage.set(customer);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          sex: profile.sex
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
       
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error('Error updating profile:', error);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleChange = (e) => {
-    setCustomer(prev => ({
+    setProfile(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }));
@@ -180,22 +224,46 @@ export const Account = () => {
 
   // Calculate roulette status
   const getRouletteNextSpin = () => {
-    if (!state.roulette.lastSpinAt) return 'Disponible ahora';
+    if (!customerState?.roulette_last_spin_at) return 'Disponible ahora';
     
-    const lastSpin = new Date(state.roulette.lastSpinAt);
+    const lastSpin = new Date(customerState.roulette_last_spin_at);
     const now = new Date();
     const daysSinceLastSpin = Math.floor((now - lastSpin) / (1000 * 60 * 60 * 24));
     
-    if (state.roulette.mode === 'weekly') {
-      const daysUntilNext = state.roulette.cooldownDays - daysSinceLastSpin;
+    if (customerState.roulette_mode === 'weekly') {
+      const daysUntilNext = customerState.roulette_cooldown_days - daysSinceLastSpin;
       if (daysUntilNext <= 0) return 'Disponible ahora';
       return `En ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`;
     } else {
-      const visitsNeeded = state.roulette.requiredVisits - state.roulette.visitsSinceLastSpin;
+      const visitsNeeded = customerState.roulette_required_visits - customerState.roulette_visits_since_last_spin;
       if (visitsNeeded <= 0) return 'Disponible ahora';
       return `Faltan ${visitsNeeded} visita${visitsNeeded !== 1 ? 's' : ''}`;
     }
   };
+
+  if (loading) {
+    return (
+      <AccountWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            Cargando...
+          </div>
+        </Section>
+      </AccountWrapper>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <AccountWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            No se pudo cargar el perfil
+          </div>
+        </Section>
+      </AccountWrapper>
+    );
+  }
 
   return (
     <AccountWrapper>
@@ -222,7 +290,7 @@ export const Account = () => {
                 name="name"
                 label="Nombre completo"
                 placeholder="Tu nombre"
-                value={customer.name || ''}
+                value={profile.name || ''}
                 onChange={handleChange}
                 required
               />
@@ -232,7 +300,7 @@ export const Account = () => {
                 name="email"
                 label="Correo electrónico"
                 placeholder="tu@email.com"
-                value={customer.email || ''}
+                value={profile.email || ''}
                 onChange={handleChange}
                 required
               />
@@ -242,7 +310,7 @@ export const Account = () => {
                 name="phone"
                 label="Número de celular"
                 placeholder="+52 55 1234 5678"
-                value={customer.phone || ''}
+                value={profile.phone || ''}
                 onChange={handleChange}
                 required
               />
@@ -250,7 +318,7 @@ export const Account = () => {
               <Select
                 name="sex"
                 label="Sexo"
-                value={customer.sex || ''}
+                value={profile.sex || ''}
                 onChange={handleChange}
                 required
               >
@@ -262,8 +330,8 @@ export const Account = () => {
               </Select>
 
               <FullWidthField>
-                <Button type="submit" size="lg" disabled={loading}>
-                  {loading ? 'Guardando...' : '💾 Guardar cambios'}
+                <Button type="submit" size="lg" disabled={saving}>
+                  {saving ? 'Guardando...' : '💾 Guardar cambios'}
                 </Button>
               </FullWidthField>
             </Form>
@@ -280,7 +348,7 @@ export const Account = () => {
               <StatItem>
                 <span className="icon">💰</span>
                 <div className="content">
-                  <div className="value">{state.cashbackPoints}</div>
+                  <div className="value">{customerState?.cashback_points || 0}</div>
                   <div className="label">Puntos cashback</div>
                 </div>
               </StatItem>
@@ -288,7 +356,7 @@ export const Account = () => {
               <StatItem>
                 <span className="icon">🎯</span>
                 <div className="content">
-                  <div className="value">{state.stamps}/10</div>
+                  <div className="value">{customerState?.stamps || 0}/10</div>
                   <div className="label">Sellos</div>
                 </div>
               </StatItem>
@@ -296,7 +364,7 @@ export const Account = () => {
               <StatItem>
                 <span className="icon">📅</span>
                 <div className="content">
-                  <div className="value">{formatJoinDate(customer.createdAt)}</div>
+                  <div className="value">{formatJoinDate(profile.created_at)}</div>
                   <div className="label">Miembro desde</div>
                 </div>
               </StatItem>
@@ -322,8 +390,8 @@ export const Account = () => {
               <h3>🎯 Sobre tu programa de lealtad</h3>
               <p>
                 <strong>Estado:</strong> Cuenta activa<br />
-                <strong>ID de cliente:</strong> #{customer.id || 'No asignado'}<br />
-                <strong>Fuente de registro:</strong> {customer.source === 'qr' ? 'Código QR en tienda' : 'En línea'}
+                <strong>ID de cliente:</strong> #{profile.id?.substring(0, 8) || 'No asignado'}<br />
+                <strong>Código de registro:</strong> {profile.registration_code || 'N/A'}
               </p>
 
               <h3>🏆 Cómo ganar más puntos</h3>
