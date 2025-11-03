@@ -14,7 +14,180 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      customer_state: {
+        Row: {
+          cashback_points: number
+          id: string
+          last_visit: string | null
+          roulette_cooldown_days: number
+          roulette_last_spin_at: string | null
+          roulette_mode: string
+          roulette_required_visits: number
+          roulette_visits_since_last_spin: number
+          stamps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cashback_points?: number
+          id?: string
+          last_visit?: string | null
+          roulette_cooldown_days?: number
+          roulette_last_spin_at?: string | null
+          roulette_mode?: string
+          roulette_required_visits?: number
+          roulette_visits_since_last_spin?: number
+          stamps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cashback_points?: number
+          id?: string
+          last_visit?: string | null
+          roulette_cooldown_days?: number
+          roulette_last_spin_at?: string | null
+          roulette_mode?: string
+          roulette_required_visits?: number
+          roulette_visits_since_last_spin?: number
+          stamps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_state_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          dob: string | null
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          registration_code: string
+          sex: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dob?: string | null
+          email: string
+          id: string
+          name: string
+          phone?: string | null
+          registration_code: string
+          sex?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dob?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          registration_code?: string
+          sex?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rewards: {
+        Row: {
+          description: string
+          earned_at: string
+          expires_at: string | null
+          id: string
+          redeemed: boolean
+          redeemed_at: string | null
+          source: string
+          type: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          description: string
+          earned_at?: string
+          expires_at?: string | null
+          id?: string
+          redeemed?: boolean
+          redeemed_at?: string | null
+          source: string
+          type: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          description?: string
+          earned_at?: string
+          expires_at?: string | null
+          id?: string
+          redeemed?: boolean
+          redeemed_at?: string | null
+          source?: string
+          type?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rewards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          amount_spent: number | null
+          cashback_earned: number
+          created_at: string
+          id: string
+          notes: string | null
+          stamps_earned: number
+          user_id: string
+          visit_date: string
+        }
+        Insert: {
+          amount_spent?: number | null
+          cashback_earned?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          stamps_earned?: number
+          user_id: string
+          visit_date?: string
+        }
+        Update: {
+          amount_spent?: number | null
+          cashback_earned?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          stamps_earned?: number
+          user_id?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
