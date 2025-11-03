@@ -1,1 +1,4 @@
 project_id = "eohpjvbbrvktqyacpcmn"
+
+[functions.register-purchase]
+verify_jwt = true

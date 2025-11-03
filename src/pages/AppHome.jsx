@@ -1,12 +1,12 @@
 // src/pages/AppHome.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
-import { stateStorage, customerStorage } from '../lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 import { addToGoogleWallet, demoAddToGoogleWallet, getConfigurationStatus } from '../services/googleWallet';
 
 const AppWrapper = styled.div`
@@ -150,29 +150,47 @@ export const AppHome = () => {
   const [selectedWallet, setSelectedWallet] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMessage, setWalletMessage] = useState('');
+  const [customer, setCustomer] = useState(null);
+  const [state, setState] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fallbacks seguros si el storage está vacío
-  const rawState = stateStorage.get();
-  const state = rawState ?? {
-    cashbackPoints: 100,          // valor demo visible en el modal
-    stamps: 0,
-    lastVisit: null,
-    roulette: {
-      lastSpinAt: null,
-      mode: 'weekly',
-      cooldownDays: 7,
-      visitsSinceLastSpin: 0,
-      requiredVisits: 3
+  useEffect(() => {
+    loadCustomerData();
+  }, []);
+
+  const loadCustomerData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      const { data: customerState } = await supabase
+        .from('customer_state')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      setCustomer({ ...profile, id: user.id });
+      setState(customerState || {
+        cashback_points: 0,
+        stamps: 0,
+        last_visit: null,
+        roulette_visits_since_last_spin: 0
+      });
+    } catch (error) {
+      console.error('Error loading customer data:', error);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const rawCustomer = customerStorage.get();
-  const customer = rawCustomer ?? {
-    id: null,
-    name: 'Cliente Demo',
-    cashbackPoints: state.cashbackPoints,
-    stamps: state.stamps,
-    createdAt: Date.now()
   };
 
   const openWalletModal = (wallet) => {
@@ -187,28 +205,19 @@ export const AppHome = () => {
     setWalletMessage('');
 
     try {
-      // Si mantienes getConfigurationStatus en el servicio, úsalo:
-      const config = typeof getConfigurationStatus === 'function'
-        ? getConfigurationStatus()
-        : { configured: true };
+      const walletData = {
+        id: customer.id,
+        name: customer.name,
+        cashbackPoints: state.cashback_points,
+        stamps: state.stamps
+      };
 
-      if (!config.configured) {
-        const result = await demoAddToGoogleWallet(customer);
-        setWalletMessage(result.message + (result.demo ? ' (Modo Demo)' : ''));
-      } else {
-        const result = await addToGoogleWallet(customer);
-        setWalletMessage(result.message || 'Redirigiendo a Google Wallet…');
-        setTimeout(() => setWalletModalOpen(false), 2000);
-      }
+      const result = await addToGoogleWallet(walletData);
+      setWalletMessage(result.message || 'Redirigiendo a Google Wallet…');
+      setTimeout(() => setWalletModalOpen(false), 2000);
     } catch (error) {
       console.error('Error añadiendo a wallet:', error);
-      // Fallback a demo si algo falla
-      try {
-        const demo = await demoAddToGoogleWallet(customer);
-        setWalletMessage((error?.message ? error.message + ' • ' : '') + demo.message + ' (Modo Demo)');
-      } catch {
-        setWalletMessage(error.message || 'Error al añadir a Google Wallet');
-      }
+      setWalletMessage(error.message || 'Error al añadir a Google Wallet');
     } finally {
       setWalletLoading(false);
     }
@@ -216,14 +225,15 @@ export const AppHome = () => {
 
   // Helpers de ruleta con state seguro
   const canSpinRoulette = () => {
-    if (!state?.roulette?.lastSpinAt) return true;
-    const lastSpin = new Date(state.roulette.lastSpinAt);
+    if (!state?.roulette_last_spin_at) return true;
+    const lastSpin = new Date(state.roulette_last_spin_at);
     const now = new Date();
     const daysSinceLastSpin = Math.floor((now - lastSpin) / (1000 * 60 * 60 * 24));
-    if (state.roulette.mode === 'weekly') {
-      return daysSinceLastSpin >= (state.roulette.cooldownDays ?? 7);
+    const mode = state.roulette_mode || 'weekly';
+    if (mode === 'weekly') {
+      return daysSinceLastSpin >= (state.roulette_cooldown_days || 7);
     }
-    return (state.roulette.visitsSinceLastSpin ?? 0) >= (state.roulette.requiredVisits ?? 3);
+    return (state.roulette_visits_since_last_spin || 0) >= (state.roulette_required_visits || 3);
   };
 
   const getRouletteStatusText = () => {
@@ -234,10 +244,11 @@ export const AppHome = () => {
         detail: 'Haz clic para ganar premios increíbles'
       };
     }
-    if (state.roulette.mode === 'weekly') {
-      const lastSpin = new Date(state.roulette.lastSpinAt);
+    const mode = state?.roulette_mode || 'weekly';
+    if (mode === 'weekly') {
+      const lastSpin = new Date(state.roulette_last_spin_at);
       const nextSpin = new Date(lastSpin);
-      nextSpin.setDate(nextSpin.getDate() + (state.roulette.cooldownDays ?? 7));
+      nextSpin.setDate(nextSpin.getDate() + (state.roulette_cooldown_days || 7));
       const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
       return {
         icon: '⏰',
@@ -245,7 +256,7 @@ export const AppHome = () => {
         detail: `Podrás girar en ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`
       };
     }
-    const visitsNeeded = (state.roulette.requiredVisits ?? 3) - (state.roulette.visitsSinceLastSpin ?? 0);
+    const visitsNeeded = (state.roulette_required_visits || 3) - (state.roulette_visits_since_last_spin || 0);
     return {
       icon: '📍',
       text: 'Acumula más visitas',
@@ -253,8 +264,8 @@ export const AppHome = () => {
     };
   };
 
-  const rouletteStatus = getRouletteStatusText();
-  const canSpin = canSpinRoulette();
+  const rouletteStatus = state ? getRouletteStatusText() : { icon: '🎰', text: '', detail: '' };
+  const canSpin = state ? canSpinRoulette() : false;
 
   const formatLastVisit = (dateString) => {
     if (!dateString) return 'Nunca';
@@ -262,11 +273,35 @@ export const AppHome = () => {
     return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  if (loading) {
+    return (
+      <AppWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <p>Cargando...</p>
+          </div>
+        </Section>
+      </AppWrapper>
+    );
+  }
+
+  if (!customer || !state) {
+    return (
+      <AppWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <p>Error cargando datos del usuario</p>
+          </div>
+        </Section>
+      </AppWrapper>
+    );
+  }
+
   return (
     <AppWrapper>
       <Section>
         <WelcomeSection>
-          <h1>¡Hola, {customer?.name || 'Usuario'}! ☕</h1>
+          <h1>¡Hola, {customer.name || 'Usuario'}! ☕</h1>
           <p>Bienvenido de vuelta a tu portal LeDuo</p>
         </WelcomeSection>
 
@@ -277,7 +312,7 @@ export const AppHome = () => {
             valueColor="#FFFFFF"
           >
             <span className="icon">💰</span>
-            <div className="value">{state?.cashbackPoints ?? 0}</div>
+            <div className="value">{state.cashback_points || 0}</div>
             <div className="label">Puntos de cashback</div>
           </StatCard>
 
@@ -287,21 +322,21 @@ export const AppHome = () => {
             valueColor="#FFFFFF"
           >
             <span className="icon">🎯</span>
-            <div className="value">{(state?.stamps ?? 0)}/10</div>
+            <div className="value">{state.stamps || 0}/8</div>
             <div className="label">Sellos coleccionados</div>
           </StatCard>
 
           <StatCard>
             <span className="icon">📅</span>
             <div className="value" style={{ fontSize: '1.2rem' }}>
-              {formatLastVisit(state?.lastVisit)}
+              {formatLastVisit(state.last_visit)}
             </div>
             <div className="label">Última visita</div>
           </StatCard>
 
           <StatCard>
             <span className="icon">🔥</span>
-            <div className="value">{state?.roulette?.visitsSinceLastSpin ?? 0}</div>
+            <div className="value">{state.roulette_visits_since_last_spin || 0}</div>
             <div className="label">Visitas desde último giro</div>
           </StatCard>
         </StatsGrid>
@@ -400,9 +435,9 @@ export const AppHome = () => {
                 Tarjeta de Lealtad LeDuo
               </h3>
               <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
-                <p><strong>Nombre:</strong> {customer?.name || 'Cliente Demo'}</p>
-                <p><strong>Puntos:</strong> {(state?.cashbackPoints ?? 0)} puntos</p>
-                <p><strong>Sellos:</strong> {(state?.stamps ?? 0)} de 8</p>
+                <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
+                <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
+                <p><strong>Sellos:</strong> {state.stamps || 0} de 8</p>
               </div>
 
               {walletMessage && (

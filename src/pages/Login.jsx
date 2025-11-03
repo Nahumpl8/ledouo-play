@@ -5,8 +5,7 @@ import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
-import { authStorage } from '../lib/storage';
-import { mockAPI } from '../services/api';
+import { supabase } from '@/integrations/supabase/client';
 
 const LoginWrapper = styled.div`
   min-height: 80vh;
@@ -74,16 +73,22 @@ export const Login = () => {
     setError('');
 
     try {
-      // For demo purposes, simulate login
-      await mockAPI.login(formData);
-      
-      // Set logged in status
-      authStorage.login();
-      
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (signInError) {
+        if (signInError.message.includes('Invalid login credentials')) {
+          throw new Error('Correo o contraseña incorrectos');
+        }
+        throw signInError;
+      }
+
       // Redirect to intended page
       navigate(from, { replace: true });
     } catch (err) {
-      setError('Error al iniciar sesión. Intenta de nuevo.');
+      setError(err.message || 'Error al iniciar sesión. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -96,9 +101,17 @@ export const Login = () => {
     }));
   };
 
-  const handleDemoLogin = () => {
-    authStorage.login();
-    navigate(from, { replace: true });
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Demo login - puedes crear un usuario demo fijo o eliminarlo
+      setError('Por favor regístrate o inicia sesión con tu cuenta');
+    } catch (err) {
+      setError('Demo no disponible. Por favor regístrate o inicia sesión.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

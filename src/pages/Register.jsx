@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Select } from '../components/common/Select';
 import { Button } from '../components/common/Button';
-import { customerStorage } from '../lib/storage';
-import { mockAPI } from '../services/api';
+import { supabase } from '@/integrations/supabase/client';
 
 const RegisterWrapper = styled.div`
   min-height: 80vh;
@@ -96,11 +95,15 @@ const ErrorMessage = styled.div`
 
 export const Register = () => {
   const { code } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    sex: ''
+    sex: '',
+    dob: '',
+    password: '',
+    confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -117,21 +120,38 @@ export const Register = () => {
         throw new Error('Todos los campos son obligatorios');
       }
 
-      // Register user via API (mock)
-      const response = await mockAPI.register({
-        ...formData,
-        registrationCode: code
+      // Validate password
+      if (!formData.password || formData.password.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+
+      // Register with Supabase Auth
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name: formData.name,
+            phone: formData.phone,
+            sex: formData.sex,
+            dob: formData.dob,
+            registration_code: code || 'DIRECT'
+          }
+        }
       });
 
-      // Save to localStorage
-      customerStorage.set({
-        ...formData,
-        id: response.data.customer.id,
-        createdAt: response.data.customer.createdAt,
-        source: 'qr'
-      });
+      if (signUpError) throw signUpError;
 
       setSuccess(true);
+      
+      // Auto redirect after 3 seconds
+      setTimeout(() => {
+        navigate('/app');
+      }, 3000);
     } catch (err) {
       setError(err.message || 'Error al registrarse. Intenta de nuevo.');
     } finally {
@@ -244,6 +264,27 @@ export const Register = () => {
               value={formData.dob}
               onChange={handleChange}
               max={new Date().toISOString().split('T')[0]}
+            />
+
+            <Input
+              type="password"
+              name="password"
+              label="Contraseña"
+              placeholder="Mínimo 6 caracteres"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              minLength={6}
+            />
+
+            <Input
+              type="password"
+              name="confirmPassword"
+              label="Confirmar contraseña"
+              placeholder="Repite tu contraseña"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
             />
 
             <Button type="submit" size="lg" disabled={loading}>

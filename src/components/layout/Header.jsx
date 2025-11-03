@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Container } from '../common/Container';
 import { Button } from '../common/Button';
-import { authStorage } from '../../lib/storage';
+import { supabase } from '@/integrations/supabase/client';
 // import logo from '../../assets/images/logo-leduo.png';
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
 
@@ -117,13 +117,47 @@ const DesktopNav = styled.div`
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRoles, setUserRoles] = useState([]);
   const location = useLocation();
   const navigate = useNavigate();
-  const isLoggedIn = authStorage.isLoggedIn();
   const isAppRoute = location.pathname.startsWith('/app');
 
-  const handleLogout = () => {
-    authStorage.logout();
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+      if (session) {
+        loadUserRoles(session.user.id);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+      if (session) {
+        loadUserRoles(session.user.id);
+      } else {
+        setUserRoles([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadUserRoles = async (userId) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+    
+    if (data) {
+      setUserRoles(data.map(r => r.role));
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/');
     setMobileMenuOpen(false);
   };
@@ -131,6 +165,8 @@ export const Header = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  const isStaff = userRoles.includes('staff') || userRoles.includes('admin');
 
   return (
     <HeaderWrapper>
@@ -164,6 +200,11 @@ export const Header = () => {
                   <Button as={Link} to="/app/cuenta" variant="ghost" size="sm">
                     Mi Cuenta
                   </Button>
+                  {isStaff && (
+                    <Button as={Link} to="/app/scan" variant="ghost" size="sm">
+                      Escanear
+                    </Button>
+                  )}
                   <Button onClick={handleLogout} variant="outline" size="sm">
                     Salir
                   </Button>
@@ -199,6 +240,11 @@ export const Header = () => {
               <Button as={Link} to="/app/cuenta" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
                 Mi Cuenta
               </Button>
+              {isStaff && (
+                <Button as={Link} to="/app/scan" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+                  Escanear
+                </Button>
+              )}
               <Button onClick={handleLogout} variant="outline" size="sm" style={{width: '100%'}}>
                 Salir
               </Button>

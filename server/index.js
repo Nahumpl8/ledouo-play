@@ -51,6 +51,10 @@ app.post('/api/wallet/save', (req, res) => {
     }
 
     const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
+    const userId = customerData.id || objectIdSuffix.replace('leduo_customer_', '');
+    const stamps = customerData.stamps || 0;
+    const points = customerData.cashbackPoints || 0;
+    const customerName = customerData.name || 'Cliente LeDuo';
     const now = Math.floor(Date.now() / 1000);
 
     const claims = {
@@ -58,25 +62,108 @@ app.post('/api/wallet/save', (req, res) => {
       aud: 'google',
       typ: 'savetowallet',
       iat: now,
-      exp: now + 3600, // 1h
+      exp: now + 3600,
       payload: {
         genericObjects: [{
           id: fullObjectId,
           classId: CLASS_ID,
           state: 'ACTIVE',
-
-          // Básicos de la tarjeta
-          cardTitle: { defaultValue: { language: 'es', value: 'LeDuo Loyalty Card' } },
-          subheader: { defaultValue: { language: 'es', value: customerData.name || 'Cliente LeDuo' } },
-          header: { defaultValue: { language: 'es', value: `${customerData.cashbackPoints || 0} puntos` } },
-
-          // Logo (usa URL directa de imagen: png/jpg/webp)
-          logo: {
-            sourceUri: { uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png' },
-            contentDescription: { defaultValue: { language: 'es', value: 'Logo LeDuo' } }
+          
+          // Color beige/café
+          hexBackgroundColor: '#D4C5B9',
+          
+          // Información principal
+          cardTitle: {
+            defaultValue: {
+              language: 'es',
+              value: 'LeDuo - Tarjeta de Lealtad'
+            }
           },
-
-          // Aquí puedes agregar textModulesData, linksModuleData, barcode, colores, etc.
+          subheader: {
+            defaultValue: {
+              language: 'es',
+              value: customerName
+            }
+          },
+          header: {
+            defaultValue: {
+              language: 'es',
+              value: `${stamps}/8 sellos • ${points} pts`
+            }
+          },
+          
+          // Logo LeDuo
+          logo: {
+            sourceUri: {
+              uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png'
+            },
+            contentDescription: {
+              defaultValue: {
+                language: 'es',
+                value: 'Logo LeDuo'
+              }
+            }
+          },
+          
+          // Imagen del chef como hero
+          heroImage: {
+            sourceUri: {
+              uri: 'https://i.ibb.co/fRrrygx/sello-Leduo.png'
+            },
+            contentDescription: {
+              defaultValue: {
+                language: 'es',
+                value: 'Chef LeDuo'
+              }
+            }
+          },
+          
+          // QR único para identificar al cliente
+          barcode: {
+            type: 'QR_CODE',
+            value: `LEDUO-${userId}`,
+            alternateText: `Cliente: ${userId.substring(0, 8)}`
+          },
+          
+          // Información detallada
+          textModulesData: [
+            {
+              header: 'Puntos Acumulados',
+              body: `${points} puntos disponibles para canjear`,
+              id: 'points'
+            },
+            {
+              header: 'Progreso de Sellos',
+              body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
+              id: 'stamps'
+            },
+            {
+              header: '¿Cómo usar tu tarjeta?',
+              body: 'Muestra tu código QR en caja para acumular puntos y sellos en cada compra.',
+              id: 'instructions'
+            },
+            {
+              header: 'Beneficios',
+              body: 'Gana 1 punto por cada $10. Completa 8 sellos para un producto gratis.',
+              id: 'benefits'
+            }
+          ],
+          
+          // Enlaces útiles
+          linksModuleData: {
+            uris: [
+              {
+                uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA',
+                description: 'Cómo llegar a LeDuo',
+                id: 'location'
+              },
+              {
+                uri: 'tel:+7711295938',
+                description: 'Llamar a LeDuo',
+                id: 'phone'
+              }
+            ]
+          }
         }]
       }
     };

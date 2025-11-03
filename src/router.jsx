@@ -11,6 +11,7 @@ import { Login } from './pages/Login';
 import { AppHome } from './pages/AppHome';
 import { Roulette } from './pages/Roulette';
 import { Account } from './pages/Account';
+import { ScanPurchase } from './pages/ScanPurchase';
 import { NotFound } from './pages/NotFound';
 
 export const Router = () => {
@@ -39,6 +40,11 @@ export const Router = () => {
         <Route path="/app/cuenta" element={
           <RequireAuth>
             <Account />
+          </RequireAuth>
+        } />
+        <Route path="/app/scan" element={
+          <RequireAuth>
+            <ScanPurchase />
           </RequireAuth>
         } />
         
