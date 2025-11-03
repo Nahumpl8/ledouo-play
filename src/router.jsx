@@ -20,7 +20,7 @@ export const Router = () => {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
-        <Route path="/r/:code" element={<Register />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Auth routes */}
         <Route path="/app/login" element={<Login />} />
