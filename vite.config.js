@@ -17,8 +17,16 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "react": path.resolve(__dirname, "./node_modules/react/index.js"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom/index.js"),
+      "styled-components": path.resolve(__dirname, "./node_modules/styled-components/dist/styled-components.browser.esm.js")
+    },
     dedupe: ["react", "react-dom", "styled-components"]
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "styled-components"]
   },
   define: { 'process.env': {} },
   build: { rollupOptions: { external: [] } },
