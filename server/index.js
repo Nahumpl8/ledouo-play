@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { punchRouter } from './punchImage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,10 +18,13 @@ const isDev = process.env.NODE_ENV !== 'production';
 if (isDev) {
   app.use(cors({
     origin: ['http://localhost:8080'],
-    methods: ['POST', 'OPTIONS'],
+    methods: ['POST', 'GET', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
   }));
 }
+
+// Montar router de generación dinámica de imágenes
+app.use('/api/wallet', punchRouter);
 
 // === ENV ===
 const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL; // sa@project.iam.gserviceaccount.com
@@ -40,12 +44,10 @@ function ensureEnv(res) {
 function getStampsImageUrl(stamps) {
   const normalized = stamps % 8; // Resetear después de 8 sellos
   const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://your-production-url.com' // NOTA: Cambiar por tu URL de producción
-    : 'http://localhost:8080';
+    ? (process.env.BASE_URL || 'https://ledouo-play-production.up.railway.app')
+    : 'http://localhost:3001';
   
-  // Por ahora, usando imágenes estáticas locales
-  // TODO: Subir a ImgBB y usar URLs permanentes
-  return `${baseUrl}/wallet-stamps/stamps-${normalized}.png`;
+  return `${baseUrl}/api/wallet/punch-image?stamps=${normalized}`;
 }
 
 // === API ===
