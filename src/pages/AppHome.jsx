@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
+import { QRCodeSVG } from 'qrcode.react';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -41,7 +42,7 @@ const StatsGrid = styled.div`
   }
   
   @media (min-width: ${props => props.theme.breakpoints.desktop}) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 `;
 
@@ -349,6 +350,25 @@ export const AppHome = () => {
             <span className="icon">🔥</span>
             <div className="value">{state.roulette_visits_since_last_spin || 0}</div>
             <div className="label">Visitas desde último giro</div>
+          </StatCard>
+
+          <StatCard>
+            <span className="icon">🎫</span>
+            <div style={{ 
+              background: 'white', 
+              padding: '16px', 
+              borderRadius: '12px',
+              display: 'inline-block',
+              margin: '12px auto'
+            }}>
+              <QRCodeSVG 
+                value={`LEDUO-${customer?.id || ''}`}
+                size={120}
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            <div className="label">Tu código QR</div>
           </StatCard>
         </StatsGrid>
 
