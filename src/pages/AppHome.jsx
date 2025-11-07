@@ -9,6 +9,9 @@ import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { supabase } from '@/integrations/supabase/client';
 import { addToGoogleWallet, demoAddToGoogleWallet, getConfigurationStatus } from '../services/googleWallet';
+const STAMP_OPAQUE_URL = 'https://i.ibb.co/spTjj1x4/le-Duo-Stamps.png';
+const STAMP_COLOR_URL = 'https://i.ibb.co/3YRsZfBC/le-Duo-Stamps-1.png';
+
 
 const AppWrapper = styled.div`
   min-height: 80vh;
@@ -146,6 +149,30 @@ const RouletteStatus = styled.div`
   }
 `;
 
+const StampsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 260px;
+  margin: 12px auto 6px;
+`;
+
+const StampItem = styled.div`
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  background-image: url(${props => props.$filled ? STAMP_COLOR_URL : STAMP_OPAQUE_URL});
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+  transition: transform .2s ease, filter .2s ease;
+
+  /* toque sutil al llenar */
+  ${props => props.$justFilled && `
+    animation: pop .28s ease;
+    @keyframes pop { 0%{transform:scale(.85);opacity:.6} 100%{transform:scale(1);opacity:1} }
+  `}
+`;
+
 export const AppHome = () => {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState('');
@@ -162,7 +189,7 @@ export const AppHome = () => {
   const loadCustomerData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         setLoading(false);
         return;
@@ -308,13 +335,27 @@ export const AppHome = () => {
 
         <StatsGrid>
           <StatCard
-            gradient="linear-gradient(135deg, #686145, #919888)"
+            gradient="linear-gradient(135deg, #919888, #B3B792)"
             textColor="#FFFFFF"
             valueColor="#FFFFFF"
           >
-            <span className="icon">💰</span>
-            <div className="value">{state.cashback_points || 0}</div>
-            <div className="label">Puntos de cashback</div>
+            <span className="icon">🎯</span>
+
+            {/* Grid 4x2 de sellos */}
+            <StampsGrid aria-label={`Sellos coleccionados: ${state.stamps || 0} de 8`}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <StampItem
+                  key={i}
+                  $filled={i < (state.stamps || 0)}
+                  $justFilled={i === (state.stamps || 0) - 1}
+                  role="img"
+                  aria-label={i < (state.stamps || 0) ? 'Sello ganado' : 'Sello pendiente'}
+                />
+              ))}
+            </StampsGrid>
+
+            <div className="value">{state.stamps || 0}/8</div>
+            <div className="label">Sellos coleccionados</div>
           </StatCard>
 
           <StatCard
@@ -323,12 +364,12 @@ export const AppHome = () => {
             valueColor="#FFFFFF"
           >
             <span className="icon">🎯</span>
-            <img 
+            <img
               src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/wallet/punch-image?stamps=${state.stamps || 0}`}
               alt="Progreso de sellos"
-              style={{ 
-                width: '100%', 
-                maxWidth: '250px', 
+              style={{
+                width: '100%',
+                maxWidth: '250px',
                 margin: '12px auto',
                 display: 'block',
                 borderRadius: '8px'
