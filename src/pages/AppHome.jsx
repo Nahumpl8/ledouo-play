@@ -358,26 +358,6 @@ export const AppHome = () => {
             <div className="label">Sellos coleccionados</div>
           </StatCard>
 
-          <StatCard
-            gradient="linear-gradient(135deg, #919888, #B3B792)"
-            textColor="#FFFFFF"
-            valueColor="#FFFFFF"
-          >
-            <span className="icon">🎯</span>
-            <img
-              src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/wallet/punch-image?stamps=${state.stamps || 0}`}
-              alt="Progreso de sellos"
-              style={{
-                width: '100%',
-                maxWidth: '250px',
-                margin: '12px auto',
-                display: 'block',
-                borderRadius: '8px'
-              }}
-            />
-            <div className="value">{state.stamps || 0}/8</div>
-            <div className="label">Sellos coleccionados</div>
-          </StatCard>
 
           <StatCard>
             <span className="icon">📅</span>
