@@ -43,9 +43,10 @@ function ensureEnv(res) {
 // Función para obtener la URL de la imagen de sellos según el progreso
 function getStampsImageUrl(stamps) {
   const normalized = stamps % 8; // Resetear después de 8 sellos
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? (process.env.BASE_URL || 'https://ledouo-play-production.up.railway.app')
-    : 'http://localhost:3001';
+  const baseUrl = process.env.PUBLIC_BASE_URL || 
+    (process.env.NODE_ENV === 'production' 
+      ? 'https://ledouo-play-production.up.railway.app'
+      : 'http://localhost:3001');
   
   return `${baseUrl}/api/wallet/punch-image?stamps=${normalized}`;
 }
@@ -56,18 +57,21 @@ app.post('/api/wallet/save', (req, res) => {
     if (!ensureEnv(res)) return;
 
     const { objectIdSuffix, customerData = {} } = req.body || {};
-    if (!objectIdSuffix) {
+    
+    // Validar campos requeridos
+    if (!objectIdSuffix || !customerData.id) {
       return res.status(400).json({
-        error: 'Falta objectIdSuffix',
-        received: req.body,
-        hint: 'El cliente debe mandar { objectIdSuffix, customerData }'
+        error: 'Faltan campos requeridos',
+        required: ['objectIdSuffix', 'customerData.id'],
+        received: { objectIdSuffix, customerId: customerData.id }
       });
     }
 
+    // Normalizar datos
     const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
-    const userId = customerData.id || objectIdSuffix.replace('leduo_customer_', '');
-    const stamps = customerData.stamps || 0;
-    const points = customerData.cashbackPoints || 0;
+    const userId = String(customerData.id);
+    const stamps = Math.max(0, parseInt(customerData.stamps) || 0);
+    const points = Math.max(0, parseInt(customerData.cashbackPoints) || 0);
     const customerName = customerData.name || 'Cliente LeDuo';
     const now = Math.floor(Date.now() / 1000);
 
@@ -78,88 +82,69 @@ app.post('/api/wallet/save', (req, res) => {
       iat: now,
       exp: now + 3600,
       payload: {
-        genericObjects: [{
+        loyaltyObjects: [{
           id: fullObjectId,
           classId: CLASS_ID,
           state: 'ACTIVE',
           
+          // Campos requeridos de Loyalty
+          accountId: String(userId),
+          accountName: customerName,
+          
+          // Puntos de lealtad
+          loyaltyPoints: {
+            label: 'Puntos',
+            balance: {
+              string: String(points)
+            }
+          },
+          
           // Color beige/café
           hexBackgroundColor: '#D4C5B9',
-          
-          // Información principal
-          cardTitle: {
-            defaultValue: {
-              language: 'es',
-              value: 'LeDuo - Tarjeta de Lealtad'
-            }
-          },
-          subheader: {
-            defaultValue: {
-              language: 'es',
-              value: customerName
-            }
-          },
-          header: {
-            defaultValue: {
-              language: 'es',
-              value: `${stamps}/8 sellos • ${points} pts`
-            }
-          },
           
           // Logo LeDuo
           logo: {
             sourceUri: {
               uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png'
-            },
-            contentDescription: {
-              defaultValue: {
-                language: 'es',
-                value: 'Logo LeDuo'
-              }
-            }
-          },
-          
-          // Grid de chefs mostrando progreso de sellos
-          heroImage: {
-            sourceUri: {
-              uri: getStampsImageUrl(stamps)
-            },
-            contentDescription: {
-              defaultValue: {
-                language: 'es',
-                value: `Progreso: ${stamps % 8} de 8 sellos completados`
-              }
             }
           },
           
           // QR único para identificar al cliente
           barcode: {
             type: 'QR_CODE',
-            value: `LEDUO-${userId}`,
-            alternateText: `Cliente: ${userId.substring(0, 8)}`
+            value: `leduo:${userId}`,
+            alternateText: String(userId).substring(0, 8)
           },
           
-          // Información detallada
+          // Módulos de texto
           textModulesData: [
             {
-              header: 'Puntos Acumulados',
-              body: `${points} puntos disponibles para canjear`,
-              id: 'points'
+              id: 'stamps_progress',
+              header: 'Sellos',
+              body: `${stamps}/8`
             },
             {
-              header: 'Progreso de Sellos',
-              body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
-              id: 'stamps'
-            },
+              id: 'program_name',
+              header: 'Programa',
+              body: 'LeDuo Rewards'
+            }
+          ],
+          
+          // Imagen dinámica de sellos
+          imageModulesData: [
             {
-              header: '¿Cómo usar tu tarjeta?',
-              body: 'Muestra tu código QR en caja para acumular puntos y sellos en cada compra.',
-              id: 'instructions'
-            },
-            {
-              header: 'Beneficios',
-              body: 'Gana 1 punto por cada $10. Completa 8 sellos para un producto gratis.',
-              id: 'benefits'
+              id: 'stamps_grid',
+              mainImage: {
+                sourceUri: {
+                  uri: getStampsImageUrl(stamps)
+                },
+                contentDescription: {
+                  defaultValue: {
+                    language: 'es',
+                    value: 'Progreso de sellos'
+                  }
+                }
+              }
             }
           ],
           
@@ -187,7 +172,11 @@ app.post('/api/wallet/save', (req, res) => {
     res.json({ saveUrl, objectId: fullObjectId });
   } catch (err) {
     console.error('Wallet save error:', err);
-    res.status(500).json({ error: 'No se pudo generar el token de Wallet' });
+    const detail = err instanceof Error ? err.message : 'Error desconocido';
+    res.status(502).json({ 
+      error: 'No se pudo generar el token de Wallet',
+      details: detail
+    });
   }
 });
 

@@ -173,7 +173,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in register-purchase:', error)
     return new Response(
-      JSON.stringify({ error: 'Error interno del servidor', details: error.message }),
+      JSON.stringify({ error: 'Error interno del servidor', details: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
