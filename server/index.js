@@ -25,14 +25,15 @@ if (isDev) {
   );
 }
 
-// Router para imágenes dinámicas de sellos
+// Router para imágenes dinámicas (lo dejamos por compatibilidad)
+// Si nos pasas 0-sellos.png, podemos quitar este fallback.
 app.use('/api/wallet', punchRouter);
 
 // ===== ENV =====
 const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL; // sa@project.iam.gserviceaccount.com
 const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n'); // manejar \n escapados
 const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID; // p.ej. 3388...
-const CLASS_ID = process.env.GOOGLE_WALLET_CLASS_ID; // p.ej. 3388....leduo_loyalty_class
+const CLASS_ID = process.env.GOOGLE_WALLET_CLASS_ID;   // p.ej. 3388....leduo_loyalty_class
 const PUBLIC_BASE_URL =
   process.env.PUBLIC_BASE_URL ||
   (isDev ? 'http://localhost:3001' : 'https://ledouo-play-production.up.railway.app');
@@ -45,11 +46,28 @@ function ensureEnv(res) {
   return true;
 }
 
-// URL de imagen de sellos (acepta variantes)
-function getStampsImageUrl(stamps, variant = 'module') {
-  const normalized = (parseInt(stamps, 10) || 0) % 8; // 0..7 (muestra progreso 0..8)
-  // variant: 'hero' (tira horizontal) | 'module' (imagen grande al final)
-  return `${PUBLIC_BASE_URL}/api/wallet/punch-image?stamps=${normalized}&variant=${variant}`;
+/**
+ * Mapa de sprites estáticos por número de sellos (1–8).
+ * Para 0 sellos hacemos fallback a la imagen dinámica actual.
+ * Si tienes un PNG de “0-sellos”, pégalo aquí y quitamos el fallback.
+ */
+const STAMP_SPRITES = {
+  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
+  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
+  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
+  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
+  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
+  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
+  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
+  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
+  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+};
+
+// Devuelve la URL final del sprite según sellos (0–8)
+function getStampsSpriteUrl(stamps) {
+  const n = Math.max(0, Math.min(8, parseInt(stamps, 10) || 0));
+  const bust = `v=${n}-${Date.now()}`;           // cache-busting
+  return `${STAMP_SPRITES[n]}?${bust}`;
 }
 
 // ===== API: generar Save URL =====
@@ -73,6 +91,8 @@ app.post('/api/wallet/save', (req, res) => {
     const points = Math.max(0, parseInt(customerData.cashbackPoints) || 0);
     const customerName = customerData.name || 'Cliente LeDuo';
     const now = Math.floor(Date.now() / 1000);
+
+    const spriteUrl = getStampsSpriteUrl(stamps);
 
     // Payload JWT para Loyalty Objects
     const claims = {
@@ -103,15 +123,15 @@ app.post('/api/wallet/save', (req, res) => {
               sourceUri: { uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png' },
             },
 
-            // HERO arriba: tira con 8 sellos
+            // Imagen superior (hero) con el sprite correspondiente
             heroImage: {
-              sourceUri: { uri: getStampsImageUrl(stamps, 'hero') },
+              sourceUri: { uri: spriteUrl },
               contentDescription: {
                 defaultValue: { language: 'es', value: 'Sellos acumulados' },
               },
             },
 
-            // Código QR para identificar cliente en caja
+            // Código QR para identificar al cliente en caja
             barcode: {
               type: 'QR_CODE',
               value: `leduo:${userId}`,
@@ -120,16 +140,16 @@ app.post('/api/wallet/save', (req, res) => {
 
             // Textos
             textModulesData: [
-              { id: 'stamps_progress', header: 'Sellos', body: `${stamps}/8` },
+              { id: 'stamps_progress', header: 'Sellos', body: `${Math.min(stamps, 8)}/8` },
               { id: 'program_name', header: 'Programa', body: 'LeDuo Rewards' },
             ],
 
-            // (Opcional) Imagen grande al final: cuadrícula 4x2
+            // Imagen grande al final (misma que hero, para consistencia)
             imageModulesData: [
               {
                 id: 'stamps_grid_big',
                 mainImage: {
-                  sourceUri: { uri: getStampsImageUrl(stamps, 'module') },
+                  sourceUri: { uri: spriteUrl },
                   contentDescription: {
                     defaultValue: { language: 'es', value: 'Progreso de sellos' },
                   },

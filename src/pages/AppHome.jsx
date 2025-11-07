@@ -8,10 +8,25 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { supabase } from '@/integrations/supabase/client';
-import { addToGoogleWallet, demoAddToGoogleWallet, getConfigurationStatus } from '../services/googleWallet';
-const STAMP_OPAQUE_URL = 'https://i.ibb.co/spTjj1x4/le-Duo-Stamps.png';
-const STAMP_COLOR_URL = 'https://i.ibb.co/3YRsZfBC/le-Duo-Stamps-1.png';
+import { addToGoogleWallet } from '../services/googleWallet';
 
+// Sprites estáticos 0..8 sellos (tus imágenes)
+const STAMP_SPRITES = {
+  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
+  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
+  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
+  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
+  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
+  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
+  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
+  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
+  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+};
+
+function getSpriteByStamps(stampsRaw) {
+  const n = Math.max(0, Math.min(8, parseInt(stampsRaw || 0, 10)));
+  return STAMP_SPRITES[n] || STAMP_SPRITES[0];
+}
 
 const AppWrapper = styled.div`
   min-height: 80vh;
@@ -147,30 +162,6 @@ const RouletteStatus = styled.div`
     font-size: 0.9rem;
     opacity: 0.8;
   }
-`;
-
-const StampsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  max-width: 260px;
-  margin: 12px auto 6px;
-`;
-
-const StampItem = styled.div`
-  aspect-ratio: 1 / 1;
-  border-radius: 999px;
-  background-image: url(${props => props.$filled ? STAMP_COLOR_URL : STAMP_OPAQUE_URL});
-  background-size: cover;
-  background-position: center;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
-  transition: transform .2s ease, filter .2s ease;
-
-  /* toque sutil al llenar */
-  ${props => props.$justFilled && `
-    animation: pop .28s ease;
-    @keyframes pop { 0%{transform:scale(.85);opacity:.6} 100%{transform:scale(1);opacity:1} }
-  `}
 `;
 
 export const AppHome = () => {
@@ -325,6 +316,8 @@ export const AppHome = () => {
     );
   }
 
+  const stampsSafe = Math.max(0, Math.min(8, state.stamps || 0));
+
   return (
     <AppWrapper>
       <Section>
@@ -334,6 +327,7 @@ export const AppHome = () => {
         </WelcomeSection>
 
         <StatsGrid>
+          {/* Card de Sellos con sprite */}
           <StatCard
             gradient="linear-gradient(135deg, #919888, #B3B792)"
             textColor="#FFFFFF"
@@ -341,23 +335,23 @@ export const AppHome = () => {
           >
             <span className="icon">🎯</span>
 
-            {/* Grid 4x2 de sellos */}
-            <StampsGrid aria-label={`Sellos coleccionados: ${state.stamps || 0} de 8`}>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <StampItem
-                  key={i}
-                  $filled={i < (state.stamps || 0)}
-                  $justFilled={i === (state.stamps || 0) - 1}
-                  role="img"
-                  aria-label={i < (state.stamps || 0) ? 'Sello ganado' : 'Sello pendiente'}
-                />
-              ))}
-            </StampsGrid>
+            {/* Sprite de sellos (0..8) */}
+            <img
+              src={getSpriteByStamps(stampsSafe)}
+              alt={`Progreso de sellos: ${stampsSafe} de 8`}
+              style={{
+                width: '100%',
+                maxWidth: 280,
+                display: 'block',
+                margin: '12px auto 6px',
+                borderRadius: 8,
+                background: '#fff'
+              }}
+            />
 
-            <div className="value">{state.stamps || 0}/8</div>
+            <div className="value">{stampsSafe}/8</div>
             <div className="label">Sellos coleccionados</div>
           </StatCard>
-
 
           <StatCard>
             <span className="icon">📅</span>
@@ -383,7 +377,7 @@ export const AppHome = () => {
               margin: '12px auto'
             }}>
               <QRCodeSVG 
-                value={`LEDUO-${customer?.id || ''}`}
+                value={`leduo:${customer?.id || ''}`}
                 size={120}
                 level="H"
                 includeMargin={false}
@@ -489,7 +483,7 @@ export const AppHome = () => {
               <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
                 <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
                 <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
-                <p><strong>Sellos:</strong> {state.stamps || 0} de 8</p>
+                <p><strong>Sellos:</strong> {stampsSafe} de 8</p>
               </div>
 
               {walletMessage && (

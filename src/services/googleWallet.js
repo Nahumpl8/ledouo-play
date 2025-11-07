@@ -3,13 +3,21 @@
 
 export const GOOGLE_WALLET_API_PATH = '/api/wallet/save';
 
+// === Versión del diseño del pase ===
+// Sube a 'v3', 'v4', ... si cambias estructura/imagenes y quieres que
+// los usuarios generen un pase nuevo (evita ver el diseño viejo en Wallet).
+const DESIGN_VERSION = 'v2';
+
 // Detecta si estamos en navegador
 const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 // Referencia segura a crypto del navegador (o null si no hay)
-const webCrypto = (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function')
-  ? globalThis.crypto
-  : null;
+const webCrypto =
+  typeof globalThis !== 'undefined' &&
+  globalThis.crypto &&
+  typeof globalThis.crypto.getRandomValues === 'function'
+    ? globalThis.crypto
+    : null;
 
 /**
  * Genera un sufijo aleatorio hex (seguro en navegador, fallback en Node/SSR).
@@ -19,12 +27,16 @@ function randomSuffix(len = 8) {
   if (webCrypto) {
     const bytes = new Uint8Array(len);
     webCrypto.getRandomValues(bytes);
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
   }
   // Fallback no-cripto (para SSR/tests, no se usa para seguridad real)
   let out = '';
   for (let i = 0; i < len; i++) {
-    out += Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+    out += Math.floor(Math.random() * 256)
+      .toString(16)
+      .padStart(2, '0');
   }
   return out;
 }
@@ -38,7 +50,7 @@ function normalizeCustomerData(data = {}) {
     name: data.name ?? 'Cliente LeDuo',
     cashbackPoints: Number.isFinite(+data.cashbackPoints) ? +data.cashbackPoints : 0,
     stamps: Number.isFinite(+data.stamps) ? +data.stamps : 0,
-    createdAt: data.createdAt ?? Date.now()
+    createdAt: data.createdAt ?? Date.now(),
   };
 }
 
@@ -49,8 +61,10 @@ function normalizeCustomerData(data = {}) {
 export async function buildSaveUrl(customerData) {
   const safe = normalizeCustomerData(customerData || {});
   const payload = {
-    objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}`,
-    customerData: safe
+    // IMPORTANTE: versionamos el objectIdSuffix para forzar un pase nuevo
+    // y así el usuario vea el diseño/sprites nuevos.
+    objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}_${DESIGN_VERSION}`,
+    customerData: safe,
   };
 
   let res;
@@ -58,18 +72,20 @@ export async function buildSaveUrl(customerData) {
     res = await fetch(GOOGLE_WALLET_API_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
   } catch (err) {
     throw new Error(
       'No se pudo contactar al servidor. ' +
-      'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
+        'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
     );
   }
 
   if (!res.ok) {
     let detail = '';
-    try { detail = await res.text(); } catch { }
+    try {
+      detail = await res.text();
+    } catch {}
     throw new Error(`No se pudo generar el pase (HTTP ${res.status}). ${detail}`.trim());
   }
 
@@ -106,11 +122,11 @@ export async function addToGoogleWallet(customerData = {}) {
  * Modo demo (no contacta backend).
  */
 export async function demoAddToGoogleWallet() {
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise((r) => setTimeout(r, 800));
   return {
     success: true,
     message: 'Demo: Tarjeta simulada (requiere backend para funcionar de verdad).',
-    demo: true
+    demo: true,
   };
 }
 
