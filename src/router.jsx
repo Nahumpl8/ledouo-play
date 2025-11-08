@@ -13,6 +13,7 @@ import { Roulette } from './pages/Roulette';
 import { Account } from './pages/Account';
 import { ScanPurchase } from './pages/ScanPurchase';
 import { NotFound } from './pages/NotFound';
+import MenuLeDuo from './pages/MenuLeDuo';
 
 export const Router = () => {
   return (
@@ -25,7 +26,7 @@ export const Router = () => {
 
         {/* Auth routes */}
         <Route path="/app/login" element={<Login />} />
-        
+
         {/* Protected routes */}
         <Route path="/app" element={
           <RequireAuth>
@@ -47,7 +48,8 @@ export const Router = () => {
             <ScanPurchase />
           </RequireAuth>
         } />
-        
+        <Route path="/menu" element={<MenuLeDuo />} />
+
         {/* Catch all */}
         <Route path="*" element={<NotFound />} />
       </Routes>

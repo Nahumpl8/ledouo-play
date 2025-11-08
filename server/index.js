@@ -36,7 +36,7 @@ const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID; // p.ej. 3388...
 const CLASS_ID = process.env.GOOGLE_WALLET_CLASS_ID;   // p.ej. 3388....leduo_loyalty_class
 const PUBLIC_BASE_URL =
   process.env.PUBLIC_BASE_URL ||
-  (isDev ? 'http://localhost:3001' : 'https://ledouo-play-production.up.railway.app');
+  (isDev ? 'http://localhost:3001' : 'https://www.leduo.mx');
 
 function ensureEnv(res) {
   if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY || !ISSUER_ID || !CLASS_ID) {
@@ -100,79 +100,67 @@ app.post('/api/wallet/save', (req, res) => {
       aud: 'google',
       typ: 'savetowallet',
       iat: now,
-      exp: now + 3600, // 1h
+      exp: now + 3600,
       payload: {
         loyaltyObjects: [
           {
-            id: fullObjectId,
-            classId: CLASS_ID,
+            id: fullObjectId,         // `${ISSUER_ID}.${objectIdSuffix}`
+            classId: CLASS_ID,        // debe ser `${ISSUER_ID}.algo`
             state: 'ACTIVE',
 
-            // Requeridos por Loyalty
+            // Requeridos por Loyalty Object
             accountId: userId,
             accountName: customerName,
 
             loyaltyPoints: {
               label: 'Puntos',
-              balance: { string: String(points) },
+              balance: { string: String(points) }
             },
 
-            // Colores y branding
+            // Branding básico permitido en object
             hexBackgroundColor: '#D4C5B9',
-            logo: {
-              sourceUri: { uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png' },
-            },
+            logo: { sourceUri: { uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png' } },
 
-            // Imagen superior (hero) con el sprite correspondiente
-            heroImage: {
-              sourceUri: { uri: spriteUrl },
-              contentDescription: {
-                defaultValue: { language: 'es', value: 'Sellos acumulados' },
-              },
-            },
-
-            // Código QR para identificar al cliente en caja
+            // QR
             barcode: {
               type: 'QR_CODE',
               value: `leduo:${userId}`,
-              alternateText: userId.slice(0, 8),
+              alternateText: userId.slice(0, 8)
             },
 
-            // Textos
+            // Texto
             textModulesData: [
               { id: 'stamps_progress', header: 'Sellos', body: `${Math.min(stamps, 8)}/8` },
-              { id: 'program_name', header: 'Programa', body: 'LeDuo Rewards' },
+              { id: 'program_name', header: 'Programa', body: 'LeDuo Rewards' }
             ],
 
-            // Imagen grande al final (misma que hero, para consistencia)
+            // ← AQUI VA LA IMAGEN DE SELLOS (sprite por número)
             imageModulesData: [
               {
                 id: 'stamps_grid_big',
                 mainImage: {
                   sourceUri: { uri: spriteUrl },
                   contentDescription: {
-                    defaultValue: { language: 'es', value: 'Progreso de sellos' },
-                  },
-                },
-              },
+                    defaultValue: { language: 'es', value: 'Progreso de sellos' }
+                  }
+                }
+              }
             ],
 
-            // Enlaces útiles
+            // Links opcionales (no deberían romper)
             linksModuleData: {
               uris: [
-                {
-                  uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA',
-                  description: 'Cómo llegar a LeDuo',
-                  id: 'location',
-                },
+                { uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA', description: 'Cómo llegar a LeDuo', id: 'location' },
                 { uri: 'tel:+7711295938', description: 'Llamar a LeDuo', id: 'phone' },
-                { uri: 'https://leduo.mx', description: 'Sitio web', id: 'website' },
-              ],
-            },
-          },
-        ],
-      },
+                { uri: 'https://leduo.mx', description: 'Sitio web', id: 'website' }
+              ]
+            }
+          }
+        ]
+      }
     };
+
+
 
     const token = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
