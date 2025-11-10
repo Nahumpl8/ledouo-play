@@ -3,15 +3,13 @@
 
 export const GOOGLE_WALLET_API_PATH = '/api/wallet/save';
 
-// === Versión del diseño del pase ===
-// Sube a 'v3', 'v4', ... si cambias estructura/imagenes y quieres que
-// los usuarios generen un pase nuevo (evita ver el diseño viejo en Wallet).
+// Versiona el diseño para forzar un pase nuevo si cambias estructura/imagenes
 const DESIGN_VERSION = 'v2';
 
-// Detecta si estamos en navegador
+// Detección de entorno navegador
 const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
 
-// Referencia segura a crypto del navegador (o null si no hay)
+// crypto seguro del navegador (si existe)
 const webCrypto =
   typeof globalThis !== 'undefined' &&
   globalThis.crypto &&
@@ -19,31 +17,22 @@ const webCrypto =
     ? globalThis.crypto
     : null;
 
-/**
- * Genera un sufijo aleatorio hex (seguro en navegador, fallback en Node/SSR).
- * @param {number} len - bytes (cada byte => 2 chars hex)
- */
+/** Genera un sufijo aleatorio hex (seguro en navegador, fallback simple en SSR). */
 function randomSuffix(len = 8) {
   if (webCrypto) {
     const bytes = new Uint8Array(len);
     webCrypto.getRandomValues(bytes);
-    return Array.from(bytes)
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
   }
-  // Fallback no-cripto (para SSR/tests, no se usa para seguridad real)
+  // Fallback no-críptico (solo para SSR/tests)
   let out = '';
   for (let i = 0; i < len; i++) {
-    out += Math.floor(Math.random() * 256)
-      .toString(16)
-      .padStart(2, '0');
+    out += Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
   }
   return out;
 }
 
-/**
- * Normaliza datos del cliente para evitar undefineds en el server.
- */
+/** Normaliza datos del cliente para evitar undefineds en el server. */
 function normalizeCustomerData(data = {}) {
   return {
     id: data.id ?? null,
@@ -54,15 +43,11 @@ function normalizeCustomerData(data = {}) {
   };
 }
 
-/**
- * Pide al servidor la URL "Guardar en Google Wallet".
- * @returns {Promise<string>} saveUrl
- */
+/** Llama al backend y obtiene el saveUrl para Google Wallet. */
 export async function buildSaveUrl(customerData) {
   const safe = normalizeCustomerData(customerData || {});
   const payload = {
-    // IMPORTANTE: versionamos el objectIdSuffix para forzar un pase nuevo
-    // y así el usuario vea el diseño/sprites nuevos.
+    // versionamos para que el usuario vea siempre el diseño más nuevo
     objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}_${DESIGN_VERSION}`,
     customerData: safe,
   };
@@ -77,15 +62,13 @@ export async function buildSaveUrl(customerData) {
   } catch (err) {
     throw new Error(
       'No se pudo contactar al servidor. ' +
-        'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
+      'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
     );
   }
 
   if (!res.ok) {
     let detail = '';
-    try {
-      detail = await res.text();
-    } catch {}
+    try { detail = await res.text(); } catch {}
     throw new Error(`No se pudo generar el pase (HTTP ${res.status}). ${detail}`.trim());
   }
 
@@ -96,33 +79,48 @@ export async function buildSaveUrl(customerData) {
   return data.saveUrl;
 }
 
-/**
- * Abre la URL en popup si hay window; si no, hace fallback a cambiar location (o no hace nada en SSR).
- */
-function safeOpen(url) {
-  if (!IS_BROWSER) return false;
-  const w = window.open(url, '_blank', 'width=420,height=740');
-  if (!w) {
-    window.location.href = url;
-    return false;
+/** Pre-abre un popup inmediatamente (para conservar el “user gesture”). */
+function preopenPopup() {
+  if (!IS_BROWSER) return null;
+  const w = window.open('', '_blank', 'width=420,height=740');
+  if (w) {
+    try {
+      w.document.write(
+        '<!doctype html><title>LeDuo</title>' +
+        '<div style="font:14px system-ui;margin:16px">Abriendo Google Wallet…</div>'
+      );
+    } catch {}
   }
-  return true;
+  return w;
 }
 
-/**
- * Flujo completo para añadir a Google Wallet (cliente).
- */
+/** Flujo completo para añadir a Google Wallet con popup preabierto. */
 export async function addToGoogleWallet(customerData = {}) {
-  const url = await buildSaveUrl(customerData);
-  safeOpen(url);
-  return { success: true, url };
+  // 1) abrir ventana inmediatamente
+  const popup = preopenPopup();
+
+  try {
+    // 2) obtener URL del backend
+    const url = await buildSaveUrl(customerData);
+
+    // 3) usar el popup si existe; si no, navegar en esta pestaña
+    if (popup && !popup.closed) {
+      popup.location.replace(url);
+    } else if (IS_BROWSER) {
+      window.location.href = url;
+    }
+
+    return { success: true, url, usedPopup: !!popup };
+  } catch (error) {
+    // cerrar popup si hubo error
+    if (popup && !popup.closed) popup.close();
+    throw error;
+  }
 }
 
-/**
- * Modo demo (no contacta backend).
- */
+/** Modo demo (no contacta backend). */
 export async function demoAddToGoogleWallet() {
-  await new Promise((r) => setTimeout(r, 800));
+  await new Promise(r => setTimeout(r, 800));
   return {
     success: true,
     message: 'Demo: Tarjeta simulada (requiere backend para funcionar de verdad).',
@@ -130,6 +128,7 @@ export async function demoAddToGoogleWallet() {
   };
 }
 
+/** Estado de configuración (placeholder). */
 export function getConfigurationStatus() {
   return { configured: true, missingCredentials: [] };
 }
