@@ -162,7 +162,10 @@ app.post('/api/wallet/save', (req, res) => {
 
 
 
-    const token = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
+    const token = jwt.sign(claims, PRIVATE_KEY, {
+      algorithm: 'RS256',
+      keyid: process.env.WALLET_PRIVATE_KEY, // <-- añade esto
+    }); 
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
     res.json({ saveUrl, objectId: fullObjectId });
   } catch (err) {
