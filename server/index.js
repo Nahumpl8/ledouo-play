@@ -31,7 +31,7 @@ app.use('/api/wallet', punchRouter);
 
 // ===== ENV =====
 const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL; // sa@project.iam.gserviceaccount.com
-const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n'); // manejar \n escapados
+const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n').trim();
 const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID; // p.ej. 3388...
 const CLASS_ID = process.env.GOOGLE_WALLET_CLASS_ID;   // p.ej. 3388....leduo_loyalty_class
 const PUBLIC_BASE_URL =
@@ -163,9 +163,8 @@ app.post('/api/wallet/save', (req, res) => {
 
 
     const token = jwt.sign(claims, PRIVATE_KEY, {
-      algorithm: 'RS256',
-      keyid: process.env.WALLET_PRIVATE_KEY, // <-- añade esto
-    }); 
+      algorithm: 'RS256'
+    });
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
     res.json({ saveUrl, objectId: fullObjectId });
   } catch (err) {
