@@ -1,7 +1,7 @@
 // src/services/googleWallet.js
-// Cliente: NO uses 'jsonwebtoken' aquí. Este módulo llama a /api/wallet/save en tu backend.
+// Cliente: Llama a la Edge Function de Supabase para generar el saveUrl de Google Wallet
 
-export const GOOGLE_WALLET_API_PATH = '/api/wallet/save';
+import { supabase } from '@/integrations/supabase/client';
 
 // Versiona el diseño para forzar un pase nuevo si cambias estructura/imagenes
 const DESIGN_VERSION = 'v3';
@@ -51,23 +51,14 @@ function normalizeCustomerData(data = {}) {
 }
 
 /**
- * Llama al backend y obtiene el saveUrl para Google Wallet.
+ * Llama a la Edge Function de Supabase y obtiene el saveUrl para Google Wallet.
  * @param {object} customerData
  * @param {object} [options]
- * @param {number} [options.stage] 1..5 para depurar payload por etapas (server debe soportarlo)
+ * @param {number} [options.stage] 1..5 para depurar payload por etapas (no usado actualmente)
  * @returns {Promise<string>} saveUrl
  */
 export async function buildSaveUrl(customerData, options = {}) {
   const safe = normalizeCustomerData(customerData || {});
-  const query = new URLSearchParams();
-
-  if (options.stage && Number.isFinite(+options.stage)) {
-    query.set('stage', String(options.stage));
-  }
-
-  const endpoint = query.toString()
-    ? `${GOOGLE_WALLET_API_PATH}?${query.toString()}`
-    : GOOGLE_WALLET_API_PATH;
 
   const payload = {
     // versionamos para que el usuario vea siempre el diseño más nuevo
@@ -75,31 +66,31 @@ export async function buildSaveUrl(customerData, options = {}) {
     customerData: safe,
   };
 
-  let res;
   try {
-    res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    console.log('📱 Llamando a Edge Function google-wallet-save...');
+    
+    const { data, error } = await supabase.functions.invoke('google-wallet-save', {
+      body: payload,
     });
+
+    if (error) {
+      console.error('❌ Error de Edge Function:', error);
+      throw new Error(`Error al generar el pase: ${error.message}`);
+    }
+
+    if (!data || !data.saveUrl) {
+      console.error('❌ Respuesta inválida:', data);
+      throw new Error('Respuesta del servidor inválida: falta saveUrl.');
+    }
+
+    console.log('✅ saveUrl generado correctamente');
+    return data.saveUrl;
   } catch (err) {
+    console.error('❌ Error en buildSaveUrl:', err);
     throw new Error(
-      'No se pudo contactar al servidor. ' +
-      'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
+      `No se pudo generar el pase de Google Wallet: ${err.message}`
     );
   }
-
-  if (!res.ok) {
-    let detail = '';
-    try { detail = await res.text(); } catch {}
-    throw new Error(`No se pudo generar el pase (HTTP ${res.status}). ${detail}`.trim());
-  }
-
-  const data = await res.json();
-  if (!data || !data.saveUrl) {
-    throw new Error('Respuesta del servidor inválida: falta saveUrl.');
-  }
-  return data.saveUrl;
 }
 
 /**
