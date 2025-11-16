@@ -142,8 +142,6 @@ serve(async (req) => {
       aud: "google",
       typ: "savetowallet",
       iat: now,
-      exp: now + 3600,
-      origins: ["https://www.leduo.mx", "http://localhost:8080"],
       payload: { loyaltyObjects: [loyaltyObject] },
     };
 
