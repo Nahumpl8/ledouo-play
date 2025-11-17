@@ -163,6 +163,7 @@ serve(async (req) => {
     return json({ ok: true, saveUrl, objectId: fullObjectId });
   } catch (err) {
     console.error("❌ Wallet save error:", err);
-    return json({ error: "No se pudo generar el token de Wallet", details: String(err?.message || err) }, 502);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return json({ error: "No se pudo generar el token de Wallet", details: errorMessage }, 502);
   }
 });
