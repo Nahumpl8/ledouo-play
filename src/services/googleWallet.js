@@ -1,15 +1,20 @@
 // src/services/googleWallet.js
-// Cliente: Llama a la Edge Function de Supabase para generar el saveUrl de Google Wallet
+// Cliente: llama directo a tu server Node /api/wallet/save para obtener el saveUrl
 
-import { supabase } from '@/integrations/supabase/client';
-
-// Versiona el diseño para forzar un pase nuevo si cambias estructura/imagenes
-const DESIGN_VERSION = 'v3';
+// Versiona el diseño para forzar objeto nuevo si cambias estructura/imagenes
+const DESIGN_VERSION = 'v2';
 
 // Detección de entorno navegador
 const IS_BROWSER =
   typeof window !== 'undefined' &&
   typeof document !== 'undefined';
+
+// Base del API (usa VITE_API_BASE si existe, si no intenta mismo origen, y
+// en dev fallback al localhost:3001)
+const API_BASE =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) ||
+  (IS_BROWSER ? window.location.origin : '') ||
+  'http://localhost:3001';
 
 // crypto seguro del navegador (si existe)
 const webCrypto =
@@ -19,17 +24,14 @@ const webCrypto =
     ? globalThis.crypto
     : null;
 
-/**
- * Genera un sufijo aleatorio hex (seguro en navegador, fallback simple en SSR).
- * @param {number} len - bytes (cada byte => 2 chars hex)
- */
+/** Genera un sufijo aleatorio hex. */
 function randomSuffix(len = 8) {
   if (webCrypto) {
     const bytes = new Uint8Array(len);
     webCrypto.getRandomValues(bytes);
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
   }
-  // Fallback no-críptico (solo para SSR/tests)
+  // Fallback no críptico (SSR/tests)
   let out = '';
   for (let i = 0; i < len; i++) {
     out += Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
@@ -37,9 +39,7 @@ function randomSuffix(len = 8) {
   return out;
 }
 
-/**
- * Normaliza datos del cliente para evitar undefineds en el server.
- */
+/** Normaliza datos del cliente para evitar undefineds en el server. */
 function normalizeCustomerData(data = {}) {
   return {
     id: data.id ?? null,
@@ -51,59 +51,44 @@ function normalizeCustomerData(data = {}) {
 }
 
 /**
- * Llama a la Edge Function de Supabase y obtiene el saveUrl para Google Wallet.
+ * Llama al backend y obtiene el saveUrl para Google Wallet.
  * @param {object} customerData
  * @param {object} [options]
- * @param {number} [options.stage] 1..5 para depurar payload por etapas (no usado actualmente)
+ * @param {number} [options.stage] 1..5 (si activas modo por etapas en el server)
  * @returns {Promise<string>} saveUrl
  */
 export async function buildSaveUrl(customerData, options = {}) {
   const safe = normalizeCustomerData(customerData || {});
+  const objectSuffix = `leduo_customer_${safe.id || randomSuffix()}_${DESIGN_VERSION}`;
 
-  const payload = {
-    // versionamos para que el usuario vea siempre el diseño más nuevo
-    objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}_${DESIGN_VERSION}`,
-    customerData: safe,
-  };
+  const url = `${API_BASE}/api/wallet/save${options.stage ? `?stage=${options.stage}` : ''}`;
 
-  try {
-    console.log('📱 Llamando a Edge Function google-wallet-save...');
-    
-    const { data, error } = await supabase.functions.invoke('google-wallet-save', {
-      body: payload,
-    });
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // no estorba; ignora si no hay cookies
+    body: JSON.stringify({
+      objectIdSuffix: objectSuffix,
+      customerData: safe,
+    }),
+  });
 
-    if (error) {
-      console.error('❌ Error de Edge Function:', error);
-      throw new Error(`Error al generar el pase: ${error.message}`);
-    }
+  const json = await resp.json().catch(() => ({}));
 
-    if (!data || !data.saveUrl) {
-      console.error('❌ Respuesta inválida:', data);
-      throw new Error('Respuesta del servidor inválida: falta saveUrl.');
-    }
-
-    console.log('✅ saveUrl generado correctamente');
-    return data.saveUrl;
-  } catch (err) {
-    console.error('❌ Error en buildSaveUrl:', err);
-    throw new Error(
-      `No se pudo generar el pase de Google Wallet: ${err.message}`
-    );
+  if (!resp.ok) {
+    throw new Error(json?.details || json?.error || `HTTP ${resp.status}`);
   }
+  if (!json?.saveUrl) {
+    throw new Error('Respuesta del servidor inválida: falta saveUrl.');
+  }
+
+  return json.saveUrl;
 }
 
-/**
- * Pre-abre un popup inmediatamente (para conservar el “user gesture”).
- * Devuelve la referencia de la ventana si pudo abrirla.
- */
+/** Pre-abre un popup para conservar el “user gesture”. */
 function preopenPopup() {
   if (!IS_BROWSER) return null;
-  const w = window.open(
-    '',
-    '_blank',
-    'width=420,height=740,noopener,noreferrer'
-  );
+  const w = window.open('', '_blank', 'width=420,height=740,noopener,noreferrer');
   if (w) {
     try {
       w.document.write(
@@ -115,50 +100,27 @@ function preopenPopup() {
   return w;
 }
 
-/**
- * Flujo completo para añadir a Google Wallet con popup preabierto.
- * @param {object} customerData
- * @param {object} [options]
- * @param {number} [options.stage] 1..5 (si el server soporta etapas)
- */
+/** Flujo completo para añadir a Google Wallet con popup preabierto. */
 export async function addToGoogleWallet(customerData = {}, options = {}) {
-  // 1) abre ventana inmediatamente para evitar bloqueos del navegador
   const popup = preopenPopup();
-
   try {
-    // 2) obtener URL del backend
-    const url = await buildSaveUrl(customerData, options);
-
-    // 3) usar el popup si existe; si no, navegar en esta pestaña
-    if (popup && !popup.closed) {
-      popup.location.replace(url);
-    } else if (IS_BROWSER) {
-      window.location.href = url;
-    }
-
-    return { success: true, url, usedPopup: !!popup };
-  } catch (error) {
-    // cerrar popup si hubo error
+    const saveUrl = await buildSaveUrl(customerData, options);
+    if (popup && !popup.closed) popup.location.replace(saveUrl);
+    else if (IS_BROWSER) window.location.href = saveUrl;
+    return { success: true, url: saveUrl, usedPopup: !!popup };
+  } catch (err) {
     if (popup && !popup.closed) popup.close();
-    throw error;
+    throw err;
   }
 }
 
-/**
- * Modo demo (no contacta backend).
- */
+/** Modo demo (placeholder). */
 export async function demoAddToGoogleWallet() {
-  await new Promise(r => setTimeout(r, 800));
-  return {
-    success: true,
-    message: 'Demo: Tarjeta simulada (requiere backend para funcionar de verdad).',
-    demo: true,
-  };
+  await new Promise(r => setTimeout(r, 600));
+  return { success: true, demo: true };
 }
 
-/**
- * Estado de configuración (placeholder para UI).
- */
+/** Estado de configuración (placeholder para UI). */
 export function getConfigurationStatus() {
   return { configured: true, missingCredentials: [] };
 }
