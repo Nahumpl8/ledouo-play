@@ -269,6 +269,49 @@ export const AppHome = () => {
     }
   };
 
+  const handleTestWallet = async () => {
+    setWalletLoading(true);
+    setWalletMessage('');
+    setWalletLink('');
+
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE}/api/wallet/sample`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || error.error || 'Error de prueba');
+      }
+
+      const data = await response.json();
+      
+      if (data.saveUrl) {
+        // Intentar abrir en nueva pestaña
+        const w = window.open(data.saveUrl, '_blank', 'noopener,noreferrer');
+        if (!w) {
+          setWalletMessage('✅ URL de prueba generada. Haz click para abrir:');
+          setWalletLink(data.saveUrl);
+        } else {
+          setWalletMessage('✅ Abriendo Google Wallet de prueba...');
+          setTimeout(() => {
+            setWalletModalOpen(false);
+            setWalletMessage('');
+          }, 2000);
+        }
+      } else {
+        setWalletMessage('❌ No se recibió URL de prueba del servidor');
+      }
+    } catch (error) {
+      console.error('Error en prueba de wallet:', error);
+      setWalletMessage(`❌ Error de prueba: ${error.message}`);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
   // Helpers de ruleta con state seguro
   const canSpinRoulette = () => {
     if (!state?.roulette_last_spin_at) return true;
@@ -530,13 +573,20 @@ export const AppHome = () => {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Button
                   onClick={handleAddToWallet}
                   variant="primary"
                   disabled={walletLoading}
                 >
                   {walletLoading ? '⏳ Añadiendo...' : '📱 Añadir a Google Wallet'}
+                </Button>
+                <Button
+                  onClick={handleTestWallet}
+                  variant="outline"
+                  disabled={walletLoading}
+                >
+                  🧪 Probar pase de muestra
                 </Button>
                 <Button
                   onClick={() => setWalletModalOpen(false)}
@@ -549,6 +599,9 @@ export const AppHome = () => {
 
               <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
                 💡 <strong>Tip:</strong> Con la tarjeta en tu wallet, solo escanea tu código QR en caja
+              </p>
+              <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '8px' }}>
+                🧪 El botón de prueba genera un pase básico para verificar configuración
               </p>
             </>
           ) : (

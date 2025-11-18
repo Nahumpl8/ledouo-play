@@ -103,6 +103,10 @@ serve(async (req) => {
     const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
     const now = Math.floor(Date.now() / 1000);
 
+    // Determinar origen válido para CORS
+    const reqOrigin = req.headers.get('origin') || '';
+    const validOrigins = reqOrigin ? [reqOrigin] : [];
+
     const loyaltyObject = {
       id: fullObjectId,
       classId: CLASS_ID,
@@ -137,13 +141,29 @@ serve(async (req) => {
 
     console.log("🎨 Objeto de lealtad construido:", fullObjectId);
 
-    const claims = {
+    const claims: Record<string, unknown> = {
       iss: SERVICE_ACCOUNT_EMAIL,
       aud: "google",
       typ: "savetowallet",
       iat: now,
+      exp: now + 3600,
       payload: { loyaltyObjects: [loyaltyObject] },
     };
+
+    // Añadir origins si existen
+    if (validOrigins.length > 0) {
+      claims.origins = validOrigins;
+    }
+
+    // Logging de depuración (sin exponer datos sensibles)
+    console.log("🎫 Generando JWT para Google Wallet:", {
+      iss: SERVICE_ACCOUNT_EMAIL,
+      issuerId: ISSUER_ID,
+      classId: CLASS_ID,
+      objectId: fullObjectId,
+      userId,
+      origins: validOrigins,
+    });
 
     console.log("🔑 Firmando JWT...");
 
