@@ -5,7 +5,6 @@ import jwt from 'jsonwebtoken';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { punchRouter } from './punchImage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,196 +12,50 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
-// === CORS ===
+// En desarrollo permitimos el front local; en prod no hace falta (misma origin)
 const isDev = process.env.NODE_ENV !== 'production';
-const rawCors =
-  process.env.CORS_ALLOWED_ORIGINS ||
-  process.env.PUBLIC_BASE_URL ||
-  '';
-const corsOrigins = rawCors
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
-
-if (corsOrigins.length || isDev) {
-  const originList = corsOrigins.length ? corsOrigins : ['http://localhost:8080'];
+if (isDev) {
   app.use(cors({
-    origin: originList,
-    methods: ['POST', 'GET', 'OPTIONS'],
+    origin: ['http://localhost:8080'],
+    methods: ['POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
   }));
 }
 
-// === Rutas auxiliares (imágenes dinámicas) ===
-app.use('/api/wallet', punchRouter);
-
 // === ENV ===
-const SERVICE_ACCOUNT_EMAIL = (process.env.WALLET_SERVICE_ACCOUNT_EMAIL || '').trim();
-let PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').trim();
-const ISSUER_ID = (process.env.GOOGLE_WALLET_ISSUER_ID || '').trim();
-const CLASS_ID = (process.env.GOOGLE_WALLET_CLASS_ID || '').trim();
+const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL; // sa@project.iam.gserviceaccount.com
+const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n'); // manejar \n escapados
+const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID;  // p.ej. 3388...
+const CLASS_ID  = process.env.GOOGLE_WALLET_CLASS_ID;   // p.ej. 3388....leduo_loyalty_class
 
-// Normaliza saltos de línea en la private key
-if (PRIVATE_KEY.includes('\\n')) PRIVATE_KEY = PRIVATE_KEY.replace(/\\n/g, '\n');
-if (PRIVATE_KEY.includes('\r\n')) PRIVATE_KEY = PRIVATE_KEY.replace(/\r\n/g, '\n');
-PRIVATE_KEY = PRIVATE_KEY.trim();
-
-/** Revisa variables de entorno requeridas */
 function ensureEnv(res) {
-  const errors = [];
-  if (!SERVICE_ACCOUNT_EMAIL) errors.push('WALLET_SERVICE_ACCOUNT_EMAIL');
-  if (!PRIVATE_KEY || !PRIVATE_KEY.includes('BEGIN PRIVATE KEY')) errors.push('WALLET_PRIVATE_KEY (formato inválido)');
-  if (!ISSUER_ID) errors.push('GOOGLE_WALLET_ISSUER_ID');
-  if (!CLASS_ID) errors.push('GOOGLE_WALLET_CLASS_ID');
-  if (ISSUER_ID && CLASS_ID && !CLASS_ID.startsWith(`${ISSUER_ID}.`)) {
-    errors.push(`GOOGLE_WALLET_CLASS_ID debe iniciar con "${ISSUER_ID}."`);
-  }
-  if (errors.length) {
-    res.status(500).json({ error: 'ENV incompleto/incorrecto', details: errors });
+  if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY || !ISSUER_ID || !CLASS_ID) {
+    res.status(500).json({ error: 'Faltan variables de entorno de Google Wallet' });
     return false;
   }
   return true;
 }
 
-
-
-// === Sprites estáticos 0–8 (cuadrícula de sellos) ===
-const STAMP_SPRITES = {
-  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
-  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
-  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
-  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
-  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
-  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
-  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
-  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
-};
-function getStampsSpriteUrl(stamps) {
-  const n = Math.max(0, Math.min(8, parseInt(stamps, 10) || 0));
-  const bust = `v=${n}-${Date.now()}`; // cache-busting
-  return `${STAMP_SPRITES[n]}?${bust}`;
-}
-
-// === API: generar Save URL (Loyalty) ===
+// === API ===
 app.post('/api/wallet/save', (req, res) => {
   try {
     if (!ensureEnv(res)) return;
 
     const { objectIdSuffix, customerData = {} } = req.body || {};
-    if (!objectIdSuffix || !customerData.id) {
+    if (!objectIdSuffix) {
       return res.status(400).json({
-        error: 'Faltan campos requeridos',
-        required: ['objectIdSuffix', 'customerData.id'],
-        received: { objectIdSuffix, customerId: customerData.id },
+        error: 'Falta objectIdSuffix',
+        received: req.body,
+        hint: 'El cliente debe mandar { objectIdSuffix, customerData }'
       });
     }
 
     const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
-    const userId       = String(customerData.id);
-    const stamps       = Math.max(0, parseInt(customerData.stamps) || 0);
-    const points       = Math.max(0, parseInt(customerData.cashbackPoints) || 0);
+    const userId = customerData.id || objectIdSuffix.replace('leduo_customer_', '');
+    const stamps = customerData.stamps || 0;
+    const points = customerData.cashbackPoints || 0;
     const customerName = customerData.name || 'Cliente LeDuo';
-    const now          = Math.floor(Date.now() / 1000);
-
-    // 1) Construye el OBJETO del pase (aquí sí definimos `obj`)
-    const obj = {
-      id: fullObjectId,
-      classId: CLASS_ID,
-      state: 'ACTIVE',
-
-      accountId: userId,
-      accountName: customerName,
-
-      loyaltyPoints: { label: 'Puntos', balance: { string: String(points) } },
-
-      hexBackgroundColor: '#D4C5B9',
-      logo: { sourceUri: { uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png' } },
-
-      barcode: {
-        type: 'QR_CODE',
-        value: `leduo:${userId}`,
-        alternateText: userId.slice(0, 8),
-      },
-
-      textModulesData: [
-        { id: 'stamps_progress', header: 'Sellos',  body: `${Math.min(stamps, 8)}/8` },
-        { id: 'program_name',    header: 'Programa', body: 'LeDuo Rewards' },
-      ],
-
-      imageModulesData: [
-        {
-          id: 'stamps_grid_big',
-          mainImage: {
-            sourceUri: { uri: getStampsSpriteUrl(stamps) },
-            contentDescription: {
-              defaultValue: { language: 'es', value: 'Progreso de sellos' },
-            },
-          },
-        },
-      ],
-
-      linksModuleData: {
-        uris: [
-          { uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA', description: 'Cómo llegar a LeDuo', id: 'location' },
-          { uri: 'tel:+7711295938',                            description: 'Llamar a LeDuo',    id: 'phone'    },
-          { uri: 'https://leduo.mx',                           description: 'Sitio web',          id: 'website'  },
-        ],
-      },
-    };
-
-    // 2) Determinar origen válido para CORS
-    const reqOrigin = req.headers.origin || process.env.PUBLIC_BASE_URL || '';
-    const validOrigins = reqOrigin ? [reqOrigin] : [];
-
-    // 3) Claims del JWT (usa `obj`)
-    const claims = {
-      iss: SERVICE_ACCOUNT_EMAIL,
-      aud: 'google',
-      typ: 'savetowallet',
-      iat: now,
-      exp: now + 3600,
-      payload: { loyaltyObjects: [obj] },
-    };
-
-    // Añadir origins si existen
-    if (validOrigins.length > 0) {
-      claims.origins = validOrigins;
-    }
-
-    // 4) Logging de depuración (sin exponer datos sensibles)
-    console.log('🎫 Generando JWT para Google Wallet:', {
-      iss: SERVICE_ACCOUNT_EMAIL,
-      issuerId: ISSUER_ID,
-      classId: CLASS_ID,
-      objectId: fullObjectId,
-      userId: userId,
-      origins: validOrigins,
-    });
-
-    // 5) Firmar
-    const token  = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
-    const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
-
-    // 4) Responder
-    res.json({ ok: true, saveUrl, objectId: fullObjectId });
-  } catch (err) {
-    console.error('Wallet save error:', err);
-    res.status(502).json({ error: 'No se pudo generar el token de Wallet', details: err?.message || 'Error' });
-  }
-});
-
-// === Ruta de diagnóstico mínima (objeto básico) ===
-// Úsala para aislar si el problema es firma/ENV o la estructura visual.
-app.post('/api/wallet/sample', (req, res) => {
-  try {
-    if (!ensureEnv(res)) return;
     const now = Math.floor(Date.now() / 1000);
-    const fullObjectId = `${ISSUER_ID}.sample_${Date.now()}`;
-
-    // Determinar origen válido para CORS
-    const reqOrigin = req.headers.origin || process.env.PUBLIC_BASE_URL || '';
-    const validOrigins = reqOrigin ? [reqOrigin] : [];
 
     const claims = {
       iss: SERVICE_ACCOUNT_EMAIL,
@@ -211,56 +64,134 @@ app.post('/api/wallet/sample', (req, res) => {
       iat: now,
       exp: now + 3600,
       payload: {
-        loyaltyObjects: [
-          {
-            id: fullObjectId,
-            classId: CLASS_ID,
-            state: 'ACTIVE',
-            accountId: 'sample',
-            accountName: 'Sample User',
-            barcode: { type: 'QR_CODE', value: 'leduo:sample' },
+        genericObjects: [{
+          id: fullObjectId,
+          classId: CLASS_ID,
+          state: 'ACTIVE',
+          
+          // Color beige/café
+          hexBackgroundColor: '#D4C5B9',
+          
+          // Información principal
+          cardTitle: {
+            defaultValue: {
+              language: 'es',
+              value: 'LeDuo - Tarjeta de Lealtad'
+            }
           },
-        ],
-      },
+          subheader: {
+            defaultValue: {
+              language: 'es',
+              value: customerName
+            }
+          },
+          header: {
+            defaultValue: {
+              language: 'es',
+              value: `${stamps}/8 sellos • ${points} pts`
+            }
+          },
+          
+          // Logo LeDuo
+          logo: {
+            sourceUri: {
+              uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png'
+            },
+            contentDescription: {
+              defaultValue: {
+                language: 'es',
+                value: 'Logo LeDuo'
+              }
+            }
+          },
+          
+          // Imagen del chef como hero
+          heroImage: {
+            sourceUri: {
+              uri: 'https://i.ibb.co/fRrrygx/sello-Leduo.png'
+            },
+            contentDescription: {
+              defaultValue: {
+                language: 'es',
+                value: 'Chef LeDuo'
+              }
+            }
+          },
+          
+          // QR único para identificar al cliente
+          barcode: {
+            type: 'QR_CODE',
+            value: `LEDUO-${userId}`,
+            alternateText: `Cliente: ${userId.substring(0, 8)}`
+          },
+          
+          // Información detallada
+          textModulesData: [
+            {
+              header: 'Puntos Acumulados',
+              body: `${points} puntos disponibles para canjear`,
+              id: 'points'
+            },
+            {
+              header: 'Progreso de Sellos',
+              body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
+              id: 'stamps'
+            },
+            {
+              header: '¿Cómo usar tu tarjeta?',
+              body: 'Muestra tu código QR en caja para acumular puntos y sellos en cada compra.',
+              id: 'instructions'
+            },
+            {
+              header: 'Beneficios',
+              body: 'Gana 1 punto por cada $10. Completa 8 sellos para un producto gratis.',
+              id: 'benefits'
+            }
+          ],
+          
+          // Enlaces útiles
+          linksModuleData: {
+            uris: [
+              {
+                uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA',
+                description: 'Cómo llegar a LeDuo',
+                id: 'location'
+              },
+              {
+                uri: 'tel:+7711295938',
+                description: 'Llamar a LeDuo',
+                id: 'phone'
+              }
+            ]
+          }
+        }]
+      }
     };
-
-    // Añadir origins si existen
-    if (validOrigins.length > 0) {
-      claims.origins = validOrigins;
-    }
-
-    console.log('🧪 Sample JWT para Google Wallet:', {
-      iss: SERVICE_ACCOUNT_EMAIL,
-      issuerId: ISSUER_ID,
-      classId: CLASS_ID,
-      objectId: fullObjectId,
-      origins: validOrigins,
-    });
 
     const token = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
-    res.json({ ok: true, saveUrl, objectId: fullObjectId });
-  } catch (e) {
-    console.error('❌ Sample error:', e);
-    res.status(500).json({ error: e?.message || 'Error sample' });
+    res.json({ saveUrl, objectId: fullObjectId });
+  } catch (err) {
+    console.error('Wallet save error:', err);
+    res.status(500).json({ error: 'No se pudo generar el token de Wallet' });
   }
 });
 
-// === Healthcheck ===
+// Healthcheck simple
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// === Static (prod) y SPA fallback ===
+// === STATIC (producción): servir el build del FRONT ===
 const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
+
+// Fallback de SPA compatible con Express 5 (sin usar '*')
+// Entrega index.html para GET que no sean /api/*
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-
-
-// === Arranque ===
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server listening on :${PORT}`);

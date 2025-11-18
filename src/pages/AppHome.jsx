@@ -2,31 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { QRCodeSVG } from 'qrcode.react';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { supabase } from '@/integrations/supabase/client';
-import { addToGoogleWallet } from '../services/googleWallet';
-
-// Sprites estáticos 0..8 sellos (tus imágenes)
-const STAMP_SPRITES = {
-  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
-  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
-  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
-  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
-  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
-  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
-  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
-  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
-};
-
-function getSpriteByStamps(stampsRaw) {
-  const n = Math.max(0, Math.min(8, parseInt(stampsRaw || 0, 10)));
-  return STAMP_SPRITES[n] || STAMP_SPRITES[0];
-}
+import { addToGoogleWallet, demoAddToGoogleWallet, getConfigurationStatus } from '../services/googleWallet';
 
 const AppWrapper = styled.div`
   min-height: 80vh;
@@ -60,7 +41,7 @@ const StatsGrid = styled.div`
   }
   
   @media (min-width: ${props => props.theme.breakpoints.desktop}) {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
   }
 `;
 
@@ -169,7 +150,6 @@ export const AppHome = () => {
   const [selectedWallet, setSelectedWallet] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMessage, setWalletMessage] = useState('');
-  const [walletLink, setWalletLink] = useState('');
   const [customer, setCustomer] = useState(null);
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -181,7 +161,7 @@ export const AppHome = () => {
   const loadCustomerData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
+      
       if (!user) {
         setLoading(false);
         return;
@@ -223,7 +203,6 @@ export const AppHome = () => {
     if (selectedWallet !== 'google') return;
     setWalletLoading(true);
     setWalletMessage('');
-    setWalletLink('');
 
     try {
       const walletData = {
@@ -234,78 +213,11 @@ export const AppHome = () => {
       };
 
       const result = await addToGoogleWallet(walletData);
-
-      // Si el servidor devolvió una URL válida, intentar navegar.
-      if (result?.url) {
-        // Si el helper ya usó popup, normalmente la ventana ya fue redirigida.
-        if (result.usedPopup) {
-          setWalletMessage('Redirigiendo a Google Wallet…');
-          setTimeout(() => setWalletModalOpen(false), 2000);
-        } else {
-          // Intentar abrir en una nueva pestaña. Si el navegador bloquea el popup,
-          // mostramos un enlace para que el usuario haga click manualmente.
-          try {
-            const w = window.open(result.url, '_blank', 'noopener,noreferrer');
-            if (!w) {
-              setWalletMessage('No se pudo abrir automáticamente. Haz click en el enlace para abrir Google Wallet:');
-              setWalletLink(result.url);
-            } else {
-              setWalletMessage('Redirigiendo a Google Wallet…');
-              setTimeout(() => setWalletModalOpen(false), 2000);
-            }
-          } catch (err) {
-            setWalletMessage('Error abriendo Google Wallet. Usa el enlace:');
-            setWalletLink(result.url);
-          }
-        }
-      } else {
-        setWalletMessage(result.message || 'No se recibió URL de Google Wallet');
-      }
+      setWalletMessage(result.message || 'Redirigiendo a Google Wallet…');
+      setTimeout(() => setWalletModalOpen(false), 2000);
     } catch (error) {
       console.error('Error añadiendo a wallet:', error);
       setWalletMessage(error.message || 'Error al añadir a Google Wallet');
-    } finally {
-      setWalletLoading(false);
-    }
-  };
-
-  const handleTestWallet = async () => {
-    setWalletLoading(true);
-    setWalletMessage('');
-    setWalletLink('');
-
-    try {
-      const response = await fetch('/api/wallet/sample', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`HTTP ${response.status}: ${errorText || 'Error de prueba'}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.saveUrl) {
-        // Intentar abrir en nueva pestaña
-        const w = window.open(data.saveUrl, '_blank', 'noopener,noreferrer');
-        if (!w) {
-          setWalletMessage('✅ URL de prueba generada. Haz click para abrir:');
-          setWalletLink(data.saveUrl);
-        } else {
-          setWalletMessage('✅ Abriendo Google Wallet de prueba...');
-          setTimeout(() => {
-            setWalletModalOpen(false);
-            setWalletMessage('');
-          }, 2000);
-        }
-      } else {
-        setWalletMessage('❌ No se recibió URL de prueba del servidor');
-      }
-    } catch (error) {
-      console.error('Error en prueba de wallet:', error);
-      setWalletMessage(`❌ Error de prueba: ${error.message}`);
     } finally {
       setWalletLoading(false);
     }
@@ -385,8 +297,6 @@ export const AppHome = () => {
     );
   }
 
-  const stampsSafe = Math.max(0, Math.min(8, state.stamps || 0));
-
   return (
     <AppWrapper>
       <Section>
@@ -396,29 +306,23 @@ export const AppHome = () => {
         </WelcomeSection>
 
         <StatsGrid>
-          {/* Card de Sellos con sprite */}
+          <StatCard
+            gradient="linear-gradient(135deg, #686145, #919888)"
+            textColor="#FFFFFF"
+            valueColor="#FFFFFF"
+          >
+            <span className="icon">💰</span>
+            <div className="value">{state.cashback_points || 0}</div>
+            <div className="label">Puntos de cashback</div>
+          </StatCard>
+
           <StatCard
             gradient="linear-gradient(135deg, #919888, #B3B792)"
             textColor="#FFFFFF"
             valueColor="#FFFFFF"
           >
             <span className="icon">🎯</span>
-
-            {/* Sprite de sellos (0..8) */}
-            <img
-              src={getSpriteByStamps(stampsSafe)}
-              alt={`Progreso de sellos: ${stampsSafe} de 8`}
-              style={{
-                width: '100%',
-                maxWidth: 280,
-                display: 'block',
-                margin: '12px auto 6px',
-                borderRadius: 8,
-                background: '#fff'
-              }}
-            />
-
-            <div className="value">{stampsSafe}/8</div>
+            <div className="value">{state.stamps || 0}/8</div>
             <div className="label">Sellos coleccionados</div>
           </StatCard>
 
@@ -434,25 +338,6 @@ export const AppHome = () => {
             <span className="icon">🔥</span>
             <div className="value">{state.roulette_visits_since_last_spin || 0}</div>
             <div className="label">Visitas desde último giro</div>
-          </StatCard>
-
-          <StatCard>
-            <span className="icon">🎫</span>
-            <div style={{ 
-              background: 'white', 
-              padding: '16px', 
-              borderRadius: '12px',
-              display: 'inline-block',
-              margin: '12px auto'
-            }}>
-              <QRCodeSVG 
-                value={`leduo:${customer?.id || ''}`}
-                size={120}
-                level="H"
-                includeMargin={false}
-              />
-            </div>
-            <div className="label">Tu código QR</div>
           </StatCard>
         </StatsGrid>
 
@@ -552,7 +437,7 @@ export const AppHome = () => {
               <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
                 <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
                 <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
-                <p><strong>Sellos:</strong> {stampsSafe} de 8</p>
+                <p><strong>Sellos:</strong> {state.stamps || 0} de 8</p>
               </div>
 
               {walletMessage && (
@@ -564,28 +449,16 @@ export const AppHome = () => {
                   fontSize: '0.9rem'
                 }}>
                   {walletMessage}
-                  {walletLink && (
-                    <div style={{ marginTop: 8 }}>
-                      <a href={walletLink} target="_blank" rel="noopener noreferrer">Abrir Google Wallet</a>
-                    </div>
-                  )}
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
                 <Button
                   onClick={handleAddToWallet}
                   variant="primary"
                   disabled={walletLoading}
                 >
                   {walletLoading ? '⏳ Añadiendo...' : '📱 Añadir a Google Wallet'}
-                </Button>
-                <Button
-                  onClick={handleTestWallet}
-                  variant="outline"
-                  disabled={walletLoading}
-                >
-                  🧪 Probar pase de muestra
                 </Button>
                 <Button
                   onClick={() => setWalletModalOpen(false)}
@@ -598,9 +471,6 @@ export const AppHome = () => {
 
               <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
                 💡 <strong>Tip:</strong> Con la tarjeta en tu wallet, solo escanea tu código QR en caja
-              </p>
-              <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '8px' }}>
-                🧪 El botón de prueba genera un pase básico para verificar configuración
               </p>
             </>
           ) : (

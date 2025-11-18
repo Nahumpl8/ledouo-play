@@ -2,6 +2,3 @@ project_id = "eohpjvbbrvktqyacpcmn"
 
 [functions.register-purchase]
 verify_jwt = true
-
-[functions.google-wallet-save]
-verify_jwt = false

@@ -91,7 +91,7 @@ const MobileMenuButton = styled.button`
 `;
 
 const MobileMenu = styled.div`
-  display: ${props => props.$open ? 'block' : 'none'};
+  display: ${props => props.isOpen ? 'block' : 'none'};
   position: absolute;
   top: 100%;
   left: 0;
@@ -228,7 +228,7 @@ export const Header = () => {
           </Nav>
         </HeaderContent>
 
-        <MobileMenu $open={mobileMenuOpen}>
+        <MobileMenu isOpen={mobileMenuOpen}>
           {isLoggedIn && isAppRoute ? (
             <>
               <Button as={Link} to="/app" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
