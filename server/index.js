@@ -130,17 +130,6 @@ app.post('/api/wallet/save', (req, res) => {
         { id: 'program_name',    header: 'Programa', body: 'LeDuo Rewards' },
       ],
 
-      imageModulesData: [
-        {
-          id: 'stamps_grid_big',
-          mainImage: {
-            sourceUri: { uri: getStampsSpriteUrl(stamps) },
-            contentDescription: {
-              defaultValue: { language: 'es', value: 'Progreso de sellos' },
-            },
-          },
-        },
-      ],
 
       linksModuleData: {
         uris: [
