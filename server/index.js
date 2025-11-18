@@ -151,7 +151,11 @@ app.post('/api/wallet/save', (req, res) => {
       },
     };
 
-    // 2) Claims del JWT (usa `obj`)
+    // 2) Determinar origen válido para CORS
+    const reqOrigin = req.headers.origin || process.env.PUBLIC_BASE_URL || '';
+    const validOrigins = reqOrigin ? [reqOrigin] : [];
+
+    // 3) Claims del JWT (usa `obj`)
     const claims = {
       iss: SERVICE_ACCOUNT_EMAIL,
       aud: 'google',
@@ -161,9 +165,22 @@ app.post('/api/wallet/save', (req, res) => {
       payload: { loyaltyObjects: [obj] },
     };
 
-    
+    // Añadir origins si existen
+    if (validOrigins.length > 0) {
+      claims.origins = validOrigins;
+    }
 
-    // 3) Firmar
+    // 4) Logging de depuración (sin exponer datos sensibles)
+    console.log('🎫 Generando JWT para Google Wallet:', {
+      iss: SERVICE_ACCOUNT_EMAIL,
+      issuerId: ISSUER_ID,
+      classId: CLASS_ID,
+      objectId: fullObjectId,
+      userId: userId,
+      origins: validOrigins,
+    });
+
+    // 5) Firmar
     const token  = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
 
@@ -182,6 +199,10 @@ app.post('/api/wallet/sample', (req, res) => {
     if (!ensureEnv(res)) return;
     const now = Math.floor(Date.now() / 1000);
     const fullObjectId = `${ISSUER_ID}.sample_${Date.now()}`;
+
+    // Determinar origen válido para CORS
+    const reqOrigin = req.headers.origin || process.env.PUBLIC_BASE_URL || '';
+    const validOrigins = reqOrigin ? [reqOrigin] : [];
 
     const claims = {
       iss: SERVICE_ACCOUNT_EMAIL,
@@ -203,10 +224,24 @@ app.post('/api/wallet/sample', (req, res) => {
       },
     };
 
+    // Añadir origins si existen
+    if (validOrigins.length > 0) {
+      claims.origins = validOrigins;
+    }
+
+    console.log('🧪 Sample JWT para Google Wallet:', {
+      iss: SERVICE_ACCOUNT_EMAIL,
+      issuerId: ISSUER_ID,
+      classId: CLASS_ID,
+      objectId: fullObjectId,
+      origins: validOrigins,
+    });
+
     const token = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
     res.json({ ok: true, saveUrl, objectId: fullObjectId });
   } catch (e) {
+    console.error('❌ Sample error:', e);
     res.status(500).json({ error: e?.message || 'Error sample' });
   }
 });
