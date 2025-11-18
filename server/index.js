@@ -161,6 +161,8 @@ app.post('/api/wallet/save', (req, res) => {
       payload: { loyaltyObjects: [obj] },
     };
 
+    
+
     // 3) Firmar
     const token  = jwt.sign(claims, PRIVATE_KEY, { algorithm: 'RS256' });
     const saveUrl = `https://pay.google.com/gp/v/save/${token}`;
@@ -220,6 +222,8 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(distPath, 'index.html'));
 });
+
+
 
 // === Arranque ===
 const PORT = process.env.PORT || 3001;

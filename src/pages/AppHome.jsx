@@ -169,6 +169,7 @@ export const AppHome = () => {
   const [selectedWallet, setSelectedWallet] = useState('');
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletMessage, setWalletMessage] = useState('');
+  const [walletLink, setWalletLink] = useState('');
   const [customer, setCustomer] = useState(null);
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -222,6 +223,7 @@ export const AppHome = () => {
     if (selectedWallet !== 'google') return;
     setWalletLoading(true);
     setWalletMessage('');
+    setWalletLink('');
 
     try {
       const walletData = {
@@ -232,8 +234,33 @@ export const AppHome = () => {
       };
 
       const result = await addToGoogleWallet(walletData);
-      setWalletMessage(result.message || 'Redirigiendo a Google Wallet…');
-      setTimeout(() => setWalletModalOpen(false), 2000);
+
+      // Si el servidor devolvió una URL válida, intentar navegar.
+      if (result?.url) {
+        // Si el helper ya usó popup, normalmente la ventana ya fue redirigida.
+        if (result.usedPopup) {
+          setWalletMessage('Redirigiendo a Google Wallet…');
+          setTimeout(() => setWalletModalOpen(false), 2000);
+        } else {
+          // Intentar abrir en una nueva pestaña. Si el navegador bloquea el popup,
+          // mostramos un enlace para que el usuario haga click manualmente.
+          try {
+            const w = window.open(result.url, '_blank', 'noopener,noreferrer');
+            if (!w) {
+              setWalletMessage('No se pudo abrir automáticamente. Haz click en el enlace para abrir Google Wallet:');
+              setWalletLink(result.url);
+            } else {
+              setWalletMessage('Redirigiendo a Google Wallet…');
+              setTimeout(() => setWalletModalOpen(false), 2000);
+            }
+          } catch (err) {
+            setWalletMessage('Error abriendo Google Wallet. Usa el enlace:');
+            setWalletLink(result.url);
+          }
+        }
+      } else {
+        setWalletMessage(result.message || 'No se recibió URL de Google Wallet');
+      }
     } catch (error) {
       console.error('Error añadiendo a wallet:', error);
       setWalletMessage(error.message || 'Error al añadir a Google Wallet');
@@ -495,6 +522,11 @@ export const AppHome = () => {
                   fontSize: '0.9rem'
                 }}>
                   {walletMessage}
+                  {walletLink && (
+                    <div style={{ marginTop: 8 }}>
+                      <a href={walletLink} target="_blank" rel="noopener noreferrer">Abrir Google Wallet</a>
+                    </div>
+                  )}
                 </div>
               )}
 
