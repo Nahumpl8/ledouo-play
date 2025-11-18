@@ -275,15 +275,14 @@ export const AppHome = () => {
     setWalletLink('');
 
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_BASE}/api/wallet/sample`, {
+      const response = await fetch('/api/wallet/sample', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || error.error || 'Error de prueba');
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Error de prueba'}`);
       }
 
       const data = await response.json();
