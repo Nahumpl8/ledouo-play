@@ -22,6 +22,18 @@ if (isDev) {
   }));
 }
 
+const STAMP_SPRITES = {
+  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
+  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
+  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
+  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
+  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
+  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
+  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
+  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
+  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+};
+
 // === ENV ===
 const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL; // sa@project.iam.gserviceaccount.com
 const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n'); // manejar \n escapados
@@ -108,7 +120,7 @@ app.post('/api/wallet/save', (req, res) => {
           // Imagen del chef como hero
           heroImage: {
             sourceUri: {
-              uri: 'https://i.ibb.co/63CV4yN/0-sellos.png'
+              uri: STAMP_SPRITES[Math.min(stamps, 8)]
             },
             contentDescription: {
               defaultValue: {
