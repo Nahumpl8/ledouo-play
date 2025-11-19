@@ -6,6 +6,7 @@ import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
+import { PinConfirmModal } from '../components/staff/PinConfirmModal';
 
 const ScanWrapper = styled.div`
   min-height: 80vh;
@@ -74,6 +75,9 @@ export const ScanPurchase = () => {
   const [result, setResult] = useState(null);
   const [isStaff, setIsStaff] = useState(false);
   const [scanner, setScanner] = useState(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinError, setPinError] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     checkStaffAccess();
@@ -98,6 +102,8 @@ export const ScanPurchase = () => {
       setResult({ type: 'error', message: 'Debes iniciar sesión' });
       return;
     }
+
+    setCurrentUserId(user.id);
 
     const { data: roles } = await supabase
       .from('user_roles')
@@ -186,27 +192,50 @@ export const ScanPurchase = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    
+    const amountNum = parseFloat(amount);
+    if (!amountNum || amountNum <= 0) {
+      setResult({ type: 'error', message: 'El monto debe ser mayor a 0' });
+      return;
+    }
+
+    // Mostrar modal de PIN
+    setPinError(null);
+    setShowPinModal(true);
+  };
+
+  const handlePinConfirm = async (pin) => {
     setLoading(true);
-    setResult(null);
+    setPinError(null);
 
     try {
       const amountNum = parseFloat(amount);
-      
-      if (!amountNum || amountNum <= 0) {
-        throw new Error('El monto debe ser mayor a 0');
-      }
 
       const { data, error } = await supabase.functions.invoke('register-purchase', {
         body: {
           userId: scannedUserId,
           amount: amountNum,
-          notes
+          notes,
+          staffId: currentUserId,
+          staffPin: pin
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('PIN incorrecto')) {
+          setPinError('PIN incorrecto. Intenta de nuevo.');
+          setLoading(false);
+          return;
+        }
+        if (error.message?.includes('configurar tu PIN')) {
+          setPinError('Debes configurar tu PIN en la página de Cuenta antes de procesar ventas.');
+          setLoading(false);
+          return;
+        }
+        throw error;
+      }
 
       const pointsMsg = `+${data.points.earned} puntos (Total: ${data.points.total})`;
       const stampsMsg = `+${data.stamps.earned} sello (Total: ${data.stamps.total}/8)`;
@@ -217,7 +246,8 @@ export const ScanPurchase = () => {
         message: `Compra registrada exitosamente.\n${pointsMsg}\n${stampsMsg}${rewardMsg}`
       });
 
-      // Limpiar formulario
+      // Cerrar modal y limpiar formulario
+      setShowPinModal(false);
       setAmount('');
       setNotes('');
       setScannedUserId(null);
@@ -232,6 +262,7 @@ export const ScanPurchase = () => {
     } catch (error) {
       console.error('Error registrando compra:', error);
       setResult({ type: 'error', message: error.message || 'Error al registrar compra' });
+      setShowPinModal(false);
     } finally {
       setLoading(false);
     }
@@ -328,6 +359,17 @@ export const ScanPurchase = () => {
           )}
         </ScanCard>
       </Section>
+
+      <PinConfirmModal
+        isOpen={showPinModal}
+        onClose={() => {
+          setShowPinModal(false);
+          setPinError(null);
+        }}
+        onConfirm={handlePinConfirm}
+        loading={loading}
+        error={pinError}
+      />
     </ScanWrapper>
   );
 };

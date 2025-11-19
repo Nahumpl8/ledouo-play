@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -17,16 +18,55 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { userId, amount, notes = '' } = await req.json();
+    const { userId, amount, notes = '', staffId, staffPin } = await req.json();
 
-    if (!userId || !amount) {
+    console.log('Registering purchase:', { userId, amount, staffId });
+
+    // Validar parámetros requeridos
+    if (!userId || !amount || !staffId || !staffPin) {
       return new Response(
-        JSON.stringify({ error: 'userId y amount son requeridos' }),
+        JSON.stringify({ error: 'Parámetros faltantes: userId, amount, staffId y staffPin son requeridos' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Registrando compra para userId:', userId, 'monto:', amount);
+    // Validar que el staff existe y obtener su PIN hasheado
+    const { data: staffProfile, error: staffError } = await supabase
+      .from('profiles')
+      .select('staff_pin')
+      .eq('id', staffId)
+      .single();
+
+    if (staffError || !staffProfile) {
+      console.error('Staff not found:', staffError);
+      return new Response(
+        JSON.stringify({ error: 'Staff no encontrado' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validar que el staff tiene un PIN configurado
+    if (!staffProfile.staff_pin) {
+      return new Response(
+        JSON.stringify({ error: 'Debes configurar tu PIN antes de procesar ventas' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Hashear el PIN recibido y comparar con el almacenado
+    const encoder = new TextEncoder();
+    const data = encoder.encode(staffPin);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashedPin = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    if (hashedPin !== staffProfile.staff_pin) {
+      console.log('Invalid PIN attempt');
+      return new Response(
+        JSON.stringify({ error: 'PIN incorrecto' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Verificar que el usuario existe
     const { data: profile, error: profileError } = await supabase
@@ -84,7 +124,7 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Registrar visita
+    // Registrar visita con el staff que la procesó
     const { error: visitError } = await supabase
       .from('visits')
       .insert({
@@ -93,6 +133,7 @@ serve(async (req) => {
         cashback_earned: pointsEarned,
         stamps_earned: stampsEarned,
         notes: notes,
+        processed_by_staff_id: staffId,
         visit_date: new Date().toISOString()
       });
 

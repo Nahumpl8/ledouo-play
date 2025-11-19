@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
 import { Select } from '../components/common/Select';
 import { Button } from '../components/common/Button';
+import { SetupPinModal } from '../components/staff/SetupPinModal';
+import { supabase } from '@/integrations/supabase/client';
 import { customerStorage, stateStorage } from '../lib/storage';
 
 const AccountWrapper = styled.div`
@@ -140,8 +142,41 @@ export const Account = () => {
   const [customer, setCustomer] = useState(customerStorage.get() || {});
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+  const [hasPin, setHasPin] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
   
   const state = stateStorage.get();
+
+  useEffect(() => {
+    checkStaffStatus();
+  }, []);
+
+  const checkStaffStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return;
+
+    // Check if user is staff or admin
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', ['staff', 'admin']);
+
+    if (roles && roles.length > 0) {
+      setIsStaff(true);
+
+      // Check if PIN is configured
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('staff_pin')
+        .eq('id', user.id)
+        .single();
+
+      setHasPin(!!profile?.staff_pin);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -311,6 +346,32 @@ export const Account = () => {
             </StatsGrid>
           </ProfileCard>
 
+          {/* Staff PIN Configuration */}
+          {isStaff && (
+            <ProfileCard size="lg">
+              <CardHeader>
+                <span className="icon">🔐</span>
+                <h2>PIN de Seguridad</h2>
+              </CardHeader>
+
+              <InfoBox>
+                <p>
+                  {hasPin 
+                    ? 'Tu PIN de seguridad está configurado. Lo necesitas para autorizar ventas en el sistema de escaneo.'
+                    : 'Configura un PIN de 4-6 dígitos para autorizar ventas. Este PIN será requerido cada vez que proceses una compra.'
+                  }
+                </p>
+                <Button 
+                  variant="primary" 
+                  onClick={() => setShowPinModal(true)}
+                  style={{ marginTop: '16px' }}
+                >
+                  {hasPin ? '🔄 Cambiar PIN' : '🔒 Configurar PIN'}
+                </Button>
+              </InfoBox>
+            </ProfileCard>
+          )}
+
           {/* Account Information */}
           <Card size="lg">
             <CardHeader>
@@ -344,6 +405,17 @@ export const Account = () => {
           </Card>
         </AccountContainer>
       </Section>
+
+      <SetupPinModal
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onSuccess={() => {
+          setShowSuccess(true);
+          setHasPin(true);
+          setTimeout(() => setShowSuccess(false), 3000);
+        }}
+        hasExistingPin={hasPin}
+      />
     </AccountWrapper>
   );
 };
