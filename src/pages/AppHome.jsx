@@ -446,7 +446,7 @@ export const AppHome = () => {
               margin: '12px auto'
             }}>
               <QRCodeSVG 
-                value={`leduo:${customer?.id || ''}`}
+                value={`LEDUO-${customer?.id || ''}`}
                 size={120}
                 level="H"
                 includeMargin={false}
