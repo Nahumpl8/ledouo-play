@@ -157,7 +157,8 @@ export const ScanPurchase = () => {
         qrbox: { width: 300, height: 300 },
         aspectRatio: 1.777778,
         rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true
+        showTorchButtonIfSupported: true,
+        disableFlip: false
       },
       false
     );
@@ -176,8 +177,8 @@ export const ScanPurchase = () => {
   const onScanSuccess = async (decodedText) => {
     console.log('QR escaneado:', decodedText);
     
-    // Extraer userId del formato LEDUO-{userId}
-    const match = decodedText.match(/LEDUO-(.+)/);
+    // Aceptar múltiples formatos: LEDUO-, leduo-, leduo:, LEDUO:
+    const match = decodedText.match(/leduo[:-](.+)/i);
     if (!match) {
       setResult({ type: 'error', message: 'QR inválido. Debe ser un código LeDuo.' });
       return;
@@ -200,11 +201,19 @@ export const ScanPurchase = () => {
       return;
     }
 
-    // Extraer userId si viene en formato LEDUO-{userId}
     let userId = manualUserId.trim();
-    const match = userId.match(/LEDUO-(.+)/);
+    
+    // Aceptar: LEDUO-xxx, leduo:xxx, o directamente el UUID
+    const match = userId.match(/leduo[:-](.+)/i);
     if (match) {
       userId = match[1];
+    }
+    
+    // Validar que sea un UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      setResult({ type: 'error', message: 'El ID ingresado no es válido. Debe ser un UUID completo.' });
+      return;
     }
 
     setScannedUserId(userId);
@@ -373,7 +382,7 @@ export const ScanPurchase = () => {
                   <Input
                     type="text"
                     label="ID del Cliente"
-                    placeholder="Ingresa el ID o código del QR (ej: LEDUO-xxxxx)"
+                    placeholder="Ej: LEDUO-abc123 o b38b27e7-dd6c-438e-8697-a86325efa81f"
                     value={manualUserId}
                     onChange={(e) => setManualUserId(e.target.value)}
                     onKeyPress={(e) => {
