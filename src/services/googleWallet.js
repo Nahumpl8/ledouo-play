@@ -1,37 +1,27 @@
 // src/services/googleWallet.js
-// Cliente: llama directo a tu server Node /api/wallet/save para obtener el saveUrl
+// Cliente: NO uses 'jsonwebtoken' aquí. Este módulo llama a /api/wallet/save en tu backend.
 
-// Versiona el diseño para forzar objeto nuevo si cambias estructura/imagenes
-const DESIGN_VERSION = 'v2';
+export const GOOGLE_WALLET_API_PATH = '/api/wallet/save';
 
-// Detección de entorno navegador
-const IS_BROWSER =
-  typeof window !== 'undefined' &&
-  typeof document !== 'undefined';
+// Detecta si estamos en navegador
+const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
 
-// Base del API (usa VITE_API_BASE si existe, si no intenta mismo origen, y
-// en dev fallback al localhost:3001)
-const API_BASE =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) ||
-  (IS_BROWSER ? window.location.origin : '') ||
-  'http://localhost:3001';
+// Referencia segura a crypto del navegador (o null si no hay)
+const webCrypto = (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function')
+  ? globalThis.crypto
+  : null;
 
-// crypto seguro del navegador (si existe)
-const webCrypto =
-  typeof globalThis !== 'undefined' &&
-  globalThis.crypto &&
-  typeof globalThis.crypto.getRandomValues === 'function'
-    ? globalThis.crypto
-    : null;
-
-/** Genera un sufijo aleatorio hex. */
+/**
+ * Genera un sufijo aleatorio hex (seguro en navegador, fallback en Node/SSR).
+ * @param {number} len - bytes (cada byte => 2 chars hex)
+ */
 function randomSuffix(len = 8) {
   if (webCrypto) {
     const bytes = new Uint8Array(len);
     webCrypto.getRandomValues(bytes);
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
   }
-  // Fallback no críptico (SSR/tests)
+  // Fallback no-cripto (para SSR/tests, no se usa para seguridad real)
   let out = '';
   for (let i = 0; i < len; i++) {
     out += Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
@@ -39,88 +29,91 @@ function randomSuffix(len = 8) {
   return out;
 }
 
-/** Normaliza datos del cliente para evitar undefineds en el server. */
+/**
+ * Normaliza datos del cliente para evitar undefineds en el server.
+ */
 function normalizeCustomerData(data = {}) {
   return {
     id: data.id ?? null,
     name: data.name ?? 'Cliente LeDuo',
     cashbackPoints: Number.isFinite(+data.cashbackPoints) ? +data.cashbackPoints : 0,
     stamps: Number.isFinite(+data.stamps) ? +data.stamps : 0,
-    createdAt: data.createdAt ?? Date.now(),
+    createdAt: data.createdAt ?? Date.now()
   };
 }
 
 /**
- * Llama al backend y obtiene el saveUrl para Google Wallet.
- * @param {object} customerData
- * @param {object} [options]
- * @param {number} [options.stage] 1..5 (si activas modo por etapas en el server)
+ * Pide al servidor la URL "Guardar en Google Wallet".
  * @returns {Promise<string>} saveUrl
  */
-export async function buildSaveUrl(customerData, options = {}) {
+export async function buildSaveUrl(customerData) {
   const safe = normalizeCustomerData(customerData || {});
-  const objectSuffix = `leduo_customer_${safe.id || randomSuffix()}_${DESIGN_VERSION}`;
+  const payload = {
+    objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}`,
+    customerData: safe
+  };
 
-  const url = `${API_BASE}/api/wallet/save${options.stage ? `?stage=${options.stage}` : ''}`;
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include', // no estorba; ignora si no hay cookies
-    body: JSON.stringify({
-      objectIdSuffix: objectSuffix,
-      customerData: safe,
-    }),
-  });
-
-  const json = await resp.json().catch(() => ({}));
-
-  if (!resp.ok) {
-    throw new Error(json?.details || json?.error || `HTTP ${resp.status}`);
+  let res;
+  try {
+    res = await fetch(GOOGLE_WALLET_API_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    throw new Error(
+      'No se pudo contactar al servidor. ' +
+      'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
+    );
   }
-  if (!json?.saveUrl) {
+
+  if (!res.ok) {
+    let detail = '';
+    try { detail = await res.text(); } catch { }
+    throw new Error(`No se pudo generar el pase (HTTP ${res.status}). ${detail}`.trim());
+  }
+
+  const data = await res.json();
+  if (!data || !data.saveUrl) {
     throw new Error('Respuesta del servidor inválida: falta saveUrl.');
   }
-
-  return json.saveUrl;
+  return data.saveUrl;
 }
 
-/** Pre-abre un popup para conservar el “user gesture”. */
-function preopenPopup() {
-  if (!IS_BROWSER) return null;
-  const w = window.open('', '_blank', 'width=420,height=740,noopener,noreferrer');
-  if (w) {
-    try {
-      w.document.write(
-        '<!doctype html><title>LeDuo</title>' +
-        '<div style="font:14px system-ui;margin:16px">Abriendo Google Wallet…</div>'
-      );
-    } catch {}
+/**
+ * Abre la URL en popup si hay window; si no, hace fallback a cambiar location (o no hace nada en SSR).
+ */
+function safeOpen(url) {
+  if (!IS_BROWSER) return false;
+  const w = window.open(url, '_blank', 'width=420,height=740');
+  if (!w) {
+    window.location.href = url;
+    return false;
   }
-  return w;
+  return true;
 }
 
-/** Flujo completo para añadir a Google Wallet con popup preabierto. */
-export async function addToGoogleWallet(customerData = {}, options = {}) {
-  const popup = preopenPopup();
-  try {
-    const saveUrl = await buildSaveUrl(customerData, options);
-    if (popup && !popup.closed) popup.location.replace(saveUrl);
-    else if (IS_BROWSER) window.location.href = saveUrl;
-    return { success: true, url: saveUrl, usedPopup: !!popup };
-  } catch (err) {
-    if (popup && !popup.closed) popup.close();
-    throw err;
-  }
+/**
+ * Flujo completo para añadir a Google Wallet (cliente).
+ */
+export async function addToGoogleWallet(customerData = {}) {
+  const url = await buildSaveUrl(customerData);
+  safeOpen(url);
+  return { success: true, url };
 }
 
-/** Modo demo (placeholder). */
+/**
+ * Modo demo (no contacta backend).
+ */
 export async function demoAddToGoogleWallet() {
-  await new Promise(r => setTimeout(r, 600));
-  return { success: true, demo: true };
+  await new Promise(r => setTimeout(r, 800));
+  return {
+    success: true,
+    message: 'Demo: Tarjeta simulada (requiere backend para funcionar de verdad).',
+    demo: true
+  };
 }
 
-/** Estado de configuración (placeholder para UI). */
 export function getConfigurationStatus() {
   return { configured: true, missingCredentials: [] };
 }
