@@ -66,6 +66,31 @@ const ResultMessage = styled.div`
   `}
 `;
 
+const ModeToggle = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  justify-content: center;
+`;
+
+const ManualInputContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: ${props => props.theme.colors.bgAlt};
+  border-radius: ${props => props.theme.radius};
+`;
+
+const CameraErrorMessage = styled.div`
+  padding: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 8px;
+  text-align: center;
+  margin: 12px 0;
+`;
+
 export const ScanPurchase = () => {
   const [scannedUserId, setScannedUserId] = useState(null);
   const [customerData, setCustomerData] = useState(null);
@@ -78,13 +103,16 @@ export const ScanPurchase = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinError, setPinError] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualUserId, setManualUserId] = useState('');
+  const [cameraError, setCameraError] = useState(null);
 
   useEffect(() => {
     checkStaffAccess();
   }, []);
 
   useEffect(() => {
-    if (!scannedUserId && isStaff) {
+    if (!scannedUserId && isStaff && !manualMode) {
       initScanner();
     }
     
@@ -93,7 +121,7 @@ export const ScanPurchase = () => {
         scanner.clear().catch(() => {});
       }
     };
-  }, [isStaff, scannedUserId]);
+  }, [isStaff, scannedUserId, manualMode]);
 
   const checkStaffAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -120,17 +148,28 @@ export const ScanPurchase = () => {
   };
 
   const initScanner = () => {
+    setCameraError(null);
+    
     const html5QrcodeScanner = new Html5QrcodeScanner(
       "qr-reader",
       { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+        fps: 30, 
+        qrbox: { width: 300, height: 300 },
+        aspectRatio: 1.777778,
+        rememberLastUsedCamera: true,
+        showTorchButtonIfSupported: true
       },
       false
     );
 
-    html5QrcodeScanner.render(onScanSuccess, onScanError);
+    html5QrcodeScanner.render(onScanSuccess, (error) => {
+      // Solo mostrar errores críticos
+      if (error.includes('NotAllowedError')) {
+        setCameraError('Permiso de cámara denegado. Por favor permite el acceso o usa entrada manual.');
+      } else if (error.includes('NotFoundError')) {
+        setCameraError('No se encontró ninguna cámara. Usa entrada manual.');
+      }
+    });
     setScanner(html5QrcodeScanner);
   };
 
@@ -155,9 +194,21 @@ export const ScanPurchase = () => {
     await loadCustomerData(userId);
   };
 
-  const onScanError = (error) => {
-    // Ignorar errores de escaneo continuos
-    console.warn('Error escaneando QR:', error);
+  const handleManualSearch = async () => {
+    if (!manualUserId.trim()) {
+      setResult({ type: 'error', message: 'Ingresa un ID válido' });
+      return;
+    }
+
+    // Extraer userId si viene en formato LEDUO-{userId}
+    let userId = manualUserId.trim();
+    const match = userId.match(/LEDUO-(.+)/);
+    if (match) {
+      userId = match[1];
+    }
+
+    setScannedUserId(userId);
+    await loadCustomerData(userId);
   };
 
   const loadCustomerData = async (userId) => {
@@ -274,7 +325,11 @@ export const ScanPurchase = () => {
     setAmount('');
     setNotes('');
     setResult(null);
-    initScanner();
+    setManualUserId('');
+    setCameraError(null);
+    if (!manualMode) {
+      initScanner();
+    }
   };
 
   if (!isStaff && result?.type === 'error') {
@@ -298,12 +353,53 @@ export const ScanPurchase = () => {
 
           {!scannedUserId && (
             <>
-              <p style={{ textAlign: 'center', marginBottom: '16px' }}>
-                Escanea el código QR del cliente
-              </p>
-              <ScannerContainer>
-                <div id="qr-reader"></div>
-              </ScannerContainer>
+              <ModeToggle>
+                <Button 
+                  variant={!manualMode ? 'primary' : 'outline'}
+                  onClick={() => setManualMode(false)}
+                >
+                  📷 Escanear QR
+                </Button>
+                <Button 
+                  variant={manualMode ? 'primary' : 'outline'}
+                  onClick={() => setManualMode(true)}
+                >
+                  ✏️ Entrada Manual
+                </Button>
+              </ModeToggle>
+
+              {manualMode ? (
+                <ManualInputContainer>
+                  <Input
+                    type="text"
+                    label="ID del Cliente"
+                    placeholder="Ingresa el ID o código del QR (ej: LEDUO-xxxxx)"
+                    value={manualUserId}
+                    onChange={(e) => setManualUserId(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleManualSearch();
+                      }
+                    }}
+                  />
+                  <Button onClick={handleManualSearch} disabled={loading}>
+                    {loading ? 'Buscando...' : 'Buscar Cliente'}
+                  </Button>
+                </ManualInputContainer>
+              ) : (
+                <>
+                  <p style={{ textAlign: 'center', marginBottom: '16px' }}>
+                    Escanea el código QR del cliente
+                  </p>
+                  {cameraError && (
+                    <CameraErrorMessage>{cameraError}</CameraErrorMessage>
+                  )}
+                  <ScannerContainer>
+                    <div id="qr-reader"></div>
+                  </ScannerContainer>
+                </>
+              )}
             </>
           )}
 
