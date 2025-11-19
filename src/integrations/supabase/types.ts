@@ -74,6 +74,7 @@ export type Database = {
           phone: string | null
           registration_code: string
           sex: string | null
+          staff_pin: string | null
           updated_at: string
         }
         Insert: {
@@ -85,6 +86,7 @@ export type Database = {
           phone?: string | null
           registration_code: string
           sex?: string | null
+          staff_pin?: string | null
           updated_at?: string
         }
         Update: {
@@ -96,6 +98,7 @@ export type Database = {
           phone?: string | null
           registration_code?: string
           sex?: string | null
+          staff_pin?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -175,6 +178,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          processed_by_staff_id: string | null
           stamps_earned: number
           user_id: string
           visit_date: string
@@ -185,6 +189,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          processed_by_staff_id?: string | null
           stamps_earned?: number
           user_id: string
           visit_date?: string
@@ -195,6 +200,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          processed_by_staff_id?: string | null
           stamps_earned?: number
           user_id?: string
           visit_date?: string
