@@ -10,8 +10,9 @@ const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
 const HeaderWrapper = styled.header`
   position: sticky;
   top: 0;
-  background: ${props => props.theme.colors.white};
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+  background: ${props => props.$transparent ? 'transparent' : props.theme.colors.white};
+  box-shadow: ${props => props.$transparent ? 'none' : '0 2px 20px rgba(0, 0, 0, 0.08)'};
+  backdrop-filter: ${props => props.$transparent ? 'none' : 'blur(10px)'};
   z-index: 100;
   transition: all 0.3s ease;
 `;
@@ -119,9 +120,11 @@ export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRoles, setUserRoles] = useState([]);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const isAppRoute = location.pathname.startsWith('/app');
+  const isLandingPage = location.pathname === '/';
 
   useEffect(() => {
     // Check initial session
@@ -166,10 +169,23 @@ export const Header = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    if (isLandingPage) {
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+  }, [isLandingPage]);
+
   const isStaff = userRoles.includes('staff') || userRoles.includes('admin');
 
+  const isTransparent = isLandingPage && !isScrolled;
+
   return (
-    <HeaderWrapper>
+    <HeaderWrapper $transparent={isTransparent}>
       <Container>
         <HeaderContent>
           <Logo to={isLoggedIn ? '/app' : '/'}>

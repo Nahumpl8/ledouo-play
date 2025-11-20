@@ -11,6 +11,7 @@ export const theme = {
   },
   radius: '16px',
   shadow: '0 10px 30px rgba(0,0,0,0.08)',
+  shadowLg: '0 20px 60px rgba(0,0,0,0.12)',
   fontPrimary: 'Apollo, Georgia, "Times New Roman", serif',
   fontSecondary: '"Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   breakpoints: {
