@@ -57,17 +57,19 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
     const issuerId = Deno.env.get('GOOGLE_WALLET_ISSUER_ID');
 
     if (!email || !privateKey || !issuerId) {
-      console.warn('Faltan credenciales de Wallet, saltando actualización.');
+      console.warn('⚠️ Faltan credenciales de Wallet, saltando actualización.');
       return;
     }
 
-    // El ID del objeto debe coincidir con cómo lo creaste en index.js:
-    // fullObjectId = `${ISSUER_ID}.LEDUO-${userId}`
-    // OJO: En tu index.js usabas `${ISSUER_ID}.${objectIdSuffix}` y el suffix era `LEDUO-${userId}`?
-    // Asumiremos la estructura estándar: ISSUER_ID.LEDUO-UUID
+    // Formato consistente: LEDUO-{uuid}
     const objectId = `${issuerId}.LEDUO-${userId}`;
 
-    console.log(`Intentando actualizar Wallet Object: ${objectId}`);
+    console.log(`📱 Iniciando actualización de Google Wallet...`, {
+      objectId,
+      userId,
+      newPoints: points,
+      finalStamps: stamps
+    });
 
     const token = await getGoogleAuthToken(email, privateKey);
 
@@ -109,13 +111,22 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('Error actualizando Google Wallet API:', errText);
+      console.error('❌ Google Wallet PATCH falló:', {
+        status: res.status,
+        statusText: res.statusText,
+        objectId,
+        body: errText
+      });
     } else {
-      console.log('Google Wallet actualizado correctamente.');
+      console.log('✅ Google Wallet actualizado correctamente:', { objectId, points, stamps });
     }
 
   } catch (err) {
-    console.error('Error en updateGoogleWallet:', err);
+    console.error('❌ Error en updateGoogleWallet:', err);
+    console.error('Detalles del error:', {
+      userId,
+      error: err instanceof Error ? err.message : String(err)
+    });
     // No lanzamos el error para no romper el flujo de la app si falla Google
   }
 }
