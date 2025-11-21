@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import styled from 'styled-components';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +30,21 @@ const ScannerContainer = styled.div`
   margin: ${props => props.theme.spacing.lg} 0;
   border-radius: ${props => props.theme.radius};
   overflow: hidden;
+  background: #000;
+  position: relative;
+
+  #qr-reader {
+    border: none !important;
+  }
+  
+  #qr-reader__scan_region {
+    background: transparent !important;
+  }
+  
+  video {
+    object-fit: cover;
+    border-radius: ${props => props.theme.radius};
+  }
 `;
 
 const CustomerInfo = styled.div`
@@ -54,6 +69,7 @@ const ResultMessage = styled.div`
   border-radius: ${props => props.theme.radius};
   text-align: center;
   margin: ${props => props.theme.spacing.md} 0;
+  white-space: pre-line; 
   
   ${props => props.type === 'success' && `
     background: #d1fae5;
@@ -107,32 +123,36 @@ export const ScanPurchase = () => {
   const [manualUserId, setManualUserId] = useState('');
   const [cameraError, setCameraError] = useState(null);
 
+  // NUEVO: Referencia para evitar lecturas múltiples
+  const isProcessingScan = useRef(false);
+
   useEffect(() => {
     checkStaffAccess();
   }, []);
 
   useEffect(() => {
-    if (!scannedUserId && isStaff && !manualMode) {
-      initScanner();
+    // Solo inicializamos si NO hay usuario escaneado y NO estamos procesando ya uno
+    if (!scannedUserId && isStaff && !manualMode && !isProcessingScan.current) {
+      const timer = setTimeout(() => {
+        initScanner();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-    
+
     return () => {
       if (scanner) {
-        scanner.clear().catch(() => {});
+        scanner.clear().catch(console.error);
       }
     };
   }, [isStaff, scannedUserId, manualMode]);
 
   const checkStaffAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    
     if (!user) {
       setResult({ type: 'error', message: 'Debes iniciar sesión' });
       return;
     }
-
     setCurrentUserId(user.id);
-
     const { data: roles } = await supabase
       .from('user_roles')
       .select('role')
@@ -140,89 +160,94 @@ export const ScanPurchase = () => {
       .in('role', ['staff', 'admin']);
 
     if (!roles || roles.length === 0) {
-      setResult({ type: 'error', message: 'Acceso denegado. Solo staff puede usar esta función.' });
+      setResult({ type: 'error', message: 'Acceso denegado. Solo staff.' });
       return;
     }
-
     setIsStaff(true);
   };
 
   const initScanner = () => {
     setCameraError(null);
-    
+    // Aseguramos que la bandera de proceso esté limpia al iniciar
+    isProcessingScan.current = false;
+
     const html5QrcodeScanner = new Html5QrcodeScanner(
       "qr-reader",
-      { 
-        fps: 30, 
-        qrbox: { width: 300, height: 300 },
-        aspectRatio: 1.777778,
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
         rememberLastUsedCamera: true,
         showTorchButtonIfSupported: true,
-        disableFlip: false
+        videoConstraints: {
+          facingMode: "environment",
+          focusMode: "continuous"
+        }
       },
       false
     );
 
     html5QrcodeScanner.render(onScanSuccess, (error) => {
-      // Solo mostrar errores críticos
-      if (error.includes('NotAllowedError')) {
-        setCameraError('Permiso de cámara denegado. Por favor permite el acceso o usa entrada manual.');
-      } else if (error.includes('NotFoundError')) {
-        setCameraError('No se encontró ninguna cámara. Usa entrada manual.');
+      if (typeof error === 'string') {
+        if (error.includes('NotAllowedError')) {
+          setCameraError('Permiso de cámara denegado.');
+        } else if (error.includes('NotFoundError')) {
+          setCameraError('No se encontró cámara.');
+        }
       }
     });
     setScanner(html5QrcodeScanner);
   };
 
   const onScanSuccess = async (decodedText) => {
-    console.log('QR escaneado:', decodedText);
-    
-    // Aceptar múltiples formatos: LEDUO-, leduo-, leduo:, LEDUO:
-    const match = decodedText.match(/leduo[:-](.+)/i);
-    if (!match) {
-      setResult({ type: 'error', message: 'QR inválido. Debe ser un código LeDuo.' });
+    // 1. FRENO DE MANO: Si ya estamos procesando un código, ignoramos los siguientes
+    if (isProcessingScan.current) return;
+    isProcessingScan.current = true; // Bloqueamos inmediatamente
+
+    console.log('QR Detectado (Procesando):', decodedText);
+
+    const userIdClean = decodedText.replace(/^leduo[-:]/i, '');
+
+    if (userIdClean.length < 10) {
+      console.warn('QR inválido');
+      isProcessingScan.current = false; // Liberamos si es inválido
       return;
     }
 
-    const userId = match[1];
-    setScannedUserId(userId);
-    
+    // 2. DETENER ESCÁNER ANTES DE ACTUALIZAR ESTADO
+    // Esto evita el parpadeo y errores en el DOM
     if (scanner) {
-      scanner.clear().catch(() => {});
+      try {
+        await scanner.clear();
+      } catch (e) {
+        console.error("Error limpiando scanner", e);
+      }
     }
 
-    // Cargar datos del cliente
-    await loadCustomerData(userId);
+    // 3. Ahora sí actualizamos el estado (React)
+    setScannedUserId(userIdClean);
+    await loadCustomerData(userIdClean);
   };
 
   const handleManualSearch = async () => {
-    if (!manualUserId.trim()) {
-      setResult({ type: 'error', message: 'Ingresa un ID válido' });
-      return;
-    }
+    if (!manualUserId.trim()) return;
 
-    let userId = manualUserId.trim();
-    
-    // Aceptar: LEDUO-xxx, leduo:xxx, o directamente el UUID
-    const match = userId.match(/leduo[:-](.+)/i);
-    if (match) {
-      userId = match[1];
-    }
-    
-    // Validar que sea un UUID válido
+    const userIdClean = manualUserId.trim().replace(/^leduo[-:]/i, '');
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId)) {
-      setResult({ type: 'error', message: 'El ID ingresado no es válido. Debe ser un UUID completo.' });
+
+    if (!uuidRegex.test(userIdClean)) {
+      setResult({ type: 'error', message: 'ID inválido.' });
       return;
     }
 
-    setScannedUserId(userId);
-    await loadCustomerData(userId);
+    setScannedUserId(userIdClean);
+    await loadCustomerData(userIdClean);
   };
 
   const loadCustomerData = async (userId) => {
     setLoading(true);
-    
+    setResult(null);
+
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -236,32 +261,34 @@ export const ScanPurchase = () => {
         .eq('user_id', userId)
         .single();
 
-      if (!profile || !state) {
-        throw new Error('Cliente no encontrado');
-      }
+      if (!profile || !state) throw new Error('Cliente no encontrado.');
 
-      setCustomerData({
-        profile,
-        state
-      });
+      setCustomerData({ profile, state });
     } catch (error) {
-      setResult({ type: 'error', message: 'Error cargando datos del cliente' });
+      console.error('Error loading user:', error);
+      setResult({ type: 'error', message: 'No se encontró al cliente.' });
       setScannedUserId(null);
+
+      setTimeout(() => {
+        if (!manualMode) {
+          setResult(null);
+          initScanner();
+        }
+      }, 3000);
     } finally {
       setLoading(false);
+      // Nota: NO ponemos isProcessingScan.current = false aquí porque
+      // ya tenemos al usuario y no queremos seguir escaneando.
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     const amountNum = parseFloat(amount);
     if (!amountNum || amountNum <= 0) {
-      setResult({ type: 'error', message: 'El monto debe ser mayor a 0' });
+      setResult({ type: 'error', message: 'Monto inválido' });
       return;
     }
-
-    // Mostrar modal de PIN
     setPinError(null);
     setShowPinModal(true);
   };
@@ -272,7 +299,6 @@ export const ScanPurchase = () => {
 
     try {
       const amountNum = parseFloat(amount);
-
       const { data, error } = await supabase.functions.invoke('register-purchase', {
         body: {
           userId: scannedUserId,
@@ -284,44 +310,38 @@ export const ScanPurchase = () => {
       });
 
       if (error) {
-        if (error.message?.includes('PIN incorrecto')) {
-          setPinError('PIN incorrecto. Intenta de nuevo.');
-          setLoading(false);
-          return;
-        }
-        if (error.message?.includes('configurar tu PIN')) {
-          setPinError('Debes configurar tu PIN en la página de Cuenta antes de procesar ventas.');
+        if (error.message?.includes('PIN incorrecto') || (error.context && error.context.status === 401)) {
+          setPinError('PIN incorrecto.');
           setLoading(false);
           return;
         }
         throw error;
       }
 
-      const pointsMsg = `+${data.points.earned} puntos (Total: ${data.points.total})`;
-      const stampsMsg = `+${data.stamps.earned} sello (Total: ${data.stamps.total}/8)`;
-      const rewardMsg = data.rewardCreated ? ' 🎉 ¡Recompensa desbloqueada!' : '';
+      const pointsMsg = `+${data.points.earned} pts`;
+      const stampsMsg = `+${data.stamps.earned} sello`;
+      const rewardMsg = data.rewardCreated ? ' \n🎉 ¡Recompensa!' : '';
 
       setResult({
         type: 'success',
-        message: `Compra registrada exitosamente.\n${pointsMsg}\n${stampsMsg}${rewardMsg}`
+        message: `Éxito: ${pointsMsg}, ${stampsMsg}${rewardMsg}`
       });
 
-      // Cerrar modal y limpiar formulario
       setShowPinModal(false);
       setAmount('');
       setNotes('');
       setScannedUserId(null);
       setCustomerData(null);
 
-      // Reiniciar scanner después de 3 segundos
+      // Reiniciar ciclo
       setTimeout(() => {
         setResult(null);
-        initScanner();
-      }, 3000);
+        if (!manualMode) initScanner();
+      }, 4000);
 
     } catch (error) {
-      console.error('Error registrando compra:', error);
-      setResult({ type: 'error', message: error.message || 'Error al registrar compra' });
+      console.error(error);
+      setResult({ type: 'error', message: 'Error al registrar.' });
       setShowPinModal(false);
     } finally {
       setLoading(false);
@@ -336,20 +356,19 @@ export const ScanPurchase = () => {
     setResult(null);
     setManualUserId('');
     setCameraError(null);
+
+    // Liberamos el bloqueo para permitir escanear de nuevo
+    isProcessingScan.current = false;
+
     if (!manualMode) {
-      initScanner();
+      setTimeout(() => initScanner(), 100);
     }
   };
 
   if (!isStaff && result?.type === 'error') {
     return (
       <ScanWrapper>
-        <Section>
-          <ScanCard>
-            <Title>Acceso Restringido</Title>
-            <ResultMessage type="error">{result.message}</ResultMessage>
-          </ScanCard>
-        </Section>
+        <Section><ScanCard><Title>Acceso Restringido</Title><ResultMessage type="error">{result.message}</ResultMessage></ScanCard></Section>
       </ScanWrapper>
     );
   }
@@ -363,15 +382,23 @@ export const ScanPurchase = () => {
           {!scannedUserId && (
             <>
               <ModeToggle>
-                <Button 
+                <Button
                   variant={!manualMode ? 'primary' : 'outline'}
-                  onClick={() => setManualMode(false)}
+                  onClick={() => {
+                    setManualMode(false);
+                    setResult(null);
+                    isProcessingScan.current = false;
+                    setTimeout(initScanner, 100);
+                  }}
                 >
                   📷 Escanear QR
                 </Button>
-                <Button 
+                <Button
                   variant={manualMode ? 'primary' : 'outline'}
-                  onClick={() => setManualMode(true)}
+                  onClick={() => {
+                    setManualMode(true);
+                    if (scanner) scanner.clear().catch(() => { });
+                  }}
                 >
                   ✏️ Entrada Manual
                 </Button>
@@ -382,15 +409,9 @@ export const ScanPurchase = () => {
                   <Input
                     type="text"
                     label="ID del Cliente"
-                    placeholder="Ej: LEDUO-abc123 o b38b27e7-dd6c-438e-8697-a86325efa81f"
+                    placeholder="UUID"
                     value={manualUserId}
                     onChange={(e) => setManualUserId(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleManualSearch();
-                      }
-                    }}
                   />
                   <Button onClick={handleManualSearch} disabled={loading}>
                     {loading ? 'Buscando...' : 'Buscar Cliente'}
@@ -398,12 +419,8 @@ export const ScanPurchase = () => {
                 </ManualInputContainer>
               ) : (
                 <>
-                  <p style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    Escanea el código QR del cliente
-                  </p>
-                  {cameraError && (
-                    <CameraErrorMessage>{cameraError}</CameraErrorMessage>
-                  )}
+                  <p style={{ textAlign: 'center', marginBottom: '16px' }}>Apunta al QR</p>
+                  {cameraError && <CameraErrorMessage>{cameraError}</CameraErrorMessage>}
                   <ScannerContainer>
                     <div id="qr-reader"></div>
                   </ScannerContainer>
@@ -415,62 +432,46 @@ export const ScanPurchase = () => {
           {scannedUserId && customerData && (
             <>
               <CustomerInfo>
-                <h3>Cliente Identificado</h3>
-                <p><strong>Nombre:</strong> {customerData.profile.name}</p>
-                <p><strong>Email:</strong> {customerData.profile.email}</p>
-                <p><strong>Puntos actuales:</strong> {customerData.state.cashback_points}</p>
-                <p><strong>Sellos:</strong> {customerData.state.stamps}/8</p>
+                <h3>{customerData.profile.name}</h3>
+                <p>Email: {customerData.profile.email}</p>
+                <p>Puntos: {customerData.state.cashback_points} | Sellos: {customerData.state.stamps}/8</p>
               </CustomerInfo>
 
               <form onSubmit={handleSubmit}>
                 <Input
                   type="number"
-                  label="Monto de la compra ($)"
-                  placeholder="100.00"
+                  label="Monto ($)"
+                  placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
                   step="0.01"
                   min="0.01"
                 />
-
                 <Input
                   type="text"
-                  label="Notas (opcional)"
-                  placeholder="Ej: 2 cafés + 1 croissant"
+                  label="Notas"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   style={{ marginTop: '16px' }}
                 />
-
                 <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                   <Button type="submit" disabled={loading} style={{ flex: 1 }}>
-                    {loading ? 'Registrando...' : 'Registrar Compra'}
+                    {loading ? 'Registrando...' : 'Cobrar'}
                   </Button>
-                  <Button type="button" variant="secondary" onClick={handleReset}>
-                    Cancelar
-                  </Button>
+                  <Button type="button" variant="secondary" onClick={handleReset}>Cancelar</Button>
                 </div>
               </form>
             </>
           )}
 
-          {result && (
-            <ResultMessage type={result.type}>
-              {result.message.split('\n').map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-            </ResultMessage>
-          )}
+          {result && <ResultMessage type={result.type}>{result.message}</ResultMessage>}
         </ScanCard>
       </Section>
 
       <PinConfirmModal
         isOpen={showPinModal}
-        onClose={() => {
-          setShowPinModal(false);
-          setPinError(null);
-        }}
+        onClose={() => { setShowPinModal(false); setPinError(null); }}
         onConfirm={handlePinConfirm}
         loading={loading}
         error={pinError}

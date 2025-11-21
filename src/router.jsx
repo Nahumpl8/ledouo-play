@@ -13,6 +13,7 @@ import { Roulette } from './pages/Roulette';
 import { Account } from './pages/Account';
 import { ScanPurchase } from './pages/ScanPurchase';
 import { NotFound } from './pages/NotFound';
+import { SetupPinModal } from './components/staff/SetupPinModal';
 import MenuLeDuo from './pages/MenuLeDuo';
 
 export const Router = () => {
@@ -48,6 +49,7 @@ export const Router = () => {
             <ScanPurchase />
           </RequireAuth>
         } />
+
         <Route path="/menu" element={<MenuLeDuo />} />
 
         {/* Catch all */}
