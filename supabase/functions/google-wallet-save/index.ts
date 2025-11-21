@@ -116,7 +116,7 @@ serve(async (req) => {
       hexBackgroundColor: "#D4C5B9",
       logo: { sourceUri: { uri: "https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png" } },
       loyaltyPoints: { label: "Puntos", balance: { string: String(points) } },
-      barcode: { type: "QR_CODE", value: `leduo:${userId}`, alternateText: userId.slice(0, 8) },
+      barcode: { type: "QR_CODE", value: `LEDUO-${userId}`, alternateText: userId.slice(0, 8) },
       textModulesData: [
         { id: "stamps_progress", header: "Sellos", body: `${Math.min(stamps, 8)}/8` },
         { id: "program_name", header: "Programa", body: "LeDuo Rewards" },
@@ -178,7 +178,13 @@ serve(async (req) => {
     const jwt = await create({ alg: "RS256", typ: "JWT" }, claims, cryptoKey);
     const saveUrl = `https://pay.google.com/gp/v/save/${jwt}`;
 
-    console.log("✅ URL generado exitosamente");
+    console.log("✅ JWT generado exitosamente:", {
+      objectId: fullObjectId,
+      userId,
+      stamps,
+      points,
+      barcodeValue: `LEDUO-${userId}`
+    });
 
     return json({ ok: true, saveUrl, objectId: fullObjectId });
   } catch (err) {
