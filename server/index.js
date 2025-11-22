@@ -35,10 +35,10 @@ const STAMP_SPRITES = {
 };
 
 // === ENV ===
-const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL; // sa@project.iam.gserviceaccount.com
-const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n'); // manejar \n escapados
-const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID;  // p.ej. 3388...
-const CLASS_ID  = process.env.GOOGLE_WALLET_CLASS_ID;   // p.ej. 3388....leduo_loyalty_class
+const SERVICE_ACCOUNT_EMAIL = process.env.WALLET_SERVICE_ACCOUNT_EMAIL;
+const PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID;
+const CLASS_ID = process.env.GOOGLE_WALLET_CLASS_ID;
 
 function ensureEnv(res) {
   if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY || !ISSUER_ID || !CLASS_ID) {
@@ -62,8 +62,28 @@ app.post('/api/wallet/save', (req, res) => {
       });
     }
 
-    const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
-    const userId = customerData.id || objectIdSuffix.replace('leduo_customer_', '');
+    // === CORRECCIÓN CRÍTICA AQUÍ ===
+    // 1. Limpieza agresiva para obtener SOLO el UUID limpio
+    let cleanUserId = customerData.id;
+
+    if (!cleanUserId) {
+      // Quitamos cualquier prefijo posible que venga del front
+      cleanUserId = objectIdSuffix
+        .replace('leduo_customer_', '')
+        .replace('LEDUO-', '')
+        .replace('leduo-', '');
+    }
+
+    // 2. Estandarización de IDs
+    // El ID del objeto en Google SERÁ: ISSUER.LEDUO-uuid
+    // Esto asegura que coincida con lo que busca tu Edge Function al actualizar.
+    const fullObjectId = `${ISSUER_ID}.LEDUO-${cleanUserId}`;
+
+    // El valor del QR SERÁ: LEDUO-uuid
+    const barcodeValue = `LEDUO-${cleanUserId}`;
+
+    // ===============================
+
     const stamps = customerData.stamps || 0;
     const points = customerData.cashbackPoints || 0;
     const customerName = customerData.name || 'Cliente LeDuo';
@@ -77,14 +97,12 @@ app.post('/api/wallet/save', (req, res) => {
       exp: now + 3600,
       payload: {
         genericObjects: [{
-          id: fullObjectId,
+          id: fullObjectId, // ID Corregido
           classId: CLASS_ID,
           state: 'ACTIVE',
-          
-          // Color beige/café
+
           hexBackgroundColor: '#D4C5B9',
-          
-          // Información principal
+
           cardTitle: {
             defaultValue: {
               language: 'es',
@@ -103,8 +121,7 @@ app.post('/api/wallet/save', (req, res) => {
               value: `${stamps}/8 sellos • ${points} pts`
             }
           },
-          
-          // Logo LeDuo
+
           logo: {
             sourceUri: {
               uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png'
@@ -116,8 +133,7 @@ app.post('/api/wallet/save', (req, res) => {
               }
             }
           },
-          
-          // Imagen del chef como hero
+
           heroImage: {
             sourceUri: {
               uri: STAMP_SPRITES[Math.min(stamps, 8)]
@@ -129,15 +145,13 @@ app.post('/api/wallet/save', (req, res) => {
               }
             }
           },
-          
-          // QR único para identificar al cliente
+
           barcode: {
             type: 'QR_CODE',
-            value: `LEDUO-${userId}`,
-            alternateText: `Cliente: ${userId.substring(0, 8)}`
+            value: barcodeValue, // QR Corregido y limpio
+            alternateText: `Cliente: ${cleanUserId.substring(0, 8)}`
           },
-          
-          // Información detallada
+
           textModulesData: [
             {
               header: 'Puntos Acumulados',
@@ -160,8 +174,7 @@ app.post('/api/wallet/save', (req, res) => {
               id: 'benefits'
             }
           ],
-          
-          // Enlaces útiles
+
           linksModuleData: {
             uris: [
               {
@@ -192,12 +205,10 @@ app.post('/api/wallet/save', (req, res) => {
 // Healthcheck simple
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// === STATIC (producción): servir el build del FRONT ===
+// === STATIC ===
 const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
 
-// Fallback de SPA compatible con Express 5 (sin usar '*')
-// Entrega index.html para GET que no sean /api/*
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return next();

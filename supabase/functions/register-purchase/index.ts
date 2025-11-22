@@ -1,11 +1,126 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// IMPORTANTE: Necesitamos esta librería para firmar las credenciales de Google
+import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Imágenes de los sellos (Misma lógica que tu server)
+const STAMP_SPRITES: Record<number, string> = {
+  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
+  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
+  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
+  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
+  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
+  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
+  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
+  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
+  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+};
+
+// --- INICIO: LÓGICA DE GOOGLE WALLET ---
+
+async function getGoogleAuthToken(email: string, privateKey: string) {
+  const algorithm = 'RS256';
+  const pk = await jose.importPKCS8(privateKey, algorithm);
+
+  const jwt = await new jose.SignJWT({
+    scope: 'https://www.googleapis.com/auth/wallet_object.issuer'
+  })
+    .setProtectedHeader({ alg: algorithm })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .setIssuer(email)
+    .setAudience('https://oauth2.googleapis.com/token')
+    .sign(pk);
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+async function updateGoogleWallet(userId: string, points: number, stamps: number) {
+  try {
+    const email = Deno.env.get('WALLET_SERVICE_ACCOUNT_EMAIL');
+    const rawKey = Deno.env.get('WALLET_PRIVATE_KEY') ?? '';
+    const issuerId = Deno.env.get('GOOGLE_WALLET_ISSUER_ID');
+
+    // Limpieza de la llave privada (arregla saltos de linea)
+    const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
+
+    if (!email || !privateKey || !issuerId) {
+      console.warn('SALTANDO WALLET: Faltan credenciales en Supabase Secrets.');
+      return;
+    }
+
+    // ID IDÉNTICO A TU INDEX.JS: ISSUER.LEDUO-USERID
+    const objectId = `${issuerId}.LEDUO-${userId}`;
+
+    console.log(`Intentando actualizar Google Wallet: ${objectId}`);
+
+    const token = await getGoogleAuthToken(email, privateKey);
+
+    // Enviamos a Google solo los datos que cambian
+    const patchBody = {
+      header: {
+        defaultValue: {
+          language: 'es',
+          value: `${stamps}/8 sellos • ${points} pts`
+        }
+      },
+      heroImage: {
+        sourceUri: {
+          uri: STAMP_SPRITES[Math.min(stamps, 8)] || STAMP_SPRITES[0]
+        }
+      },
+      textModulesData: [
+        {
+          header: 'Puntos Acumulados',
+          body: `${points} puntos disponibles para canjear`,
+          id: 'points'
+        },
+        {
+          header: 'Progreso de Sellos',
+          body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
+          id: 'stamps'
+        }
+      ]
+    };
+
+    const res = await fetch(`https://walletobjects.googleapis.com/walletobjects/v1/genericObject/${objectId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(patchBody)
+    });
+
+    if (!res.ok) {
+      console.error('Error Google API:', await res.text());
+    } else {
+      console.log('Google Wallet actualizado con éxito.');
+    }
+
+  } catch (err) {
+    console.error('Error en updateGoogleWallet:', err);
+    // No lanzamos throw para que la venta se complete aunque falle Google
+  }
+}
+// --- FIN LÓGICA GOOGLE WALLET ---
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -22,15 +137,15 @@ serve(async (req) => {
 
     console.log('Registering purchase:', { userId, amount, staffId });
 
-    // Validar parámetros requeridos
+    // Validaciones...
     if (!userId || !amount || !staffId || !staffPin) {
       return new Response(
-        JSON.stringify({ error: 'Parámetros faltantes: userId, amount, staffId y staffPin son requeridos' }),
+        JSON.stringify({ error: 'Parámetros faltantes' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validar que el staff existe y obtener su PIN hasheado
+    // Validar Staff
     const { data: staffProfile, error: staffError } = await supabase
       .from('profiles')
       .select('staff_pin')
@@ -38,22 +153,19 @@ serve(async (req) => {
       .single();
 
     if (staffError || !staffProfile) {
-      console.error('Staff not found:', staffError);
       return new Response(
         JSON.stringify({ error: 'Staff no encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validar que el staff tiene un PIN configurado
     if (!staffProfile.staff_pin) {
       return new Response(
-        JSON.stringify({ error: 'Debes configurar tu PIN antes de procesar ventas' }),
+        JSON.stringify({ error: 'Configura tu PIN primero' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Hashear el PIN recibido y comparar con el almacenado
     const encoder = new TextEncoder();
     const data = encoder.encode(staffPin);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -61,14 +173,13 @@ serve(async (req) => {
     const hashedPin = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     if (hashedPin !== staffProfile.staff_pin) {
-      console.log('Invalid PIN attempt');
       return new Response(
         JSON.stringify({ error: 'PIN incorrecto' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verificar que el usuario existe
+    // Validar Usuario
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -82,11 +193,10 @@ serve(async (req) => {
       );
     }
 
-    // Calcular puntos: 1 punto por cada $10
+    // Cálculos
     const pointsEarned = Math.floor(amount / 10);
     const stampsEarned = 1;
 
-    // Obtener estado actual del cliente
     const { data: currentState, error: stateError } = await supabase
       .from('customer_state')
       .select('*')
@@ -102,12 +212,11 @@ serve(async (req) => {
 
     const newPoints = currentState.cashback_points + pointsEarned;
     const newStamps = currentState.stamps + stampsEarned;
-    
-    // Verificar si se completaron 8 sellos
+
     const completedStampCard = newStamps >= 8;
     const finalStamps = completedStampCard ? newStamps - 8 : newStamps;
 
-    // Actualizar estado del cliente
+    // Actualizar DB Supabase
     const { error: updateError } = await supabase
       .from('customer_state')
       .update({
@@ -119,12 +228,8 @@ serve(async (req) => {
       })
       .eq('user_id', userId);
 
-    if (updateError) {
-      console.error('Error actualizando estado:', updateError);
-      throw updateError;
-    }
+    if (updateError) throw updateError;
 
-    // Registrar visita con el staff que la procesó
     const { error: visitError } = await supabase
       .from('visits')
       .insert({
@@ -137,17 +242,12 @@ serve(async (req) => {
         visit_date: new Date().toISOString()
       });
 
-    if (visitError) {
-      console.error('Error registrando visita:', visitError);
-      throw visitError;
-    }
+    if (visitError) throw visitError;
 
     let rewardCreated = false;
-
-    // Si completó 8 sellos, crear recompensa
     if (completedStampCard) {
       const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 3); // 3 meses de vigencia
+      expiresAt.setMonth(expiresAt.getMonth() + 3);
 
       const { error: rewardError } = await supabase
         .from('rewards')
@@ -160,14 +260,15 @@ serve(async (req) => {
           expires_at: expiresAt.toISOString()
         });
 
-      if (rewardError) {
-        console.error('Error creando recompensa:', rewardError);
-      } else {
-        rewardCreated = true;
-      }
+      if (!rewardError) rewardCreated = true;
     }
 
-    console.log('Compra registrada exitosamente');
+    // ============================================================
+    // AQUÍ OCURRE LA MAGIA QUE FALTABA
+    // Llamamos a la función que actualiza Google Wallet
+    // ============================================================
+    await updateGoogleWallet(userId, newPoints, finalStamps);
+
 
     return new Response(
       JSON.stringify({
@@ -183,9 +284,9 @@ serve(async (req) => {
         rewardCreated,
         message: 'Compra registrada exitosamente'
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
