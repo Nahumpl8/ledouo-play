@@ -49,7 +49,7 @@ function normalizeCustomerData(data = {}) {
 export async function buildSaveUrl(customerData) {
   const safe = normalizeCustomerData(customerData || {});
   const payload = {
-    objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}`,
+    objectIdSuffix: `LEDUO-${safe.id || randomSuffix()}`,
     customerData: safe
   };
 

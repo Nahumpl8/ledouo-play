@@ -61,7 +61,11 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
     const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
 
     if (!email || !privateKey || !issuerId) {
-      console.warn('SALTANDO WALLET: Faltan credenciales en Supabase Secrets.');
+      console.error('❌ CREDENCIALES FALTANTES:', { 
+        hasEmail: !!email, 
+        hasKey: !!privateKey, 
+        hasIssuer: !!issuerId 
+      });
       return;
     }
 
@@ -109,13 +113,23 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
     });
 
     if (!res.ok) {
-      console.error('Error Google API:', await res.text());
+      const errorText = await res.text();
+      console.error('❌ Error Google API:', { 
+        status: res.status, 
+        statusText: res.statusText,
+        body: errorText,
+        objectId: objectId
+      });
     } else {
-      console.log('Google Wallet actualizado con éxito.');
+      console.log('✅ Google Wallet actualizado con éxito:', objectId);
     }
 
   } catch (err) {
-    console.error('Error en updateGoogleWallet:', err);
+    console.error('❌ Error crítico en updateGoogleWallet:', {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      userId: userId
+    });
     // No lanzamos throw para que la venta se complete aunque falle Google
   }
 }
@@ -268,6 +282,7 @@ serve(async (req) => {
     // Llamamos a la función que actualiza Google Wallet
     // ============================================================
     await updateGoogleWallet(userId, newPoints, finalStamps);
+    console.log('✅ Sincronización con Google Wallet completada');
 
 
     return new Response(
