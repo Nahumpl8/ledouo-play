@@ -1,7 +1,7 @@
 // src/services/googleWallet.js
-// Cliente: Llama a la edge function de Supabase para generar el pase de Google Wallet
+// Cliente: NO uses 'jsonwebtoken' aquí. Este módulo llama a /api/wallet/save en tu backend.
 
-import { supabase } from '@/integrations/supabase/client';
+export const GOOGLE_WALLET_API_PATH = '/api/wallet/save';
 
 // Detecta si estamos en navegador
 const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -48,41 +48,36 @@ function normalizeCustomerData(data = {}) {
  */
 export async function buildSaveUrl(customerData) {
   const safe = normalizeCustomerData(customerData || {});
-  
-  // Usar formato consistente: LEDUO-{uuid}
-  const objectIdSuffix = `LEDUO-${safe.id || randomSuffix()}`;
-  
   const payload = {
-    objectIdSuffix,
+    objectIdSuffix: `leduo_customer_${safe.id || randomSuffix()}`,
     customerData: safe
   };
 
+  let res;
   try {
-    console.log('🎫 Llamando a google-wallet-save con:', { objectIdSuffix, userId: safe.id });
-    
-    const { data, error } = await supabase.functions.invoke('google-wallet-save', {
-      body: payload
+    res = await fetch(GOOGLE_WALLET_API_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-
-    if (error) {
-      console.error('❌ Error de Supabase function:', error);
-      throw error;
-    }
-
-    if (!data?.saveUrl) {
-      console.error('❌ Respuesta inválida:', data);
-      throw new Error('Respuesta del servidor inválida: falta saveUrl.');
-    }
-
-    console.log('✅ URL de Google Wallet generada correctamente');
-    return data.saveUrl;
-    
   } catch (err) {
-    console.error('❌ Error en buildSaveUrl:', err);
     throw new Error(
-      `No se pudo generar el pase de Google Wallet: ${err instanceof Error ? err.message : String(err)}`
+      'No se pudo contactar al servidor. ' +
+      'Verifica que tu backend esté corriendo y el proxy /api esté configurado.'
     );
   }
+
+  if (!res.ok) {
+    let detail = '';
+    try { detail = await res.text(); } catch { }
+    throw new Error(`No se pudo generar el pase (HTTP ${res.status}). ${detail}`.trim());
+  }
+
+  const data = await res.json();
+  if (!data || !data.saveUrl) {
+    throw new Error('Respuesta del servidor inválida: falta saveUrl.');
+  }
+  return data.saveUrl;
 }
 
 /**
