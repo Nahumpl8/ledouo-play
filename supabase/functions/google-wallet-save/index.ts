@@ -28,22 +28,12 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
   return buf.buffer;
 }
 
-const STAMP_SPRITES: Record<number, string> = {
-  0: "https://i.ibb.co/63CV4yN/0-sellos.png",
-  1: "https://i.ibb.co/Z6JMptkH/1-sello.png",
-  2: "https://i.ibb.co/VYD6Kpk0/2-sellos.png",
-  3: "https://i.ibb.co/BHbybkYM/3-sellos.png",
-  4: "https://i.ibb.co/39YtppFz/4-sellos.png",
-  5: "https://i.ibb.co/pBpkMX7L/5-sellos.png",
-  6: "https://i.ibb.co/KzcK4mXh/6-sellos.png",
-  7: "https://i.ibb.co/358Mc3Q4/7-sellos.png",
-  8: "https://i.ibb.co/ZzJSwPhT/8-sellos.png",
-};
-
-function getStampsSpriteUrl(stamps: number) {
-  const n = Math.max(0, Math.min(8, parseInt(String(stamps), 10) || 0));
-  const bust = `v=${n}-${Date.now()}`;
-  return `${STAMP_SPRITES[n]}?${bust}`;
+// Función para generar URLs dinámicas de imágenes desde Supabase Storage
+function getStampImageUrl(stamps: number): string {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const baseUrl = `${supabaseUrl}/storage/v1/object/public/wallet-stamps`;
+  const safeStamps = Math.max(0, Math.min(stamps, 8));
+  return `${baseUrl}/stamps-${safeStamps}.png`;
 }
 
 serve(async (req) => {
@@ -123,7 +113,7 @@ serve(async (req) => {
         {
           id: "stamps_grid_big",
           mainImage: {
-            sourceUri: { uri: getStampsSpriteUrl(stamps) },
+            sourceUri: { uri: getStampImageUrl(stamps) },
             contentDescription: { defaultValue: { language: "es", value: "Progreso de sellos" } },
           },
         },
