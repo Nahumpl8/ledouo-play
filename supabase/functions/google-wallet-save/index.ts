@@ -95,10 +95,9 @@ serve(async (req) => {
 
     const userId = String(customerData.id);
     const stamps = Math.max(0, parseInt(String(customerData.stamps)) || 0);
-    const points = Math.max(0, parseInt(String(customerData.cashbackPoints)) || 0);
     const customerName = customerData.name || "Cliente LeDuo";
 
-    console.log("👤 Cliente procesado:", { userId, stamps, points, customerName });
+    console.log("👤 Cliente procesado:", { userId, stamps, customerName });
 
     const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
     const now = Math.floor(Date.now() / 1000);
@@ -115,7 +114,6 @@ serve(async (req) => {
       accountName: customerName,
       hexBackgroundColor: "#D4C5B9",
       logo: { sourceUri: { uri: "https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png" } },
-      loyaltyPoints: { label: "Puntos", balance: { string: String(points) } },
       barcode: { type: "QR_CODE", value: `leduo:${userId}`, alternateText: userId.slice(0, 8) },
       textModulesData: [
         { id: "stamps_progress", header: "Sellos", body: `${Math.min(stamps, 8)}/8` },

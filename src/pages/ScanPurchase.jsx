@@ -318,13 +318,12 @@ export const ScanPurchase = () => {
         throw error;
       }
 
-      const pointsMsg = `+${data.points.earned} pts`;
       const stampsMsg = `+${data.stamps.earned} sello`;
       const rewardMsg = data.rewardCreated ? ' \n🎉 ¡Recompensa!' : '';
 
       setResult({
         type: 'success',
-        message: `Éxito: ${pointsMsg}, ${stampsMsg}${rewardMsg}`
+        message: `Éxito: ${stampsMsg}${rewardMsg}`
       });
 
       setShowPinModal(false);
@@ -434,7 +433,7 @@ export const ScanPurchase = () => {
               <CustomerInfo>
                 <h3>{customerData.profile.name}</h3>
                 <p>Email: {customerData.profile.email}</p>
-                <p>Puntos: {customerData.state.cashback_points} | Sellos: {customerData.state.stamps}/8</p>
+                <p>Sellos: {customerData.state.stamps}/8</p>
               </CustomerInfo>
 
               <form onSubmit={handleSubmit}>
