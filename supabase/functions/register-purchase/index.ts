@@ -9,18 +9,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Imágenes de los sellos (Misma lógica que tu server)
-const STAMP_SPRITES: Record<number, string> = {
-  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
-  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
-  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
-  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
-  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
-  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
-  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
-  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
-};
+// Función para generar URLs dinámicas de imágenes desde Supabase Storage
+function getStampImageUrl(stamps: number): string {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const baseUrl = `${supabaseUrl}/storage/v1/object/public/wallet-stamps`;
+  const safeStamps = Math.max(0, Math.min(stamps, 8));
+  return `${baseUrl}/stamps-${safeStamps}.png`;
+}
 
 // --- INICIO: LÓGICA DE GOOGLE WALLET ---
 
@@ -76,6 +71,10 @@ async function updateGoogleWallet(userId: string, stamps: number) {
 
     const token = await getGoogleAuthToken(email, privateKey);
 
+    // Generar URL de imagen dinámica
+    const heroImageUrl = getStampImageUrl(stamps);
+    console.log(`📸 Usando imagen de Supabase Storage: ${heroImageUrl}`);
+
     // Enviamos a Google solo los datos que cambian
     const patchBody = {
       header: {
@@ -86,7 +85,7 @@ async function updateGoogleWallet(userId: string, stamps: number) {
       },
       heroImage: {
         sourceUri: {
-          uri: STAMP_SPRITES[Math.min(stamps, 8)] || STAMP_SPRITES[0]
+          uri: heroImageUrl
         }
       },
       textModulesData: [
