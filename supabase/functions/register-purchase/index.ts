@@ -9,13 +9,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Función para generar URLs dinámicas de imágenes desde Supabase Storage
-function getStampImageUrl(stamps: number): string {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const baseUrl = `${supabaseUrl}/storage/v1/object/public/wallet-stamps`;
-  const safeStamps = Math.max(0, Math.min(stamps, 8));
-  return `${baseUrl}/stamps-${safeStamps}.png`;
-}
+// Imágenes de los sellos (Misma lógica que tu server)
+const STAMP_SPRITES: Record<number, string> = {
+  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
+  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
+  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
+  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
+  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
+  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
+  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
+  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
+  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+};
 
 // --- INICIO: LÓGICA DE GOOGLE WALLET ---
 
@@ -46,7 +51,7 @@ async function getGoogleAuthToken(email: string, privateKey: string) {
   return data.access_token;
 }
 
-async function updateGoogleWallet(userId: string, stamps: number) {
+async function updateGoogleWallet(userId: string, points: number, stamps: number) {
   try {
     const email = Deno.env.get('WALLET_SERVICE_ACCOUNT_EMAIL');
     const rawKey = Deno.env.get('WALLET_PRIVATE_KEY') ?? '';
@@ -71,24 +76,25 @@ async function updateGoogleWallet(userId: string, stamps: number) {
 
     const token = await getGoogleAuthToken(email, privateKey);
 
-    // Generar URL de imagen dinámica
-    const heroImageUrl = getStampImageUrl(stamps);
-    console.log(`📸 Usando imagen de Supabase Storage: ${heroImageUrl}`);
-
     // Enviamos a Google solo los datos que cambian
     const patchBody = {
       header: {
         defaultValue: {
           language: 'es',
-          value: `${stamps}/8 sellos`
+          value: `${stamps}/8 sellos • ${points} pts`
         }
       },
       heroImage: {
         sourceUri: {
-          uri: heroImageUrl
+          uri: STAMP_SPRITES[Math.min(stamps, 8)] || STAMP_SPRITES[0]
         }
       },
       textModulesData: [
+        {
+          header: 'Puntos Acumulados',
+          body: `${points} puntos disponibles para canjear`,
+          id: 'points'
+        },
         {
           header: 'Progreso de Sellos',
           body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
@@ -228,6 +234,7 @@ serve(async (req) => {
     });
 
     // Cálculos
+    const pointsEarned = Math.floor(amount / 10);
     const stampsEarned = 1;
 
     console.log('🔍 Buscando customer_state para userId:', userId);
@@ -265,9 +272,11 @@ serve(async (req) => {
 
     console.log('✅ Customer state encontrado:', { 
       userId,
+      points: currentState.cashback_points,
       stamps: currentState.stamps
     });
 
+    const newPoints = currentState.cashback_points + pointsEarned;
     const newStamps = currentState.stamps + stampsEarned;
 
     const completedStampCard = newStamps >= 8;
@@ -277,6 +286,7 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from('customer_state')
       .update({
+        cashback_points: newPoints,
         stamps: finalStamps,
         last_visit: new Date().toISOString(),
         roulette_visits_since_last_spin: currentState.roulette_visits_since_last_spin + 1,
@@ -291,7 +301,7 @@ serve(async (req) => {
       .insert({
         user_id: userId,
         amount_spent: amount,
-        cashback_earned: 0,
+        cashback_earned: pointsEarned,
         stamps_earned: stampsEarned,
         notes: notes,
         processed_by_staff_id: staffId,
@@ -323,13 +333,17 @@ serve(async (req) => {
     // AQUÍ OCURRE LA MAGIA QUE FALTABA
     // Llamamos a la función que actualiza Google Wallet
     // ============================================================
-    await updateGoogleWallet(userId, finalStamps);
+    await updateGoogleWallet(userId, newPoints, finalStamps);
     console.log('✅ Sincronización con Google Wallet completada');
 
 
     return new Response(
       JSON.stringify({
         success: true,
+        points: {
+          earned: pointsEarned,
+          total: newPoints
+        },
         stamps: {
           earned: stampsEarned,
           total: finalStamps

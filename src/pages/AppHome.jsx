@@ -201,6 +201,7 @@ export const AppHome = () => {
 
       setCustomer({ ...profile, id: user.id });
       setState(customerState || {
+        cashback_points: 0,
         stamps: 0,
         last_visit: null,
         roulette_visits_since_last_spin: 0
@@ -228,6 +229,7 @@ export const AppHome = () => {
       const walletData = {
         id: customer.id,
         name: customer.name,
+        cashbackPoints: state.cashback_points,
         stamps: state.stamps
       };
 

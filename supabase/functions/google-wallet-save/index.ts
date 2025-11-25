@@ -28,12 +28,22 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
   return buf.buffer;
 }
 
-// Función para generar URLs dinámicas de imágenes desde Supabase Storage
-function getStampImageUrl(stamps: number): string {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const baseUrl = `${supabaseUrl}/storage/v1/object/public/wallet-stamps`;
-  const safeStamps = Math.max(0, Math.min(stamps, 8));
-  return `${baseUrl}/stamps-${safeStamps}.png`;
+const STAMP_SPRITES: Record<number, string> = {
+  0: "https://i.ibb.co/63CV4yN/0-sellos.png",
+  1: "https://i.ibb.co/Z6JMptkH/1-sello.png",
+  2: "https://i.ibb.co/VYD6Kpk0/2-sellos.png",
+  3: "https://i.ibb.co/BHbybkYM/3-sellos.png",
+  4: "https://i.ibb.co/39YtppFz/4-sellos.png",
+  5: "https://i.ibb.co/pBpkMX7L/5-sellos.png",
+  6: "https://i.ibb.co/KzcK4mXh/6-sellos.png",
+  7: "https://i.ibb.co/358Mc3Q4/7-sellos.png",
+  8: "https://i.ibb.co/ZzJSwPhT/8-sellos.png",
+};
+
+function getStampsSpriteUrl(stamps: number) {
+  const n = Math.max(0, Math.min(8, parseInt(String(stamps), 10) || 0));
+  const bust = `v=${n}-${Date.now()}`;
+  return `${STAMP_SPRITES[n]}?${bust}`;
 }
 
 serve(async (req) => {
@@ -85,9 +95,10 @@ serve(async (req) => {
 
     const userId = String(customerData.id);
     const stamps = Math.max(0, parseInt(String(customerData.stamps)) || 0);
+    const points = Math.max(0, parseInt(String(customerData.cashbackPoints)) || 0);
     const customerName = customerData.name || "Cliente LeDuo";
 
-    console.log("👤 Cliente procesado:", { userId, stamps, customerName });
+    console.log("👤 Cliente procesado:", { userId, stamps, points, customerName });
 
     const fullObjectId = `${ISSUER_ID}.${objectIdSuffix}`;
     const now = Math.floor(Date.now() / 1000);
@@ -104,6 +115,7 @@ serve(async (req) => {
       accountName: customerName,
       hexBackgroundColor: "#D4C5B9",
       logo: { sourceUri: { uri: "https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png" } },
+      loyaltyPoints: { label: "Puntos", balance: { string: String(points) } },
       barcode: { type: "QR_CODE", value: `leduo:${userId}`, alternateText: userId.slice(0, 8) },
       textModulesData: [
         { id: "stamps_progress", header: "Sellos", body: `${Math.min(stamps, 8)}/8` },
@@ -113,7 +125,7 @@ serve(async (req) => {
         {
           id: "stamps_grid_big",
           mainImage: {
-            sourceUri: { uri: getStampImageUrl(stamps) },
+            sourceUri: { uri: getStampsSpriteUrl(stamps) },
             contentDescription: { defaultValue: { language: "es", value: "Progreso de sellos" } },
           },
         },
