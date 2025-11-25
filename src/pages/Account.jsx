@@ -313,17 +313,9 @@ export const Account = () => {
 
             <StatsGrid>
               <StatItem>
-                <span className="icon">💰</span>
-                <div className="content">
-                  <div className="value">{state.cashbackPoints}</div>
-                  <div className="label">Puntos cashback</div>
-                </div>
-              </StatItem>
-
-              <StatItem>
                 <span className="icon">🎯</span>
                 <div className="content">
-                  <div className="value">{state.stamps}/10</div>
+                  <div className="value">{state.stamps}/8</div>
                   <div className="label">Sellos</div>
                 </div>
               </StatItem>
@@ -387,10 +379,10 @@ export const Account = () => {
                 <strong>Fuente de registro:</strong> {customer.source === 'qr' ? 'Código QR en tienda' : 'En línea'}
               </p>
 
-              <h3>🏆 Cómo ganar más puntos</h3>
+              <h3>🏆 Cómo ganar más recompensas</h3>
               <ul>
                 <li>Visita la cafetería regularmente para acumular sellos</li>
-                <li>Gana puntos con cada compra (5% de cashback)</li>
+                <li>Completa 8 sellos para obtener un producto gratis</li>
                 <li>Gira la ruleta semanalmente para premios especiales</li>
                 <li>Participa en eventos y promociones exclusivas</li>
               </ul>
@@ -399,7 +391,7 @@ export const Account = () => {
               <ul>
                 <li>Agrega tu tarjeta LeDuo a tu wallet móvil</li>
                 <li>Revisa tu app antes de cada visita</li>
-                <li>No olvides canjear tus puntos por recompensas</li>
+                <li>No olvides canjear tus sellos por recompensas</li>
               </ul>
             </InfoBox>
           </Card>

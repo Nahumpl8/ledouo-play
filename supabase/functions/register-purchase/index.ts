@@ -51,7 +51,7 @@ async function getGoogleAuthToken(email: string, privateKey: string) {
   return data.access_token;
 }
 
-async function updateGoogleWallet(userId: string, points: number, stamps: number) {
+async function updateGoogleWallet(userId: string, stamps: number) {
   try {
     const email = Deno.env.get('WALLET_SERVICE_ACCOUNT_EMAIL');
     const rawKey = Deno.env.get('WALLET_PRIVATE_KEY') ?? '';
@@ -81,7 +81,7 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
       header: {
         defaultValue: {
           language: 'es',
-          value: `${stamps}/8 sellos • ${points} pts`
+          value: `${stamps}/8 sellos`
         }
       },
       heroImage: {
@@ -90,11 +90,6 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
         }
       },
       textModulesData: [
-        {
-          header: 'Puntos Acumulados',
-          body: `${points} puntos disponibles para canjear`,
-          id: 'points'
-        },
         {
           header: 'Progreso de Sellos',
           body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
@@ -234,7 +229,6 @@ serve(async (req) => {
     });
 
     // Cálculos
-    const pointsEarned = Math.floor(amount / 10);
     const stampsEarned = 1;
 
     console.log('🔍 Buscando customer_state para userId:', userId);
@@ -272,11 +266,9 @@ serve(async (req) => {
 
     console.log('✅ Customer state encontrado:', { 
       userId,
-      points: currentState.cashback_points,
       stamps: currentState.stamps
     });
 
-    const newPoints = currentState.cashback_points + pointsEarned;
     const newStamps = currentState.stamps + stampsEarned;
 
     const completedStampCard = newStamps >= 8;
@@ -286,7 +278,6 @@ serve(async (req) => {
     const { error: updateError } = await supabase
       .from('customer_state')
       .update({
-        cashback_points: newPoints,
         stamps: finalStamps,
         last_visit: new Date().toISOString(),
         roulette_visits_since_last_spin: currentState.roulette_visits_since_last_spin + 1,
@@ -301,7 +292,7 @@ serve(async (req) => {
       .insert({
         user_id: userId,
         amount_spent: amount,
-        cashback_earned: pointsEarned,
+        cashback_earned: 0,
         stamps_earned: stampsEarned,
         notes: notes,
         processed_by_staff_id: staffId,
@@ -333,17 +324,13 @@ serve(async (req) => {
     // AQUÍ OCURRE LA MAGIA QUE FALTABA
     // Llamamos a la función que actualiza Google Wallet
     // ============================================================
-    await updateGoogleWallet(userId, newPoints, finalStamps);
+    await updateGoogleWallet(userId, finalStamps);
     console.log('✅ Sincronización con Google Wallet completada');
 
 
     return new Response(
       JSON.stringify({
         success: true,
-        points: {
-          earned: pointsEarned,
-          total: newPoints
-        },
         stamps: {
           earned: stampsEarned,
           total: finalStamps
