@@ -194,22 +194,50 @@ serve(async (req) => {
     }
 
     // Validar Usuario
+    console.log('🔍 Buscando perfil para userId:', userId);
+    
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError) {
+      console.error('❌ Error al buscar perfil:', {
+        userId,
+        error: profileError.message,
+        code: profileError.code,
+        details: profileError.details
+      });
+    }
+
+    if (!profile) {
+      console.error('❌ PERFIL NO ENCONTRADO:', { 
+        userId,
+        profileError: profileError?.message,
+        hint: 'El usuario existe en auth pero no tiene perfil. Verifica que el trigger on_auth_user_created esté activo.'
+      });
+      
       return new Response(
-        JSON.stringify({ error: 'Usuario no encontrado' }),
+        JSON.stringify({ 
+          error: 'Usuario no encontrado',
+          details: 'El perfil del cliente no existe. Por favor contacta al administrador.'
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log('✅ Perfil encontrado:', { 
+      userId, 
+      name: profile.name,
+      email: profile.email 
+    });
+
     // Cálculos
     const pointsEarned = Math.floor(amount / 10);
     const stampsEarned = 1;
+
+    console.log('🔍 Buscando customer_state para userId:', userId);
 
     const { data: currentState, error: stateError } = await supabase
       .from('customer_state')
@@ -217,12 +245,36 @@ serve(async (req) => {
       .eq('user_id', userId)
       .single();
 
-    if (stateError || !currentState) {
+    if (stateError) {
+      console.error('❌ Error al buscar customer_state:', {
+        userId,
+        error: stateError.message,
+        code: stateError.code,
+        details: stateError.details
+      });
+    }
+
+    if (!currentState) {
+      console.error('❌ CUSTOMER_STATE NO ENCONTRADO:', { 
+        userId,
+        stateError: stateError?.message,
+        hint: 'El perfil existe pero falta customer_state. Verifica el trigger on_auth_user_created.'
+      });
+      
       return new Response(
-        JSON.stringify({ error: 'Estado del cliente no encontrado' }),
+        JSON.stringify({ 
+          error: 'Estado del cliente no encontrado',
+          details: 'El estado del cliente no existe. Por favor contacta al administrador.'
+        }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('✅ Customer state encontrado:', { 
+      userId,
+      points: currentState.cashback_points,
+      stamps: currentState.stamps
+    });
 
     const newPoints = currentState.cashback_points + pointsEarned;
     const newStamps = currentState.stamps + stampsEarned;
