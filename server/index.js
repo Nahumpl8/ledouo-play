@@ -22,6 +22,9 @@ if (isDev) {
   }));
 }
 
+// NOTA: Si ya migraste las imágenes a Supabase Storage, 
+// deberías actualizar estas URLs por las de tu bucket de Supabase
+// para evitar errores de Google Wallet en el futuro.
 const STAMP_SPRITES = {
   0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
   1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
@@ -31,7 +34,7 @@ const STAMP_SPRITES = {
   5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
   6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
   7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+  8: 'https://i.ibb.co/Z6LLrZpr/8-sellos.pngg',
 };
 
 // === ENV ===
@@ -62,21 +65,27 @@ app.post('/api/wallet/save', (req, res) => {
       });
     }
 
-    // === CORRECCIÓN CRÍTICA AQUÍ ===
-    // 1. Limpieza agresiva para obtener SOLO el UUID limpio
-    let cleanUserId = customerData.id;
+    // === CORRECCIÓN CRÍTICA AQUÍ (SOLUCIÓN NUEVOS USUARIOS) ===
+    // 1. Obtenemos el ID crudo de donde venga (prioridad a customerData.id)
+    let rawId = customerData.id || objectIdSuffix || '';
 
+    // 2. Limpieza agresiva SIEMPRE
+    // Esto es lo que faltaba: forzamos la limpieza incluso si customerData.id existe.
+    // Así evitamos que se cuelen prefijos como "leduo_customer_" dentro del QR.
+    const cleanUserId = rawId
+      .replace('leduo_customer_', '')
+      .replace('LEDUO-', '')
+      .replace('leduo-', '')
+      .replace(':', '')
+      .trim();
+
+    // 3. Validación final
     if (!cleanUserId) {
-      // Quitamos cualquier prefijo posible que venga del front
-      cleanUserId = objectIdSuffix
-        .replace('leduo_customer_', '')
-        .replace('LEDUO-', '')
-        .replace('leduo-', '');
+      return res.status(400).json({ error: 'No se pudo obtener un ID válido para el pase.' });
     }
 
-    // 2. Estandarización de IDs
+    // 4. Estandarización de IDs
     // El ID del objeto en Google SERÁ: ISSUER.LEDUO-uuid
-    // Esto asegura que coincida con lo que busca tu Edge Function al actualizar.
     const fullObjectId = `${ISSUER_ID}.LEDUO-${cleanUserId}`;
 
     // El valor del QR SERÁ: LEDUO-uuid
