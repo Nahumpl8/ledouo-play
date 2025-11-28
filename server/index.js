@@ -98,6 +98,7 @@ app.post('/api/wallet/save', (req, res) => {
     const levelPoints = customerData.levelPoints || 0;
     const customerName = customerData.name || 'Cliente LeDuo';
     const level = levelPoints > 150 ? 'Leduo Leyend' : 'Cliente Le Duo';
+    const backgroundColor = levelPoints > 150 ? '#2C3E50' : '#D4C5B9';
     const now = Math.floor(Date.now() / 1000);
 
     const claims = {
@@ -112,7 +113,7 @@ app.post('/api/wallet/save', (req, res) => {
           classId: CLASS_ID,
           state: 'ACTIVE',
 
-          hexBackgroundColor: '#D4C5B9',
+          hexBackgroundColor: backgroundColor,
 
           cardTitle: {
             defaultValue: {

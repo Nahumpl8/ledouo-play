@@ -81,9 +81,11 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
     const token = await getGoogleAuthToken(email, privateKey);
 
     const level = getCustomerLevel(levelPoints);
+    const backgroundColor = levelPoints > 150 ? '#2C3E50' : '#D4C5B9';
     
     // Enviamos a Google solo los datos que cambian
     const patchBody = {
+      hexBackgroundColor: backgroundColor,
       subheader: {
         defaultValue: {
           language: 'es',

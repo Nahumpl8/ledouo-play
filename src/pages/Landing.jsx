@@ -66,26 +66,52 @@ const BenefitCard = styled(Card)`
   display: flex;
   align-items: flex-start;
   gap: ${props => props.theme.spacing.md};
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, ${props => props.theme.colors.primary}10, transparent);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
   
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
     border-color: ${props => props.theme.colors.primary};
+  }
+  
+  &:hover::before {
+    opacity: 1;
   }
   
   .icon {
     font-size: 2.5rem;
     flex-shrink: 0;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 1;
+  }
+  
+  &:hover .icon {
+    transform: scale(1.2) rotate(5deg);
   }
   
   .content {
+    position: relative;
+    z-index: 1;
+    
     h4 {
       font-family: ${props => props.theme.fontPrimary};
       color: ${props => props.theme.colors.accent};
       font-size: 1.25rem;
       margin-bottom: ${props => props.theme.spacing.xs};
       font-weight: 600;
+      transition: color 0.3s ease;
     }
     
     p {
@@ -93,7 +119,16 @@ const BenefitCard = styled(Card)`
       font-size: 0.95rem;
       line-height: 1.5;
       opacity: 0.85;
+      transition: opacity 0.3s ease;
     }
+  }
+  
+  &:hover .content h4 {
+    color: ${props => props.theme.colors.primary};
+  }
+  
+  &:hover .content p {
+    opacity: 1;
   }
 `;
 
@@ -164,11 +199,35 @@ const CTAButton = styled(Link)`
   font-size: 1.125rem;
   font-weight: 600;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: ${props => props.theme.colors.primary}20;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+  
+  &:hover::before {
+    width: 400px;
+    height: 400px;
+  }
   
   &:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    transform: translateY(-4px) scale(1.08);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  }
+  
+  &:active {
+    transform: translateY(-2px) scale(1.05);
   }
 `;
 

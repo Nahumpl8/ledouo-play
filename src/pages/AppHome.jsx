@@ -69,11 +69,30 @@ const StatCard = styled(Card)`
   padding: ${props => props.theme.spacing.lg};
   background: ${props => props.gradient || props.theme.colors.white};
   color: ${props => props.textColor || props.theme.colors.text};
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  
+  &:hover::before {
+    opacity: 1;
+  }
   
   .icon {
     font-size: 2.5rem;
     margin-bottom: ${props => props.theme.spacing.sm};
     display: block;
+    animation: pulse-soft 2s ease-in-out infinite;
   }
   
   .value {
@@ -81,6 +100,11 @@ const StatCard = styled(Card)`
     font-weight: bold;
     margin-bottom: 4px;
     color: ${props => props.valueColor || 'inherit'};
+    transition: transform 0.3s ease;
+  }
+  
+  &:hover .value {
+    transform: scale(1.05);
   }
   
   .label {
@@ -269,47 +293,6 @@ export const AppHome = () => {
     }
   };
 
-  const handleTestWallet = async () => {
-    setWalletLoading(true);
-    setWalletMessage('');
-    setWalletLink('');
-
-    try {
-      const response = await fetch('/api/wallet/sample', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        throw new Error(`HTTP ${response.status}: ${errorText || 'Error de prueba'}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.saveUrl) {
-        // Intentar abrir en nueva pestaña
-        const w = window.open(data.saveUrl, '_blank', 'noopener,noreferrer');
-        if (!w) {
-          setWalletMessage('✅ URL de prueba generada. Haz click para abrir:');
-          setWalletLink(data.saveUrl);
-        } else {
-          setWalletMessage('✅ Abriendo Google Wallet de prueba...');
-          setTimeout(() => {
-            setWalletModalOpen(false);
-            setWalletMessage('');
-          }, 2000);
-        }
-      } else {
-        setWalletMessage('❌ No se recibió URL de prueba del servidor');
-      }
-    } catch (error) {
-      console.error('Error en prueba de wallet:', error);
-      setWalletMessage(`❌ Error de prueba: ${error.message}`);
-    } finally {
-      setWalletLoading(false);
-    }
-  };
 
   // Helpers de ruleta con state seguro
   const canSpinRoulette = () => {
@@ -581,13 +564,6 @@ export const AppHome = () => {
                   {walletLoading ? '⏳ Añadiendo...' : '📱 Añadir a Google Wallet'}
                 </Button>
                 <Button
-                  onClick={handleTestWallet}
-                  variant="outline"
-                  disabled={walletLoading}
-                >
-                  🧪 Probar pase de muestra
-                </Button>
-                <Button
                   onClick={() => setWalletModalOpen(false)}
                   variant="outline"
                   disabled={walletLoading}
@@ -598,9 +574,6 @@ export const AppHome = () => {
 
               <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
                 💡 <strong>Tip:</strong> Con la tarjeta en tu wallet, solo escanea tu código QR en caja
-              </p>
-              <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '8px' }}>
-                🧪 El botón de prueba genera un pase básico para verificar configuración
               </p>
             </>
           ) : (
