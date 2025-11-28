@@ -64,6 +64,17 @@ const CustomerInfo = styled.div`
   }
 `;
 
+const RewardBadge = styled.div`
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  margin-top: 12px;
+  font-size: 16px;
+`;
+
 const ResultMessage = styled.div`
   padding: ${props => props.theme.spacing.md};
   border-radius: ${props => props.theme.radius};
@@ -122,6 +133,7 @@ export const ScanPurchase = () => {
   const [manualMode, setManualMode] = useState(false);
   const [manualUserId, setManualUserId] = useState('');
   const [cameraError, setCameraError] = useState(null);
+  const [redeemMode, setRedeemMode] = useState(false);
 
   // NUEVO: Referencia para evitar lecturas múltiples
   const isProcessingScan = useRef(false);
@@ -290,7 +302,18 @@ export const ScanPurchase = () => {
       return;
     }
     setPinError(null);
+    setRedeemMode(false);
     setShowPinModal(true);
+  };
+
+  const handleRedeemReward = () => {
+    setPinError(null);
+    setRedeemMode(true);
+    setShowPinModal(true);
+  };
+
+  const getCustomerLevel = (levelPoints) => {
+    return levelPoints > 150 ? 'Leduo Leyend' : 'Cliente Le Duo';
   };
 
   const handlePinConfirm = async (pin) => {
@@ -298,40 +321,68 @@ export const ScanPurchase = () => {
     setPinError(null);
 
     try {
-      const amountNum = parseFloat(amount);
-      const { data, error } = await supabase.functions.invoke('register-purchase', {
-        body: {
-          userId: scannedUserId,
-          amount: amountNum,
-          notes,
-          staffId: currentUserId,
-          staffPin: pin
-        }
-      });
+      if (redeemMode) {
+        // Modo canje de bebida gratis
+        const { data, error } = await supabase.functions.invoke('redeem-reward', {
+          body: {
+            userId: scannedUserId,
+            staffId: currentUserId,
+            staffPin: pin
+          }
+        });
 
-      if (error) {
-        if (error.message?.includes('PIN incorrecto') || (error.context && error.context.status === 401)) {
-          setPinError('PIN incorrecto.');
-          setLoading(false);
-          return;
+        if (error) {
+          if (error.message?.includes('PIN incorrecto') || (error.context && error.context.status === 401)) {
+            setPinError('PIN incorrecto.');
+            setLoading(false);
+            return;
+          }
+          throw error;
         }
-        throw error;
+
+        setResult({
+          type: 'success',
+          message: '🎉 ¡Bebida gratis canjeada!\nSellos reiniciados a 0.'
+        });
+
+      } else {
+        // Modo compra normal
+        const amountNum = parseFloat(amount);
+        const { data, error } = await supabase.functions.invoke('register-purchase', {
+          body: {
+            userId: scannedUserId,
+            amount: amountNum,
+            notes,
+            staffId: currentUserId,
+            staffPin: pin
+          }
+        });
+
+        if (error) {
+          if (error.message?.includes('PIN incorrecto') || (error.context && error.context.status === 401)) {
+            setPinError('PIN incorrecto.');
+            setLoading(false);
+            return;
+          }
+          throw error;
+        }
+
+        const pointsMsg = `+${data.points.earned} pts`;
+        const stampsMsg = `+${data.stamps.earned} sello`;
+        const rewardMsg = data.rewardCreated ? ' \n🎉 ¡Recompensa!' : '';
+
+        setResult({
+          type: 'success',
+          message: `Éxito: ${pointsMsg}, ${stampsMsg}${rewardMsg}`
+        });
       }
-
-      const pointsMsg = `+${data.points.earned} pts`;
-      const stampsMsg = `+${data.stamps.earned} sello`;
-      const rewardMsg = data.rewardCreated ? ' \n🎉 ¡Recompensa!' : '';
-
-      setResult({
-        type: 'success',
-        message: `Éxito: ${pointsMsg}, ${stampsMsg}${rewardMsg}`
-      });
 
       setShowPinModal(false);
       setAmount('');
       setNotes('');
       setScannedUserId(null);
       setCustomerData(null);
+      setRedeemMode(false);
 
       // Reiniciar ciclo
       setTimeout(() => {
@@ -341,7 +392,7 @@ export const ScanPurchase = () => {
 
     } catch (error) {
       console.error(error);
-      setResult({ type: 'error', message: 'Error al registrar.' });
+      setResult({ type: 'error', message: 'Error al procesar.' });
       setShowPinModal(false);
     } finally {
       setLoading(false);
@@ -432,36 +483,105 @@ export const ScanPurchase = () => {
           {scannedUserId && customerData && (
             <>
               <CustomerInfo>
-                <h3>{customerData.profile.name}</h3>
+                <h3>{customerData.profile.name} • {getCustomerLevel(customerData.state.level_points || 0)}</h3>
                 <p>Email: {customerData.profile.email}</p>
-                <p>Puntos: {customerData.state.cashback_points} | Sellos: {customerData.state.stamps}/8</p>
+                <p>Nivel: {customerData.state.level_points || 0} puntos</p>
+                <p>Puntos cashback: {customerData.state.cashback_points}</p>
+                <p>Sellos: {customerData.state.stamps}/8</p>
+                
+                {customerData.state.stamps >= 8 && (
+                  <RewardBadge>
+                    🎁 ¡Tiene bebida gratis pendiente!
+                  </RewardBadge>
+                )}
               </CustomerInfo>
 
-              <form onSubmit={handleSubmit}>
-                <Input
-                  type="number"
-                  label="Monto ($)"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  step="0.01"
-                  min="0.01"
-                />
-                <Input
-                  type="text"
-                  label="Notas"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  style={{ marginTop: '16px' }}
-                />
-                <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                  <Button type="submit" disabled={loading} style={{ flex: 1 }}>
-                    {loading ? 'Registrando...' : 'Cobrar'}
+              {customerData.state.stamps >= 8 ? (
+                <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', marginTop: '16px' }}>
+                  <Button 
+                    onClick={handleRedeemReward} 
+                    disabled={loading}
+                    style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none' }}
+                  >
+                    🎁 Canjear Bebida Gratis
                   </Button>
-                  <Button type="button" variant="secondary" onClick={handleReset}>Cancelar</Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      // Mostrar formulario de compra normal
+                      document.getElementById('normal-purchase-form').style.display = 'block';
+                    }}
+                  >
+                    💵 Registrar Compra Normal
+                  </Button>
+                  
+                  <form id="normal-purchase-form" onSubmit={handleSubmit} style={{ display: 'none' }}>
+                    <Input
+                      type="number"
+                      label="Monto ($)"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      required
+                      step="0.01"
+                      min="0.01"
+                    />
+                    <Input
+                      type="text"
+                      label="Notas"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      style={{ marginTop: '16px' }}
+                    />
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                      <Button type="submit" disabled={loading} style={{ flex: 1 }}>
+                        {loading ? 'Registrando...' : 'Cobrar'}
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={() => {
+                          document.getElementById('normal-purchase-form').style.display = 'none';
+                          setAmount('');
+                          setNotes('');
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+
+                  <Button type="button" variant="secondary" onClick={handleReset}>
+                    ← Volver
+                  </Button>
                 </div>
-              </form>
+              ) : (
+                <form onSubmit={handleSubmit}>
+                  <Input
+                    type="number"
+                    label="Monto ($)"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                    step="0.01"
+                    min="0.01"
+                  />
+                  <Input
+                    type="text"
+                    label="Notas"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    style={{ marginTop: '16px' }}
+                  />
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                    <Button type="submit" disabled={loading} style={{ flex: 1 }}>
+                      {loading ? 'Registrando...' : 'Cobrar'}
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={handleReset}>Cancelar</Button>
+                  </div>
+                </form>
+              )}
             </>
           )}
 

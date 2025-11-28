@@ -34,7 +34,7 @@ const STAMP_SPRITES = {
   5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
   6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
   7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/Z6LLrZpr/8-sellos.pngg',
+  8: 'https://i.ibb.co/Z6LLrZpr/8-sellos.png',
 };
 
 // === ENV ===
@@ -95,7 +95,9 @@ app.post('/api/wallet/save', (req, res) => {
 
     const stamps = customerData.stamps || 0;
     const points = customerData.cashbackPoints || 0;
+    const levelPoints = customerData.levelPoints || 0;
     const customerName = customerData.name || 'Cliente LeDuo';
+    const level = levelPoints > 150 ? 'Leduo Leyend' : 'Cliente Le Duo';
     const now = Math.floor(Date.now() / 1000);
 
     const claims = {
@@ -121,13 +123,13 @@ app.post('/api/wallet/save', (req, res) => {
           subheader: {
             defaultValue: {
               language: 'es',
-              value: customerName
+              value: `${customerName} • ${level}`
             }
           },
           header: {
             defaultValue: {
               language: 'es',
-              value: `${stamps}/8 sellos • ${points} pts`
+              value: stamps >= 8 ? '🎁 ¡Canjea tu bebida!' : `${stamps}/8 sellos`
             }
           },
 
@@ -163,13 +165,15 @@ app.post('/api/wallet/save', (req, res) => {
 
           textModulesData: [
             {
-              header: 'Puntos Acumulados',
-              body: `${points} puntos disponibles para canjear`,
-              id: 'points'
+              header: 'Tu Nivel LeDuo',
+              body: `${levelPoints} puntos • ${level}`,
+              id: 'level'
             },
             {
               header: 'Progreso de Sellos',
-              body: `${stamps} de 8 sellos completados. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
+              body: stamps >= 8 
+                ? '¡Completaste 8 sellos! Muestra este pase para canjear tu bebida gratis.' 
+                : `${stamps} de 8 sellos. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
               id: 'stamps'
             },
             {
@@ -179,7 +183,7 @@ app.post('/api/wallet/save', (req, res) => {
             },
             {
               header: 'Beneficios',
-              body: 'Gana 1 punto por cada $10. Completa 8 sellos para un producto gratis.',
+              body: 'Gana puntos por cada compra. Completa 8 sellos para bebida gratis. +150 puntos = Leduo Leyend.',
               id: 'benefits'
             }
           ],
