@@ -1,7 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// IMPORTANTE: Necesitamos esta librería para firmar las credenciales de Google
 import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts';
 
 const corsHeaders = {
@@ -9,7 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Imágenes de los sellos (Misma lógica que tu server)
 const STAMP_SPRITES: Record<number, string> = {
   0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
   1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
@@ -22,7 +20,9 @@ const STAMP_SPRITES: Record<number, string> = {
   8: 'https://i.ibb.co/Z6LLrZpr/8-sellos.png',
 };
 
-// --- INICIO: LÓGICA DE GOOGLE WALLET ---
+function getCustomerLevel(levelPoints: number): string {
+  return levelPoints > 150 ? 'Leduo Leyend' : 'Cliente Le Duo';
+}
 
 async function getGoogleAuthToken(email: string, privateKey: string) {
   const algorithm = 'RS256';
@@ -51,17 +51,12 @@ async function getGoogleAuthToken(email: string, privateKey: string) {
   return data.access_token;
 }
 
-function getCustomerLevel(levelPoints: number): string {
-  return levelPoints > 150 ? 'Leduo Leyend' : 'Cliente Le Duo';
-}
-
 async function updateGoogleWallet(userId: string, points: number, stamps: number, levelPoints: number, customerName: string) {
   try {
     const email = Deno.env.get('WALLET_SERVICE_ACCOUNT_EMAIL');
     const rawKey = Deno.env.get('WALLET_PRIVATE_KEY') ?? '';
     const issuerId = Deno.env.get('GOOGLE_WALLET_ISSUER_ID');
 
-    // Limpieza de la llave privada (arregla saltos de linea)
     const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
 
     if (!email || !privateKey || !issuerId) {
@@ -73,16 +68,12 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
       return;
     }
 
-    // ID IDÉNTICO A TU INDEX.JS: ISSUER.LEDUO-USERID
     const objectId = `${issuerId}.LEDUO-${userId}`;
-
-    console.log(`Intentando actualizar Google Wallet: ${objectId}`);
+    console.log(`🔄 Actualizando Google Wallet tras canje: ${objectId}`);
 
     const token = await getGoogleAuthToken(email, privateKey);
-
     const level = getCustomerLevel(levelPoints);
-    
-    // Enviamos a Google solo los datos que cambian
+
     const patchBody = {
       subheader: {
         defaultValue: {
@@ -135,7 +126,7 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
         objectId: objectId
       });
     } else {
-      console.log('✅ Google Wallet actualizado con éxito:', objectId);
+      console.log('✅ Google Wallet actualizado tras canje:', objectId);
     }
 
   } catch (err) {
@@ -144,11 +135,8 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
       stack: err instanceof Error ? err.stack : undefined,
       userId: userId
     });
-    // No lanzamos throw para que la venta se complete aunque falle Google
   }
 }
-// --- FIN LÓGICA GOOGLE WALLET ---
-
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -161,12 +149,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { userId, amount, notes = '', staffId, staffPin } = await req.json();
+    const { userId, staffId, staffPin } = await req.json();
 
-    console.log('Registering purchase:', { userId, amount, staffId });
+    console.log('🎁 Canje de bebida gratis:', { userId, staffId });
 
-    // Validaciones...
-    if (!userId || !amount || !staffId || !staffPin) {
+    if (!userId || !staffId || !staffPin) {
       return new Response(
         JSON.stringify({ error: 'Parámetros faltantes' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -207,51 +194,19 @@ serve(async (req) => {
       );
     }
 
-    // Validar Usuario
-    console.log('🔍 Buscando perfil para userId:', userId);
-    
+    // Obtener datos del cliente
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    if (profileError) {
-      console.error('❌ Error al buscar perfil:', {
-        userId,
-        error: profileError.message,
-        code: profileError.code,
-        details: profileError.details
-      });
-    }
-
-    if (!profile) {
-      console.error('❌ PERFIL NO ENCONTRADO:', { 
-        userId,
-        profileError: profileError?.message,
-        hint: 'El usuario existe en auth pero no tiene perfil. Verifica que el trigger on_auth_user_created esté activo.'
-      });
-      
+    if (profileError || !profile) {
       return new Response(
-        JSON.stringify({ 
-          error: 'Usuario no encontrado',
-          details: 'El perfil del cliente no existe. Por favor contacta al administrador.'
-        }),
+        JSON.stringify({ error: 'Usuario no encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('✅ Perfil encontrado:', { 
-      userId, 
-      name: profile.name,
-      email: profile.email 
-    });
-
-    // Cálculos
-    const pointsEarned = Math.floor(amount / 10);
-    const stampsEarned = 1;
-
-    console.log('🔍 Buscando customer_state para userId:', userId);
 
     const { data: currentState, error: stateError } = await supabase
       .from('customer_state')
@@ -259,120 +214,83 @@ serve(async (req) => {
       .eq('user_id', userId)
       .single();
 
-    if (stateError) {
-      console.error('❌ Error al buscar customer_state:', {
-        userId,
-        error: stateError.message,
-        code: stateError.code,
-        details: stateError.details
-      });
-    }
-
-    if (!currentState) {
-      console.error('❌ CUSTOMER_STATE NO ENCONTRADO:', { 
-        userId,
-        stateError: stateError?.message,
-        hint: 'El perfil existe pero falta customer_state. Verifica el trigger on_auth_user_created.'
-      });
-      
+    if (stateError || !currentState) {
       return new Response(
-        JSON.stringify({ 
-          error: 'Estado del cliente no encontrado',
-          details: 'El estado del cliente no existe. Por favor contacta al administrador.'
-        }),
+        JSON.stringify({ error: 'Estado del cliente no encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('✅ Customer state encontrado:', { 
-      userId,
-      points: currentState.cashback_points,
-      stamps: currentState.stamps,
-      levelPoints: currentState.level_points
-    });
+    // Verificar que tenga bebida gratis pendiente (8 sellos)
+    if (currentState.stamps < 8) {
+      return new Response(
+        JSON.stringify({ error: 'El cliente no tiene bebida gratis pendiente' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const newPoints = currentState.cashback_points + pointsEarned;
-    const newLevelPoints = currentState.level_points + pointsEarned;
-    
-    // Nueva lógica: Si ya tiene 8 sellos, no sumamos más (tiene bebida pendiente)
-    const newStamps = currentState.stamps >= 8 
-      ? 8  // Mantener en 8 hasta que canjee
-      : currentState.stamps + stampsEarned;
+    // Buscar reward pendiente
+    const { data: pendingReward } = await supabase
+      .from('rewards')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('redeemed', false)
+      .eq('type', 'producto_gratis')
+      .order('earned_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    // Solo creamos reward si llegamos a 8 por primera vez
-    const completedStampCard = currentState.stamps < 8 && newStamps >= 8;
-    
-    // NO reiniciamos automáticamente
-    const finalStamps = newStamps;
+    // Marcar como canjeada si existe
+    if (pendingReward) {
+      await supabase
+        .from('rewards')
+        .update({ 
+          redeemed: true, 
+          redeemed_at: new Date().toISOString() 
+        })
+        .eq('id', pendingReward.id);
+    }
 
-    // Actualizar DB Supabase (incluyendo level_points)
+    // Reiniciar sellos a 0
     const { error: updateError } = await supabase
       .from('customer_state')
-      .update({
-        cashback_points: newPoints,
-        level_points: newLevelPoints,
-        stamps: finalStamps,
-        last_visit: new Date().toISOString(),
-        roulette_visits_since_last_spin: currentState.roulette_visits_since_last_spin + 1,
+      .update({ 
+        stamps: 0,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
 
     if (updateError) throw updateError;
 
-    const { error: visitError } = await supabase
+    // Registrar la visita de canje
+    await supabase
       .from('visits')
       .insert({
         user_id: userId,
-        amount_spent: amount,
-        cashback_earned: pointsEarned,
-        stamps_earned: stampsEarned,
-        notes: notes,
+        amount_spent: 0,
+        cashback_earned: 0,
+        stamps_earned: 0,
+        notes: 'Canje de bebida gratis (8 sellos)',
         processed_by_staff_id: staffId,
         visit_date: new Date().toISOString()
       });
 
-    if (visitError) throw visitError;
+    // Actualizar Google Wallet
+    await updateGoogleWallet(
+      userId, 
+      currentState.cashback_points, 
+      0, // stamps ahora son 0
+      currentState.level_points,
+      profile.name
+    );
 
-    let rewardCreated = false;
-    if (completedStampCard) {
-      const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 3);
-
-      const { error: rewardError } = await supabase
-        .from('rewards')
-        .insert({
-          user_id: userId,
-          type: 'producto_gratis',
-          value: '1',
-          description: '¡Producto gratis por completar 8 sellos!',
-          source: 'stamps_completion',
-          expires_at: expiresAt.toISOString()
-        });
-
-      if (!rewardError) rewardCreated = true;
-    }
-
-    // ============================================================
-    // Actualizar Google Wallet con nivel incluido
-    // ============================================================
-    await updateGoogleWallet(userId, newPoints, finalStamps, newLevelPoints, profile.name);
-    console.log('✅ Sincronización con Google Wallet completada');
-
+    console.log('✅ Bebida canjeada exitosamente');
 
     return new Response(
       JSON.stringify({
         success: true,
-        points: {
-          earned: pointsEarned,
-          total: newPoints
-        },
-        stamps: {
-          earned: stampsEarned,
-          total: finalStamps
-        },
-        rewardCreated,
-        message: 'Compra registrada exitosamente'
+        message: '¡Bebida gratis canjeada exitosamente!',
+        stampsReset: true
       }),
       {
         status: 200,
@@ -381,7 +299,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error en register-purchase:', error);
+    console.error('❌ Error en redeem-reward:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Error desconocido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

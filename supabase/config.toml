@@ -1,1 +1,10 @@
 project_id = "eohpjvbbrvktqyacpcmn"
+
+[functions.register-purchase]
+verify_jwt = false
+
+[functions.redeem-reward]
+verify_jwt = false
+
+[functions.google-wallet-save]
+verify_jwt = false

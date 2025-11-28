@@ -19,6 +19,8 @@ export type Database = {
           cashback_points: number
           id: string
           last_visit: string | null
+          level_points: number
+          level_points_reset_at: string | null
           roulette_cooldown_days: number
           roulette_last_spin_at: string | null
           roulette_mode: string
@@ -32,6 +34,8 @@ export type Database = {
           cashback_points?: number
           id?: string
           last_visit?: string | null
+          level_points?: number
+          level_points_reset_at?: string | null
           roulette_cooldown_days?: number
           roulette_last_spin_at?: string | null
           roulette_mode?: string
@@ -45,6 +49,8 @@ export type Database = {
           cashback_points?: number
           id?: string
           last_visit?: string | null
+          level_points?: number
+          level_points_reset_at?: string | null
           roulette_cooldown_days?: number
           roulette_last_spin_at?: string | null
           roulette_mode?: string
