@@ -22,9 +22,29 @@ const StyledButton = styled.button`
       default: return '16px';
     }
   }};
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+  
+  &:active::before {
+    width: 300px;
+    height: 300px;
+  }
   
   ${props => {
     switch (props.variant) {
@@ -35,8 +55,8 @@ const StyledButton = styled.button`
           
           &:hover:not(:disabled) {
             background: ${props.theme.colors.text};
-            transform: translateY(-2px);
-            box-shadow: ${props.theme.shadow};
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
         `;
       case 'secondary':
@@ -46,8 +66,8 @@ const StyledButton = styled.button`
           
           &:hover:not(:disabled) {
             background: ${props.theme.colors.accent};
-            transform: translateY(-2px);
-            box-shadow: ${props.theme.shadow};
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
         `;
       case 'outline':
@@ -59,8 +79,8 @@ const StyledButton = styled.button`
           &:hover:not(:disabled) {
             background: ${props.theme.colors.primary};
             color: ${props.theme.colors.white};
-            transform: translateY(-2px);
-            box-shadow: ${props.theme.shadow};
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
         `;
       case 'ghost':
@@ -70,7 +90,7 @@ const StyledButton = styled.button`
           
           &:hover:not(:disabled) {
             background: ${props.theme.colors.bgAlt};
-            transform: translateY(-1px);
+            transform: translateY(-2px);
           }
         `;
       default:
@@ -80,8 +100,8 @@ const StyledButton = styled.button`
           
           &:hover:not(:disabled) {
             background: ${props.theme.colors.text};
-            transform: translateY(-2px);
-            box-shadow: ${props.theme.shadow};
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
           }
         `;
     }
