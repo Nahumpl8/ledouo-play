@@ -64,7 +64,11 @@ const ProductDetail = styled.div`
   padding: 2rem 3rem;
   
   @media (max-width: 768px) {
-    padding: 1.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
   }
 `;
 
@@ -233,6 +237,11 @@ const FeatureTag = styled.span`
 
 const ProductInfo = styled.div`
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  @media (max-width: 768px) {
+    gap: 0.4rem;
 `;
 
 const ProductVisual = styled.div`
@@ -404,7 +413,9 @@ export const MenuSection = () => {
                                                     $active={selectedTemp === 'hot'}
                                                     onClick={() => setSelectedTemp('hot')}
                                                 >
-                                                    <Flame /> Caliente
+                                                    <Flame style={{
+                                                      color: 'rgba(239, 76, 0, 1)'
+                                                    }} /> Caliente
                                                 </TempButton>
                                             )}
                                             {product.temperature.includes('cold') && (
@@ -412,7 +423,9 @@ export const MenuSection = () => {
                                                     $active={selectedTemp === 'cold'}
                                                     onClick={() => setSelectedTemp('cold')}
                                                 >
-                                                    <Snowflake /> Frío
+                                                    <Snowflake style={{
+                                                      color: 'rgba(0, 183, 239, 1)'
+                                                    }}  /> Frío
                                                 </TempButton>
                                             )}
                                         </TemperatureToggle>
