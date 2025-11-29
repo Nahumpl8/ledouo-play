@@ -149,14 +149,13 @@ export const Footer = () => {
           <FooterSection>
             <h3>Horarios</h3>
             <ul>
-              <li>Lunes - Viernes: 7:00 - 22:00</li>
-              <li>Sábados: 8:00 - 23:00</li>
-              <li>Domingos: 8:00 - 21:00</li>
+              <li>Martes - Sábado: 8:00 - 20:00</li>
+              <li>Domingos: 8:00 - 16:00</li>
             </ul>
             
             <h3 style={{marginTop: '24px'}}>Síguenos</h3>
             <SocialLinks>
-              <a href="#" aria-label="Instagram">📷</a>
+              <a href="#" aria-label="Instagram" >📷</a>
               <a href="#" aria-label="Facebook">📘</a>
               <a href="#" aria-label="Twitter">🐦</a>
             </SocialLinks>
