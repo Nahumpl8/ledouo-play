@@ -15,6 +15,7 @@ import { ScanPurchase } from './pages/ScanPurchase';
 import { NotFound } from './pages/NotFound';
 import { SetupPinModal } from './components/staff/SetupPinModal';
 import MenuLeDuo from './pages/MenuLeDuo';
+import { PinConfirmModal } from './components/staff/PinConfirmModal';
 
 export const Router = () => {
   return (
