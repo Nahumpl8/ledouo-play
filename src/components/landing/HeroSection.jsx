@@ -277,24 +277,36 @@ const VisualContainer = styled.div`
 
 const CircleBackdrop = styled.div`
   position: absolute;
-  width: 90%; 
-  max-width: 500px;
+  width: 80%; 
+  max-width: 320px;
   aspect-ratio: 1;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.15);
   border-radius: 50%;
   animation: ${spinSlow} 60s linear infinite;
+
+  @media (min-width: 768px) {
+    width: 90%;
+    max-width: 500px;
+  }
 
   &::before {
     content: '';
     position: absolute;
-    top: -5px;
+    top: -4px;
     left: 50%;
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background: ${props => props.$accentColor};
     border-radius: 50%;
-    box-shadow: 0 0 20px ${props => props.$accentColor};
+    box-shadow: 0 0 15px ${props => props.$accentColor};
     transition: background 1s ease, box-shadow 1s ease;
+
+    @media (min-width: 768px) {
+      top: -5px;
+      width: 10px;
+      height: 10px;
+      box-shadow: 0 0 20px ${props => props.$accentColor};
+    }
   }
 `;
 
@@ -323,45 +335,96 @@ const FloatingCard = styled.div`
   position: absolute;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  padding: 1rem;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  display: none;
+  padding: 0.6rem 0.8rem;
+  border-radius: 14px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.6rem;
   color: #1f1f1f;
   z-index: 3;
-  /* Pequeña animación pop-up cada vez que cambia */
   animation: ${fadeInUp} 0.5s ease-out;
+  transform: scale(0.8);
 
-  @media (min-width: 768px) { display: flex; }
+  @media (min-width: 768px) { 
+    padding: 1rem;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    gap: 1rem;
+    transform: scale(1);
+  }
 
   .icon-box {
-    padding: 10px;
+    padding: 6px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background-color 1s ease;
+
+    @media (min-width: 768px) {
+      padding: 10px;
+    }
+
+    svg {
+      width: 18px;
+      height: 18px;
+
+      @media (min-width: 768px) {
+        width: 24px;
+        height: 24px;
+      }
+    }
   }
 
   .stat-text {
     display: flex;
     flex-direction: column;
-    strong { font-size: 1.1rem; font-weight: 800; display: block; }
-    span { font-size: 0.8rem; color: #666; }
+    strong { 
+      font-size: 0.85rem; 
+      font-weight: 800; 
+      display: block; 
+
+      @media (min-width: 768px) {
+        font-size: 1.1rem;
+      }
+    }
+    span { 
+      font-size: 0.65rem; 
+      color: #666; 
+
+      @media (min-width: 768px) {
+        font-size: 0.8rem;
+      }
+    }
   }
 `;
 
 // Wrapper animado para las cards, para que floten
 const FloatWrapperLeft = styled.div`
-  position: absolute; bottom: 10%; left: 0; z-index: 3;
+  position: absolute; 
+  bottom: 5%; 
+  left: -10%; 
+  z-index: 3;
   animation: ${floatDelayed} 7s ease-in-out infinite 1s;
+
+  @media (min-width: 768px) {
+    bottom: 10%;
+    left: 0;
+  }
 `;
 
 const FloatWrapperRight = styled.div`
-  position: absolute; top: 15%; right: 0; z-index: 3;
+  position: absolute; 
+  top: 5%; 
+  right: -10%; 
+  z-index: 3;
   animation: ${float} 5s ease-in-out infinite 0.5s;
+
+  @media (min-width: 768px) {
+    top: 15%;
+    right: 0;
+  }
 `;
 
 // Indicadores de diapositiva (puntos abajo)
