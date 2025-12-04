@@ -11,6 +11,7 @@ const GridWrapper = styled.div`
     grid-template-rows: repeat(2, 280px);
     gap: ${props => props.theme.spacing.lg};
   }
+   
 `;
 
 const BentoCard = styled.div`
@@ -26,34 +27,10 @@ const BentoCard = styled.div`
   border: 1px solid ${props => props.theme.colors.bgAlt};
   min-height: 240px;
   
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
-    min-height: unset;
-    
-    ${props => {
-      switch (props.$size) {
-        case 'large':
-          return `
-            grid-column: span 2;
-            grid-row: span 2;
-          `;
-        case 'wide':
-          return `
-            grid-column: span 2;
-            grid-row: span 1;
-          `;
-        case 'tall':
-          return `
-            grid-column: span 1;
-            grid-row: span 2;
-          `;
-        default:
-          return `
-            grid-column: span 1;
-            grid-row: span 1;
-          `;
-      }
-    }}
-  }
+  @media (max-width: 678px) {
+    font-size: 0.9rem;
+
+  } 
   
   &:hover {
     transform: translateY(-8px);
@@ -80,6 +57,7 @@ const BentoCard = styled.div`
   &:hover::before {
     transform: scaleX(1);
   }
+    
 `;
 
 const IconWrapper = styled.div`

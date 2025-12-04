@@ -16,6 +16,7 @@ import { NotFound } from './pages/NotFound';
 import { SetupPinModal } from './components/staff/SetupPinModal';
 import MenuLeDuo from './pages/MenuLeDuo';
 import { PinConfirmModal } from './components/staff/PinConfirmModal';
+import { Workshops } from './pages/Workshops';
 
 export const Router = () => {
   return (
@@ -25,6 +26,8 @@ export const Router = () => {
         {/* Public routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/menu" element={<MenuLeDuo />} />
+        <Route path="/workshops" element={<Workshops />} />
 
         {/* Auth routes */}
         <Route path="/app/login" element={<Login />} />
@@ -51,7 +54,7 @@ export const Router = () => {
           </RequireAuth>
         } />
 
-        <Route path="/menu" element={<MenuLeDuo />} />
+        
 
         {/* Catch all */}
         <Route path="*" element={<NotFound />} />

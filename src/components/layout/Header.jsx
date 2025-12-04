@@ -153,7 +153,7 @@ export const Header = () => {
       .from('user_roles')
       .select('role')
       .eq('user_id', userId);
-    
+
     if (data) {
       setUserRoles(data.map(r => r.role));
     }
@@ -197,7 +197,7 @@ export const Header = () => {
           </Logo>
 
           <Nav>
-            <MobileMenuButton 
+            <MobileMenuButton
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Menú"
             >
@@ -209,6 +209,9 @@ export const Header = () => {
                 <>
                   <Button as={Link} to="/app" variant="ghost" size="sm">
                     Inicio
+                  </Button>
+                  <Button as={Link} to="/eventos-talleres" variant="ghost" size="sm">
+                    Talleres y Eventos
                   </Button>
                   <Button as={Link} to="/app/ruleta" variant="ghost" size="sm">
                     Ruleta
@@ -247,34 +250,47 @@ export const Header = () => {
         <MobileMenu $open={mobileMenuOpen}>
           {isLoggedIn && isAppRoute ? (
             <>
-              <Button as={Link} to="/app" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+              <Button as={Link} to="/" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
                 Inicio
               </Button>
-              <Button as={Link} to="/app/ruleta" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+              <Button as={Link} to="/app" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
+                Mi cuenta
+              </Button>
+              <Button as={Link} to="/app/ruleta" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
                 Ruleta
               </Button>
-              <Button as={Link} to="/app/cuenta" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+              <Button as={Link} to="/eventos-talleres" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
+                Talleres y Eventos
+              </Button>
+              <Button as={Link} to="/app/cuenta" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
                 Mi Cuenta
               </Button>
               {isStaff && (
-                <Button as={Link} to="/app/scan" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+                <Button as={Link} to="/app/scan" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
                   Escanear
                 </Button>
               )}
-              <Button onClick={handleLogout} variant="outline" size="sm" style={{width: '100%'}}>
+              <Button onClick={handleLogout} variant="outline" size="sm" style={{ width: '100%' }}>
                 Salir
               </Button>
             </>
           ) : (
             <>
-              <Button as={Link} to="/#como-funciona" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+              <Button as={Link} to="/" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
+                Inicio
+              </Button>
+              <Button as={Link} to="/eventos-talleres" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
+                Talleres y Eventos
+              </Button>
+              <Button as={Link} to="/#como-funciona" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
                 Cómo Funciona
               </Button>
-              <Button as={Link} to="/#beneficios" variant="ghost" size="sm" style={{width: '100%', marginBottom: '8px'}}>
+              <Button as={Link} to="/#beneficios" variant="ghost" size="sm" style={{ width: '100%', marginBottom: '8px' }}>
                 Beneficios
               </Button>
+
               {!isLoggedIn && (
-                <Button as={Link} to="/app/login" variant="primary" size="sm" style={{width: '100%'}}>
+                <Button as={Link} to="/app/login" variant="primary" size="sm" style={{ width: '100%' }}>
                   Ingresar
                 </Button>
               )}
