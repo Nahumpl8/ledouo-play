@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { RequireAuth } from './components/layout/RequireAuth';
+import { RequireAdminEvents } from './components/admin/RequireAdminEvents';
 import { ScrollToTop } from './components/layout/ScrollToTop';
 
 // Pages
@@ -18,6 +19,10 @@ import { SetupPinModal } from './components/staff/SetupPinModal';
 import MenuLeDuo from './pages/MenuLeDuo';
 import { PinConfirmModal } from './components/staff/PinConfirmModal';
 import { Workshops } from './pages/Workshops';
+import { EventDetail } from './pages/EventDetail';
+import { AdminEvents } from './pages/admin/AdminEvents';
+import { EventReservations } from './pages/admin/EventReservations';
+import { AdminClients } from './pages/admin/AdminClients';
 
 export const Router = () => {
   return (
@@ -30,6 +35,7 @@ export const Router = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/menu" element={<MenuLeDuo />} />
         <Route path="/workshops" element={<Workshops />} />
+        <Route path="/workshops/:eventId" element={<EventDetail />} />
 
         {/* Auth routes */}
         <Route path="/app/login" element={<Login />} />
@@ -56,7 +62,22 @@ export const Router = () => {
           </RequireAuth>
         } />
 
-        
+        {/* Admin routes */}
+        <Route path="/admin/events" element={
+          <RequireAdminEvents>
+            <AdminEvents />
+          </RequireAdminEvents>
+        } />
+        <Route path="/admin/events/:eventId/reservations" element={
+          <RequireAdminEvents>
+            <EventReservations />
+          </RequireAdminEvents>
+        } />
+        <Route path="/admin/clients" element={
+          <RequireAdminEvents>
+            <AdminClients />
+          </RequireAdminEvents>
+        } />
 
         {/* Catch all */}
         <Route path="*" element={<NotFound />} />

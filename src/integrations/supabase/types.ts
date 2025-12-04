@@ -70,6 +70,119 @@ export type Database = {
           },
         ]
       }
+      event_reservations: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          notes: string | null
+          payment_method: string
+          payment_status: string | null
+          spots_reserved: number | null
+          total_amount: number
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id?: string
+          notes?: string | null
+          payment_method: string
+          payment_status?: string | null
+          spots_reserved?: number | null
+          total_amount: number
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          guest_email?: string
+          guest_name?: string
+          guest_phone?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          payment_status?: string | null
+          spots_reserved?: number | null
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_reservations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          capacity: number
+          created_at: string | null
+          created_by: string | null
+          date: string
+          description: string
+          id: string
+          image_gradient: string | null
+          is_active: boolean | null
+          location: string | null
+          long_description: string | null
+          price: number
+          spots_available: number
+          tags: string[] | null
+          time: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string | null
+          created_by?: string | null
+          date: string
+          description: string
+          id?: string
+          image_gradient?: string | null
+          is_active?: boolean | null
+          location?: string | null
+          long_description?: string | null
+          price?: number
+          spots_available?: number
+          tags?: string[] | null
+          time: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          capacity?: number
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          description?: string
+          id?: string
+          image_gradient?: string | null
+          is_active?: boolean | null
+          location?: string | null
+          long_description?: string | null
+          price?: number
+          spots_available?: number
+          tags?: string[] | null
+          time?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
