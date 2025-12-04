@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { RequireAuth } from './components/layout/RequireAuth';
+import { ScrollToTop } from './components/layout/ScrollToTop';
 
 // Pages
 import { Landing } from './pages/Landing';
@@ -21,6 +22,7 @@ import { Workshops } from './pages/Workshops';
 export const Router = () => {
   return (
     <>
+      <ScrollToTop />
       <Header />
       <Routes>
         {/* Public routes */}
