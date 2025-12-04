@@ -208,13 +208,17 @@ const HeroSubtitle = styled.p`
 
 const ButtonGroup = styled.div`
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 1rem;
   margin-top: 1rem;
   justify-content: center;
   /* Los botones no se re-animan, se quedan fijos para buena UX */
   animation: ${fadeInUp} 0.8s ease-out 0.6s backwards;
 
-  @media (min-width: 968px) { justify-content: flex-start; }
+  @media (min-width: 968px) { 
+    justify-content: flex-start; 
+  }
 `;
 
 const Btn = styled(Link)`
@@ -231,7 +235,7 @@ const Btn = styled(Link)`
 
 const BtnPrimary = styled(Btn)`
   background: ${props => props.$accentColor};
-  color: ${props => props.$primaryColor}; /* Texto del color del fondo actual */
+  color: ${props => props.$primaryColor}; 
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   font-size: 1.1rem;
 
