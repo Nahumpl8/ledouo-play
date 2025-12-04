@@ -1,50 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Clock, MapPin, X, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-
-// --- DATOS ---
-const EVENTS_DATA = [
-    {
-        id: 1,
-        title: "Taller de Velas Aromáticas",
-        date: "14 OCT",
-        time: "17:00 HRS",
-        price: "$450",
-        description: "Crea tu propia vela con aceites esenciales y flores secas mientras disfrutas de un Latte ilimitado.",
-        imageColor: "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)",
-        tags: ["Creativo", "Relax"]
-    },
-    {
-        id: 2,
-        title: "Cata de Café: Orígenes",
-        date: "21 OCT",
-        time: "18:00 HRS",
-        price: "$350",
-        description: "Un viaje sensorial por los granos de Chiapas, Veracruz y Oaxaca guiado por nuestros baristas expertos.",
-        imageColor: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-        tags: ["Cata", "Educativo"]
-    },
-    {
-        id: 3,
-        title: "Arte Latte Básico",
-        date: "28 OCT",
-        time: "16:30 HRS",
-        price: "$600",
-        description: "Aprende la técnica correcta de vaporización de leche y crea tu primer corazón en el café.",
-        imageColor: "linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)",
-        tags: ["Barista", "Práctico"]
-    },
-    {
-        id: 4,
-        title: "Cerámica & Matcha",
-        date: "04 NOV",
-        time: "17:00 HRS",
-        price: "$550",
-        description: "Moldea tu propia taza de cerámica mientras degustas nuestra selección de bebidas matcha.",
-        imageColor: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)",
-        tags: ["Arte", "Matcha"]
-    }
-];
+import { Clock, MapPin, ArrowRight, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 // --- STYLED COMPONENTS ---
 
@@ -71,13 +29,13 @@ const BackgroundBlobs = styled.div`
 const Blob = styled.div`
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px); /* Blur un poco más definido */
+  filter: blur(60px);
   opacity: 0.5;
   animation: ${float} 20s infinite ease-in-out;
 `;
 
 const Section = styled.section`
-  padding: 2rem 0 4rem 0; /* Menos padding top en móvil */
+  padding: 2rem 0 4rem 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -95,7 +53,6 @@ const Container = styled.div`
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  /* Quitamos padding lateral del container en móvil para controlar el scroll nosotros */
   padding: 0; 
   position: relative;
   z-index: 1;
@@ -108,7 +65,7 @@ const Container = styled.div`
 const HeaderWrapper = styled.div`
   text-align: center;
   margin-bottom: 2rem;
-  padding: 0 1.5rem; /* Padding solo para el texto */
+  padding: 0 1.5rem;
   animation: ${fadeUp} 0.6s ease forwards;
 `;
 
@@ -138,26 +95,17 @@ const SectionDesc = styled.p`
   line-height: 1.6;
 `;
 
-// --- CONTENEDOR DE EVENTOS ---
 const EventsContainer = styled.div`
   display: flex;
-  gap: 1.5rem; /* Espacio entre tarjetas */
-  
-  /* LÓGICA MÓVIL: SCROLL SNAP */
+  gap: 1.5rem;
   overflow-x: auto;
-  scroll-snap-type: x mandatory; /* Efecto imán obligatorio */
-  
-  /* Padding lateral IMPORTANTE para que la primera y última tarjeta no toquen el borde */
+  scroll-snap-type: x mandatory;
   padding: 1rem 24px 3rem 24px; 
-  
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  
-  /* Ocultar scrollbar */
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 
-  /* Desktop Grid */
   @media (min-width: 1024px) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -167,33 +115,28 @@ const EventsContainer = styled.div`
 `;
 
 const EventCard = styled.div`
-  /* --- GLASSMORPHISM MEJORADO --- */
-  background: rgba(255, 255, 255, 0.7); /* Un poco más opaco para legibilidad */
-  backdrop-filter: blur(20px); /* Más borroso atrás */
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.9); /* Borde blanco brillante */
-  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15); /* Sombra difusa */
-  
-  /* --- TAMAÑO MÓVIL "FULL CARD" --- */
-  /* Calculamos el ancho: 100% de la pantalla MENOS el padding del contenedor (24px * 2 = 48px) */
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
   min-width: calc(100vw - 48px); 
-  scroll-snap-align: center; /* Se detiene siempre en el centro */
-  
+  scroll-snap-align: center;
   border-radius: 24px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  
   opacity: 0;
   animation: ${fadeUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
 
   @media (min-width: 600px) {
-    min-width: 320px; /* Tablet: tamaño fijo */
+    min-width: 320px;
   }
 
   @media (min-width: 1024px) {
-    min-width: auto; /* Desktop: grid auto */
+    min-width: auto;
     &:hover {
       transform: translateY(-8px);
       background: rgba(255, 255, 255, 0.85);
@@ -211,7 +154,6 @@ const CardImageArea = styled.div`
   padding: 1.5rem;
   background: ${props => props.$bgGradient};
   
-  /* Sutil overlay brillante para efecto vidrio */
   &::after {
     content: '';
     position: absolute;
@@ -328,148 +270,85 @@ const ReserveBtn = styled.button`
   }
 `;
 
-// --- CONTROLES DE SCROLL HORIZONTAL ---
-const ScrollControlsWrapper = styled.div`
-  display: none;
+const SpotsIndicator = styled.div`
+  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.5rem 0;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: ${props => props.$low ? '#e74c3c' : '#27ae60'};
+  font-weight: 600;
+  margin-top: 0.5rem;
+`;
+
+const LoadingWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 4rem 2rem;
   
-  @media (max-width: 1023px) {
-    display: flex;
-    padding: 0rem 1.5rem;
+  h3 {
+    color: #333;
+    margin: 0 0 0.5rem 0;
   }
-`;
-
-const ScrollButton = styled.button`
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(30, 57, 50, 0.9);
-  color: white;
-  border: 2px solid rgba(30, 57, 50, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-
-  &:hover {
-    background: #1e3932;
-    transform: scale(1.1);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  
+  p {
+    color: #666;
+    margin: 0;
   }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    &:hover {
-      transform: scale(1);
-    }
-  }
-`;
-
-const IndicatorsContainer = styled.div`
-  display: flex;
-  gap: 0.6rem;
-  flex: 1;
-  justify-content: center;
-`;
-
-const Indicator = styled.button`
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: ${props => props.$active ? '#1e3932' : 'rgba(30, 57, 50, 0.3)'};
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  padding: 0;
-
-  &:hover {
-    background: ${props => props.$active ? '#1e3932' : 'rgba(30, 57, 50, 0.6)'};
-  }
-`;
-
-// --- MODAL ---
-const ModalOverlay = styled.div`
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(8px);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-`;
-
-const ModalContent = styled.div`
-  background: #fff;
-  width: 100%;
-  max-width: 380px;
-  border-radius: 24px;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-  animation: ${fadeUp} 0.3s ease-out forwards;
-`;
-
-const CloseModalBtn = styled.button`
-  position: absolute; top: 1rem; right: 1rem;
-  background: rgba(255,255,255,0.3);
-  backdrop-filter: blur(4px);
-  border: none; border-radius: 50%;
-  width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; color: white; z-index: 10;
-  &:hover { background: rgba(255,255,255,0.5); }
 `;
 
 export const Workshops = () => {
-    const [selectedEvent, setSelectedEvent] = useState(null);
-    const eventsContainerRef = useRef(null);
-    const [scrollPosition, setScrollPosition] = useState(0);
-    const [canScrollLeft, setCanScrollLeft] = useState(false);
-    const [canScrollRight, setCanScrollRight] = useState(true);
-
-    // Verificar si se puede hacer scroll
-    const checkScroll = () => {
-      if (eventsContainerRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = eventsContainerRef.current;
-        setScrollPosition(scrollLeft);
-        setCanScrollLeft(scrollLeft > 0);
-        setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-      }
-    };
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
-      checkScroll();
-      const container = eventsContainerRef.current;
-      if (container) {
-        container.addEventListener('scroll', checkScroll);
-        window.addEventListener('resize', checkScroll);
-        return () => {
-          container.removeEventListener('scroll', checkScroll);
-          window.removeEventListener('resize', checkScroll);
+        const fetchEvents = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('events')
+                    .select('*')
+                    .eq('is_active', true)
+                    .gte('date', new Date().toISOString().split('T')[0])
+                    .order('date', { ascending: true });
+
+                if (error) throw error;
+                setEvents(data || []);
+            } catch (err) {
+                console.error('Error fetching events:', err);
+            } finally {
+                setLoading(false);
+            }
         };
-      }
+
+        fetchEvents();
     }, []);
 
-    const scroll = (direction) => {
-      if (eventsContainerRef.current) {
-        const scrollAmount = 340; // Aproximadamente el ancho de una tarjeta + gap
-        eventsContainerRef.current.scrollBy({
-          left: direction === 'left' ? -scrollAmount : scrollAmount,
-          behavior: 'smooth'
-        });
-      }
+    const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        const day = date.getDate();
+        const month = date.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase();
+        return { day, month };
     };
 
-    // Calcular cuánta tarjeta está visible
-    const currentCardIndex = Math.round(scrollPosition / 340);
-    const totalCards = EVENTS_DATA.length;
+    const handleEventClick = (eventId) => {
+        navigate(`/workshops/${eventId}`);
+    };
+
+    if (loading) {
+        return (
+            <Section>
+                <LoadingWrapper>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </LoadingWrapper>
+            </Section>
+        );
+    }
 
     return (
         <Section>
@@ -488,103 +367,67 @@ export const Workshops = () => {
                     </SectionDesc>
                 </HeaderWrapper>
 
-                <EventsContainer ref={eventsContainerRef}>
-                    {EVENTS_DATA.map((event, index) => (
-                        <EventCard
-                            key={event.id}
-                            style={{ animationDelay: `${index * 100}ms` }}
-                        >
-                            <CardImageArea $bgGradient={event.imageColor}>
-                                <DateBadge>
-                                    <span>{event.date.split(' ')[0]}</span>
-                                    <span>{event.date.split(' ')[1]}</span>
-                                </DateBadge>
-                                <TagsContainer>
-                                    {event.tags.map(tag => (
-                                        <Tag key={tag}>{tag}</Tag>
-                                    ))}
-                                </TagsContainer>
-                            </CardImageArea>
+                {events.length === 0 ? (
+                    <EmptyState>
+                        <h3>No hay eventos próximos</h3>
+                        <p>¡Vuelve pronto para ver nuevas experiencias!</p>
+                    </EmptyState>
+                ) : (
+                    <EventsContainer>
+                        {events.map((event, index) => {
+                            const { day, month } = formatDate(event.date);
+                            const lowSpots = event.spots_available <= 5;
+                            
+                            return (
+                                <EventCard
+                                    key={event.id}
+                                    style={{ animationDelay: `${index * 100}ms` }}
+                                    onClick={() => handleEventClick(event.id)}
+                                >
+                                    <CardImageArea $bgGradient={event.image_gradient}>
+                                        <DateBadge>
+                                            <span>{day}</span>
+                                            <span>{month}</span>
+                                        </DateBadge>
+                                        <TagsContainer>
+                                            {event.tags?.map(tag => (
+                                                <Tag key={tag}>{tag}</Tag>
+                                            ))}
+                                        </TagsContainer>
+                                    </CardImageArea>
 
-                            <CardBody>
-                                <EventTitle>{event.title}</EventTitle>
-                                <MetaRow>
-                                    <MetaItem><Clock size={16} /> {event.time}</MetaItem>
-                                    <MetaItem><MapPin size={16} /> Centro</MetaItem>
-                                </MetaRow>
-                                <EventDescription>{event.description}</EventDescription>
+                                    <CardBody>
+                                        <EventTitle>{event.title}</EventTitle>
+                                        <MetaRow>
+                                            <MetaItem><Clock size={16} /> {event.time}</MetaItem>
+                                            <MetaItem><MapPin size={16} /> {event.location}</MetaItem>
+                                        </MetaRow>
+                                        <EventDescription>{event.description}</EventDescription>
+                                        
+                                        <SpotsIndicator $low={lowSpots}>
+                                            <Users size={14} />
+                                            {event.spots_available > 0 
+                                                ? `${event.spots_available} lugares disponibles`
+                                                : 'Sin lugares disponibles'}
+                                        </SpotsIndicator>
 
-                                <CardFooter>
-                                    <PriceBox>
-                                        <span>Por persona</span>
-                                        <span>{event.price}</span>
-                                    </PriceBox>
-                                    <ReserveBtn onClick={() => setSelectedEvent(event)}>
-                                        <ArrowRight size={22} />
-                                    </ReserveBtn>
-                                </CardFooter>
-                            </CardBody>
-                        </EventCard>
-                    ))}
-                    {/* Espaciador final para que la última card se pueda centrar bien */}
-                    <div style={{ minWidth: '1px' }}></div>
-                </EventsContainer>
-
-                {/* Controles de Scroll (solo visible en móvil) */}
-                <ScrollControlsWrapper>
-                  <ScrollButton 
-                    onClick={() => scroll('left')} 
-                    disabled={!canScrollLeft}
-                  >
-                    <ChevronLeft size={24} />
-                  </ScrollButton>
-                  
-                  <IndicatorsContainer>
-                    {EVENTS_DATA.map((_, index) => (
-                      <Indicator
-                        key={index}
-                        $active={index === currentCardIndex}
-                        onClick={() => {
-                          if (eventsContainerRef.current) {
-                            eventsContainerRef.current.scrollTo({
-                              left: index * 340,
-                              behavior: 'smooth'
-                            });
-                          }
-                        }}
-                      />
-                    ))}
-                  </IndicatorsContainer>
-                  
-                  <ScrollButton 
-                    onClick={() => scroll('right')} 
-                    disabled={!canScrollRight}
-                  >
-                    <ChevronRight size={24} />
-                  </ScrollButton>
-                </ScrollControlsWrapper>
+                                        <CardFooter>
+                                            <PriceBox>
+                                                <span>Por persona</span>
+                                                <span>${event.price}</span>
+                                            </PriceBox>
+                                            <ReserveBtn onClick={(e) => { e.stopPropagation(); handleEventClick(event.id); }}>
+                                                <ArrowRight size={22} />
+                                            </ReserveBtn>
+                                        </CardFooter>
+                                    </CardBody>
+                                </EventCard>
+                            );
+                        })}
+                        <div style={{ minWidth: '1px' }}></div>
+                    </EventsContainer>
+                )}
             </Container>
-
-            {/* Modal */}
-            {selectedEvent && (
-                <ModalOverlay onClick={() => setSelectedEvent(null)}>
-                    <ModalContent onClick={e => e.stopPropagation()}>
-                        <CloseModalBtn onClick={() => setSelectedEvent(null)}><X size={20} /></CloseModalBtn>
-                        <div style={{ padding: '2rem 1.5rem 1rem', background: selectedEvent.imageColor }}>
-                            <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#1f1f1f' }}>{selectedEvent.title}</h3>
-                        </div>
-                        <div style={{ padding: '1.5rem' }}>
-                            <p style={{ marginTop: 0, color: '#666', fontSize: '0.9rem' }}>Ingresa tus datos para reservar.</p>
-                            <button
-                                onClick={() => { alert('Reserva enviada'); setSelectedEvent(null); }}
-                                style={{ width: '100%', padding: '14px', background: '#1e3932', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
-                            >
-                                Confirmar Reserva
-                            </button>
-                        </div>
-                    </ModalContent>
-                </ModalOverlay>
-            )}
         </Section>
     );
 };
