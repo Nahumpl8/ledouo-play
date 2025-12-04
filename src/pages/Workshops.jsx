@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Clock, MapPin, X, ArrowRight } from 'lucide-react';
+import { Clock, MapPin, X, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // --- DATOS ---
 const EVENTS_DATA = [
@@ -328,6 +328,71 @@ const ReserveBtn = styled.button`
   }
 `;
 
+// --- CONTROLES DE SCROLL HORIZONTAL ---
+const ScrollControlsWrapper = styled.div`
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 0;
+  
+  @media (max-width: 1023px) {
+    display: flex;
+    padding: 0rem 1.5rem;
+  }
+`;
+
+const ScrollButton = styled.button`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(30, 57, 50, 0.9);
+  color: white;
+  border: 2px solid rgba(30, 57, 50, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+  &:hover {
+    background: #1e3932;
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    &:hover {
+      transform: scale(1);
+    }
+  }
+`;
+
+const IndicatorsContainer = styled.div`
+  display: flex;
+  gap: 0.6rem;
+  flex: 1;
+  justify-content: center;
+`;
+
+const Indicator = styled.button`
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: ${props => props.$active ? '#1e3932' : 'rgba(30, 57, 50, 0.3)'};
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+
+  &:hover {
+    background: ${props => props.$active ? '#1e3932' : 'rgba(30, 57, 50, 0.6)'};
+  }
+`;
+
 // --- MODAL ---
 const ModalOverlay = styled.div`
   position: fixed; inset: 0;
@@ -364,6 +429,47 @@ const CloseModalBtn = styled.button`
 
 export const Workshops = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
+    const eventsContainerRef = useRef(null);
+    const [scrollPosition, setScrollPosition] = useState(0);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(true);
+
+    // Verificar si se puede hacer scroll
+    const checkScroll = () => {
+      if (eventsContainerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = eventsContainerRef.current;
+        setScrollPosition(scrollLeft);
+        setCanScrollLeft(scrollLeft > 0);
+        setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+      }
+    };
+
+    useEffect(() => {
+      checkScroll();
+      const container = eventsContainerRef.current;
+      if (container) {
+        container.addEventListener('scroll', checkScroll);
+        window.addEventListener('resize', checkScroll);
+        return () => {
+          container.removeEventListener('scroll', checkScroll);
+          window.removeEventListener('resize', checkScroll);
+        };
+      }
+    }, []);
+
+    const scroll = (direction) => {
+      if (eventsContainerRef.current) {
+        const scrollAmount = 340; // Aproximadamente el ancho de una tarjeta + gap
+        eventsContainerRef.current.scrollBy({
+          left: direction === 'left' ? -scrollAmount : scrollAmount,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Calcular cuánta tarjeta está visible
+    const currentCardIndex = Math.round(scrollPosition / 340);
+    const totalCards = EVENTS_DATA.length;
 
     return (
         <Section>
@@ -382,7 +488,7 @@ export const Workshops = () => {
                     </SectionDesc>
                 </HeaderWrapper>
 
-                <EventsContainer>
+                <EventsContainer ref={eventsContainerRef}>
                     {EVENTS_DATA.map((event, index) => (
                         <EventCard
                             key={event.id}
@@ -423,6 +529,40 @@ export const Workshops = () => {
                     {/* Espaciador final para que la última card se pueda centrar bien */}
                     <div style={{ minWidth: '1px' }}></div>
                 </EventsContainer>
+
+                {/* Controles de Scroll (solo visible en móvil) */}
+                <ScrollControlsWrapper>
+                  <ScrollButton 
+                    onClick={() => scroll('left')} 
+                    disabled={!canScrollLeft}
+                  >
+                    <ChevronLeft size={24} />
+                  </ScrollButton>
+                  
+                  <IndicatorsContainer>
+                    {EVENTS_DATA.map((_, index) => (
+                      <Indicator
+                        key={index}
+                        $active={index === currentCardIndex}
+                        onClick={() => {
+                          if (eventsContainerRef.current) {
+                            eventsContainerRef.current.scrollTo({
+                              left: index * 340,
+                              behavior: 'smooth'
+                            });
+                          }
+                        }}
+                      />
+                    ))}
+                  </IndicatorsContainer>
+                  
+                  <ScrollButton 
+                    onClick={() => scroll('right')} 
+                    disabled={!canScrollRight}
+                  >
+                    <ChevronRight size={24} />
+                  </ScrollButton>
+                </ScrollControlsWrapper>
             </Container>
 
             {/* Modal */}

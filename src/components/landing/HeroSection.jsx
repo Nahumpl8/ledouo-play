@@ -127,7 +127,7 @@ const Container = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   align-items: center;
-  gap: 4rem;
+  gap: 1rem;
   position: relative;
   z-index: 1;
 
@@ -277,8 +277,8 @@ const VisualContainer = styled.div`
 
 const CircleBackdrop = styled.div`
   position: absolute;
-  width: 80%; 
-  max-width: 320px;
+  width: 100%; 
+  max-width: 720px;
   aspect-ratio: 1;
   border: 2px solid rgba(255, 255, 255, 0.15);
   border-radius: 50%;
@@ -288,6 +288,7 @@ const CircleBackdrop = styled.div`
     width: 90%;
     max-width: 500px;
   }
+  
 
   &::before {
     content: '';
@@ -308,20 +309,19 @@ const CircleBackdrop = styled.div`
       box-shadow: 0 0 20px ${props => props.$accentColor};
     }
   }
-`;
+`; 
 
 const HeroImage = styled.div`
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 380px;
-  height: 400px;
-  
+  max-width: 240px;
+  height: 290px;
   background-image: url(${props => props.$bgImage});
   background-size: cover;
   background-position: center;
   
-  border-radius: 200px 200px 40px 40px;
+  border-radius: 200px 180px;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   animation: ${float} 6s ease-in-out infinite;
   
@@ -403,27 +403,31 @@ const FloatingCard = styled.div`
 // Wrapper animado para las cards, para que floten
 const FloatWrapperLeft = styled.div`
   position: absolute; 
-  bottom: 5%; 
-  left: -10%; 
+  bottom: 20%; 
+  left: 75%;
+  transform: translateX(-50%);
   z-index: 3;
   animation: ${floatDelayed} 7s ease-in-out infinite 1s;
 
   @media (min-width: 768px) {
     bottom: 10%;
     left: 0;
+    transform: none;
   }
 `;
 
 const FloatWrapperRight = styled.div`
   position: absolute; 
-  top: 5%; 
-  right: -10%; 
+  top: 60%;
+  left: -20%;
+  transform: translateX(50%);
   z-index: 3;
   animation: ${float} 5s ease-in-out infinite 0.5s;
 
   @media (min-width: 768px) {
     top: 15%;
     right: 0;
+    transform: none;
   }
 `;
 
