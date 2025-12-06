@@ -3,6 +3,7 @@ import { PKPass } from 'passkit-generator';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import sharp from 'sharp';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,6 +14,18 @@ const CERTS_DIR = path.join(__dirname, '../certs');
 // URLs de Supabase Storage
 const SUPABASE_URL = 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
+
+// Helper para normalizar imagen a PNG 32-bit RGBA (compatible con Apple Wallet)
+async function normalizeImage(buffer) {
+  try {
+    return await sharp(buffer)
+      .png({ palette: false }) // Fuerza PNG truecolor (no paleta indexada)
+      .toBuffer();
+  } catch (error) {
+    console.error('[Apple Pass] Error normalizando imagen:', error.message);
+    return buffer; // Retorna original si falla
+  }
+}
 
 // Helper para descargar imágenes como buffer
 async function getImageBuffer(url) {
@@ -120,13 +133,14 @@ export const createApplePass = async (req, res) => {
       logoText: 'Le Duo'
     });
 
-    // 7. Imágenes
+    // 7. Imágenes (normalizadas a PNG 32-bit)
     // Logo (usando ibb.co)
     const logoBuffer = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
     if (logoBuffer) {
-      pass.addBuffer('logo.png', Buffer.from(logoBuffer));
-      pass.addBuffer('icon.png', Buffer.from(logoBuffer));
-      pass.addBuffer('icon@2x.png', Buffer.from(logoBuffer));
+      const normalizedLogo = await normalizeImage(logoBuffer);
+      pass.addBuffer('logo.png', normalizedLogo);
+      pass.addBuffer('icon.png', normalizedLogo);
+      pass.addBuffer('icon@2x.png', normalizedLogo);
     }
 
     // Strip image dinámica desde Supabase Storage
@@ -136,8 +150,9 @@ export const createApplePass = async (req, res) => {
 
     const stripBuffer = await getImageBuffer(stripUrl);
     if (stripBuffer) {
-      pass.addBuffer('strip.png', Buffer.from(stripBuffer));
-      pass.addBuffer('strip@2x.png', Buffer.from(stripBuffer));
+      const normalizedStrip = await normalizeImage(stripBuffer);
+      pass.addBuffer('strip.png', normalizedStrip);
+      pass.addBuffer('strip@2x.png', normalizedStrip);
     }
 
     // 8. Generar y enviar .pkpass
