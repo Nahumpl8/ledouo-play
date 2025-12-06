@@ -15,42 +15,22 @@ const CERTS_DIR = path.join(__dirname, '../certs');
 const SUPABASE_URL = 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
 
-// Helper para normalizar imagen a PNG 32-bit RGBA (compatible con Apple Wallet)
-async function normalizeImage(buffer) {
-  if (!buffer || buffer.length === 0) {
-    throw new Error('Buffer de imagen vacío o inválido');
-  }
-
-  console.log(`[Apple Pass] Imagen original: ${buffer.length} bytes`);
-
+// Helper para crear imagen placeholder (fallback seguro)
+async function createPlaceholderImage(width, height, color = { r: 212, g: 197, b: 185, alpha: 1 }) {
   try {
-    // Forzar conversión completa: raw → PNG 32-bit RGBA
-    const { data, info } = await sharp(buffer)
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-
-    console.log(`[Apple Pass] Imagen raw: ${info.width}x${info.height}, ${info.channels} canales`);
-
-    const normalized = await sharp(data, {
-      raw: {
-        width: info.width,
-        height: info.height,
-        channels: info.channels
+    return await sharp({
+      create: {
+        width,
+        height,
+        channels: 4,
+        background: color
       }
     })
-      .ensureAlpha()
-      .png({ 
-        palette: false,
-        compressionLevel: 9,
-        adaptiveFiltering: false
-      })
-      .toBuffer();
-
-    console.log(`[Apple Pass] Imagen normalizada: ${normalized.length} bytes`);
-    return normalized;
+    .png()
+    .toBuffer();
   } catch (error) {
-    console.error('[Apple Pass] Error normalizando imagen:', error.message);
-    throw new Error(`No se pudo normalizar imagen: ${error.message}`);
+    console.error('[Apple Pass] Error creando placeholder:', error.message);
+    return null;
   }
 }
 
@@ -176,14 +156,20 @@ export const createApplePass = async (req, res) => {
       logoText: 'Le Duo'
     });
 
-    // 7. Imágenes (normalizadas a PNG 32-bit)
-    // Logo (usando ibb.co)
-    const logoBuffer = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
+    // 7. Imágenes - SIN doble procesamiento
+    // Logo (usando ibb.co) - getImageBuffer ya normaliza
+    let logoBuffer = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
+    
+    // Fallback a placeholder si falla
+    if (!logoBuffer) {
+      console.warn('[Apple Pass] Logo no disponible, usando placeholder');
+      logoBuffer = await createPlaceholderImage(160, 50, { r: 212, g: 197, b: 185, alpha: 1 });
+    }
+    
     if (logoBuffer) {
-      const normalizedLogo = await normalizeImage(logoBuffer);
-      pass.addBuffer('logo.png', normalizedLogo);
-      pass.addBuffer('icon.png', normalizedLogo);
-      pass.addBuffer('icon@2x.png', normalizedLogo);
+      pass.addBuffer('logo.png', logoBuffer);
+      pass.addBuffer('icon.png', logoBuffer);
+      pass.addBuffer('icon@2x.png', logoBuffer);
     }
 
     // Strip image dinámica desde Supabase Storage
@@ -191,11 +177,17 @@ export const createApplePass = async (req, res) => {
     const stripUrl = `${STORAGE_BASE}/${stampCount}-sellos.png`;
     console.log(`[Apple Pass] Descargando strip: ${stripUrl}`);
 
-    const stripBuffer = await getImageBuffer(stripUrl);
+    let stripBuffer = await getImageBuffer(stripUrl);
+    
+    // Fallback a placeholder si falla
+    if (!stripBuffer) {
+      console.warn('[Apple Pass] Strip no disponible, usando placeholder');
+      stripBuffer = await createPlaceholderImage(375, 123, { r: 212, g: 197, b: 185, alpha: 1 });
+    }
+    
     if (stripBuffer) {
-      const normalizedStrip = await normalizeImage(stripBuffer);
-      pass.addBuffer('strip.png', normalizedStrip);
-      pass.addBuffer('strip@2x.png', normalizedStrip);
+      pass.addBuffer('strip.png', stripBuffer);
+      pass.addBuffer('strip@2x.png', stripBuffer);
     }
 
     // 8. Generar y enviar .pkpass
