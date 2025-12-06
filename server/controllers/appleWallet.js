@@ -17,13 +17,40 @@ const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
 
 // Helper para normalizar imagen a PNG 32-bit RGBA (compatible con Apple Wallet)
 async function normalizeImage(buffer) {
+  if (!buffer || buffer.length === 0) {
+    throw new Error('Buffer de imagen vacío o inválido');
+  }
+
+  console.log(`[Apple Pass] Imagen original: ${buffer.length} bytes`);
+
   try {
-    return await sharp(buffer)
-      .png({ palette: false }) // Fuerza PNG truecolor (no paleta indexada)
+    // Forzar conversión completa: raw → PNG 32-bit RGBA
+    const { data, info } = await sharp(buffer)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    console.log(`[Apple Pass] Imagen raw: ${info.width}x${info.height}, ${info.channels} canales`);
+
+    const normalized = await sharp(data, {
+      raw: {
+        width: info.width,
+        height: info.height,
+        channels: info.channels
+      }
+    })
+      .ensureAlpha()
+      .png({ 
+        palette: false,
+        compressionLevel: 9,
+        adaptiveFiltering: false
+      })
       .toBuffer();
+
+    console.log(`[Apple Pass] Imagen normalizada: ${normalized.length} bytes`);
+    return normalized;
   } catch (error) {
     console.error('[Apple Pass] Error normalizando imagen:', error.message);
-    return buffer; // Retorna original si falla
+    throw new Error(`No se pudo normalizar imagen: ${error.message}`);
   }
 }
 
