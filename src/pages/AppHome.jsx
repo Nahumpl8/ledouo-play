@@ -9,18 +9,20 @@ import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { supabase } from '@/integrations/supabase/client';
 import { addToGoogleWallet } from '../services/googleWallet';
+import { addToAppleWallet } from '../services/appleWallet';
 
-// Sprites estáticos 0..8 sellos (tus imágenes)
+// URLs de Supabase Storage para imágenes de sellos
+const STORAGE_BASE = 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images';
 const STAMP_SPRITES = {
-  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
-  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
-  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
-  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
-  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
-  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
-  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
-  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/ZzJSwPhT/8-sellos.png',
+  0: `${STORAGE_BASE}/0-sellos.png`,
+  1: `${STORAGE_BASE}/1-sellos.png`,
+  2: `${STORAGE_BASE}/2-sellos.png`,
+  3: `${STORAGE_BASE}/3-sellos.png`,
+  4: `${STORAGE_BASE}/4-sellos.png`,
+  5: `${STORAGE_BASE}/5-sellos.png`,
+  6: `${STORAGE_BASE}/6-sellos.png`,
+  7: `${STORAGE_BASE}/7-sellos.png`,
+  8: `${STORAGE_BASE}/8-sellos.png`,
 };
 
 function getSpriteByStamps(stampsRaw) {
@@ -244,7 +246,6 @@ export const AppHome = () => {
   };
 
   const handleAddToWallet = async () => {
-    if (selectedWallet !== 'google') return;
     setWalletLoading(true);
     setWalletMessage('');
     setWalletLink('');
@@ -257,17 +258,21 @@ export const AppHome = () => {
         stamps: state.stamps
       };
 
+      if (selectedWallet === 'apple') {
+        // Apple Wallet - descarga el .pkpass
+        await addToAppleWallet(walletData);
+        setWalletMessage('¡Pase descargado! Ábrelo para añadirlo a tu Wallet.');
+        return;
+      }
+
+      // Google Wallet
       const result = await addToGoogleWallet(walletData);
 
-      // Si el servidor devolvió una URL válida, intentar navegar.
       if (result?.url) {
-        // Si el helper ya usó popup, normalmente la ventana ya fue redirigida.
         if (result.usedPopup) {
           setWalletMessage('Redirigiendo a Google Wallet…');
           setTimeout(() => setWalletModalOpen(false), 2000);
         } else {
-          // Intentar abrir en una nueva pestaña. Si el navegador bloquea el popup,
-          // mostramos un enlace para que el usuario haga click manualmente.
           try {
             const w = window.open(result.url, '_blank', 'noopener,noreferrer');
             if (!w) {
@@ -287,7 +292,7 @@ export const AppHome = () => {
       }
     } catch (error) {
       console.error('Error añadiendo a wallet:', error);
-      setWalletMessage(error.message || 'Error al añadir a Google Wallet');
+      setWalletMessage(error.message || 'Error al añadir a Wallet');
     } finally {
       setWalletLoading(false);
     }
@@ -579,14 +584,46 @@ export const AppHome = () => {
           ) : (
             <>
               <h3 style={{ marginBottom: '16px', color: '#686145' }}>
-                Próximamente disponible
+                Tarjeta de Lealtad LeDuo
               </h3>
-              <p style={{ marginBottom: '24px', lineHeight: 1.6 }}>
-                Apple Wallet requiere configuración adicional con certificados de desarrollador de Apple.
+              <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
+                <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
+                <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
+                <p><strong>Sellos:</strong> {stampsSafe} de 8</p>
+              </div>
+
+              {walletMessage && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '12px',
+                  backgroundColor: walletMessage.includes('Error') ? '#ffe6e6' : '#e6ffe6',
+                  borderRadius: '6px',
+                  fontSize: '0.9rem'
+                }}>
+                  {walletMessage}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  onClick={handleAddToWallet}
+                  variant="primary"
+                  disabled={walletLoading}
+                >
+                  {walletLoading ? '⏳ Generando...' : '📱 Añadir a Apple Wallet'}
+                </Button>
+                <Button
+                  onClick={() => setWalletModalOpen(false)}
+                  variant="outline"
+                  disabled={walletLoading}
+                >
+                  Cancelar
+                </Button>
+              </div>
+
+              <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
+                💡 <strong>Tip:</strong> Se descargará un archivo .pkpass que podrás abrir para añadir a tu Wallet
               </p>
-              <Button onClick={() => setWalletModalOpen(false)} variant="primary">
-                Entendido
-              </Button>
             </>
           )}
         </div>
