@@ -54,13 +54,29 @@ async function normalizeImage(buffer) {
   }
 }
 
-// Helper para descargar imágenes como buffer
+// Helper para descargar y normalizar imágenes (blindado para Apple Wallet)
 async function getImageBuffer(url) {
   try {
+    console.log(`[Apple Pass] Descargando: ${url}`);
     const response = await axios.get(url, { responseType: 'arraybuffer' });
-    return response.data;
+    const rawBuffer = Buffer.from(response.data);
+    
+    console.log(`[Apple Pass] Buffer raw: ${rawBuffer.length} bytes`);
+    
+    // "Lavar" la imagen: forzar conversión a PNG 32-bit RGBA limpio
+    const cleanBuffer = await sharp(rawBuffer)
+      .ensureAlpha()  // Forzar 4 canales (RGBA)
+      .png({
+        palette: false,        // Sin paleta indexada
+        compressionLevel: 9,   // Máxima compresión
+        adaptiveFiltering: false
+      })
+      .toBuffer();
+    
+    console.log(`[Apple Pass] Buffer limpio: ${cleanBuffer.length} bytes`);
+    return cleanBuffer;
   } catch (error) {
-    console.error(`[Apple Pass] Error descargando imagen (${url}):`, error.message);
+    console.error(`[Apple Pass] Error descargando/normalizando imagen (${url}):`, error.message);
     return null;
   }
 }
