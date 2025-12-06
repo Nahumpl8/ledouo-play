@@ -120,6 +120,9 @@ const ActionsGrid = styled.div`
   grid-template-columns: 1fr;
   gap: ${props => props.theme.spacing.md};
   margin-bottom: ${props => props.theme.spacing.xl};
+  ::after {
+    display: none;
+  } 
   
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
     grid-template-columns: repeat(2, 1fr);
@@ -183,6 +186,7 @@ const RouletteStatus = styled.div`
     font-weight: 500;
     margin-bottom: 4px;
   }
+    
   
   .status-detail {
     font-size: 0.9rem;
