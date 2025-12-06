@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createApplePass } from './controllers/appleWallet.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,19 +23,18 @@ if (isDev) {
   }));
 }
 
-// NOTA: Si ya migraste las imágenes a Supabase Storage, 
-// deberías actualizar estas URLs por las de tu bucket de Supabase
-// para evitar errores de Google Wallet en el futuro.
+// URLs de Supabase Storage para imágenes de sellos
+const STORAGE_BASE = 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images';
 const STAMP_SPRITES = {
-  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
-  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
-  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
-  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
-  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
-  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
-  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
-  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/Z6LLrZpr/8-sellos.png',
+  0: `${STORAGE_BASE}/0-sellos.png`,
+  1: `${STORAGE_BASE}/1-sellos.png`,
+  2: `${STORAGE_BASE}/2-sellos.png`,
+  3: `${STORAGE_BASE}/3-sellos.png`,
+  4: `${STORAGE_BASE}/4-sellos.png`,
+  5: `${STORAGE_BASE}/5-sellos.png`,
+  6: `${STORAGE_BASE}/6-sellos.png`,
+  7: `${STORAGE_BASE}/7-sellos.png`,
+  8: `${STORAGE_BASE}/8-sellos.png`,
 };
 
 // === ENV ===
@@ -215,6 +215,9 @@ app.post('/api/wallet/save', (req, res) => {
     res.status(500).json({ error: 'No se pudo generar el token de Wallet' });
   }
 });
+
+// Apple Wallet endpoint
+app.post('/api/wallet/apple', createApplePass);
 
 // Healthcheck simple
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
