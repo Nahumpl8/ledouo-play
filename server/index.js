@@ -5,7 +5,17 @@ import jwt from 'jsonwebtoken';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
 import { createApplePass } from './controllers/appleWallet.js';
+import { 
+  registerDevice, 
+  listPasses, 
+  getUpdatedPass, 
+  unregisterDevice, 
+  receiveLog,
+  notifyUserDevices 
+} from './controllers/walletWebService.js';
+import { sendPassUpdateNotification } from './controllers/apnsPush.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,13 +23,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
+// Supabase client con service role para operaciones del servidor
+const supabase = createClient(
+  process.env.SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 // En desarrollo permitimos el front local; en prod no hace falta (misma origin)
 const isDev = process.env.NODE_ENV !== 'production';
 if (isDev) {
   app.use(cors({
     origin: ['http://localhost:8080'],
-    methods: ['POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }));
 }
 
@@ -51,7 +67,9 @@ function ensureEnv(res) {
   return true;
 }
 
-// === API ===
+// ====================================
+// GOOGLE WALLET API
+// ====================================
 app.post('/api/wallet/save', (req, res) => {
   try {
     if (!ensureEnv(res)) return;
@@ -65,13 +83,7 @@ app.post('/api/wallet/save', (req, res) => {
       });
     }
 
-    // === CORRECCIÓN CRÍTICA AQUÍ (SOLUCIÓN NUEVOS USUARIOS) ===
-    // 1. Obtenemos el ID crudo de donde venga (prioridad a customerData.id)
     let rawId = customerData.id || objectIdSuffix || '';
-
-    // 2. Limpieza agresiva SIEMPRE
-    // Esto es lo que faltaba: forzamos la limpieza incluso si customerData.id existe.
-    // Así evitamos que se cuelen prefijos como "leduo_customer_" dentro del QR.
     const cleanUserId = rawId
       .replace('leduo_customer_', '')
       .replace('LEDUO-', '')
@@ -79,19 +91,12 @@ app.post('/api/wallet/save', (req, res) => {
       .replace(':', '')
       .trim();
 
-    // 3. Validación final
     if (!cleanUserId) {
       return res.status(400).json({ error: 'No se pudo obtener un ID válido para el pase.' });
     }
 
-    // 4. Estandarización de IDs
-    // El ID del objeto en Google SERÁ: ISSUER.LEDUO-uuid
     const fullObjectId = `${ISSUER_ID}.LEDUO-${cleanUserId}`;
-
-    // El valor del QR SERÁ: LEDUO-uuid
     const barcodeValue = `LEDUO-${cleanUserId}`;
-
-    // ===============================
 
     const stamps = customerData.stamps || 0;
     const points = customerData.cashbackPoints || 0;
@@ -109,23 +114,15 @@ app.post('/api/wallet/save', (req, res) => {
       exp: now + 3600,
       payload: {
         genericObjects: [{
-          id: fullObjectId, // ID Corregido
+          id: fullObjectId,
           classId: CLASS_ID,
           state: 'ACTIVE',
-
           hexBackgroundColor: backgroundColor,
-
           cardTitle: {
-            defaultValue: {
-              language: 'es',
-              value: 'LeDuo - Tarjeta de Lealtad'
-            }
+            defaultValue: { language: 'es', value: 'LeDuo - Tarjeta de Lealtad' }
           },
           subheader: {
-            defaultValue: {
-              language: 'es',
-              value: `${customerName} • ${level}`
-            }
+            defaultValue: { language: 'es', value: `${customerName} • ${level}` }
           },
           header: {
             defaultValue: {
@@ -133,43 +130,25 @@ app.post('/api/wallet/save', (req, res) => {
               value: stamps >= 8 ? '🎁 ¡Canjea tu bebida!' : `${stamps}/8 sellos`
             }
           },
-
           logo: {
-            sourceUri: {
-              uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png'
-            },
+            sourceUri: { uri: 'https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png' },
             contentDescription: {
-              defaultValue: {
-                language: 'es',
-                value: 'Logo LeDuo'
-              }
+              defaultValue: { language: 'es', value: 'Logo LeDuo' }
             }
           },
-
           heroImage: {
-            sourceUri: {
-              uri: STAMP_SPRITES[Math.min(stamps, 8)]
-            },
+            sourceUri: { uri: STAMP_SPRITES[Math.min(stamps, 8)] },
             contentDescription: {
-              defaultValue: {
-                language: 'es',
-                value: 'Chef LeDuo'
-              }
+              defaultValue: { language: 'es', value: 'Chef LeDuo' }
             }
           },
-
           barcode: {
             type: 'QR_CODE',
-            value: barcodeValue, // QR Corregido y limpio
+            value: barcodeValue,
             alternateText: `Cliente: ${cleanUserId.substring(0, 8)}`
           },
-
           textModulesData: [
-            {
-              header: 'Tu Nivel LeDuo',
-              body: `${levelPoints} puntos • ${level}`,
-              id: 'level'
-            },
+            { header: 'Tu Nivel LeDuo', body: `${levelPoints} puntos • ${level}`, id: 'level' },
             {
               header: 'Progreso de Sellos',
               body: stamps >= 8 
@@ -177,30 +156,13 @@ app.post('/api/wallet/save', (req, res) => {
                 : `${stamps} de 8 sellos. ${Math.max(0, 8 - stamps)} para tu recompensa.`,
               id: 'stamps'
             },
-            {
-              header: '¿Cómo usar tu tarjeta?',
-              body: 'Muestra tu código QR en caja para acumular puntos y sellos en cada compra.',
-              id: 'instructions'
-            },
-            {
-              header: 'Beneficios',
-              body: 'Gana puntos por cada compra. Completa 8 sellos para bebida gratis. +150 puntos = Leduo Leyend.',
-              id: 'benefits'
-            }
+            { header: '¿Cómo usar tu tarjeta?', body: 'Muestra tu código QR en caja para acumular puntos y sellos en cada compra.', id: 'instructions' },
+            { header: 'Beneficios', body: 'Gana puntos por cada compra. Completa 8 sellos para bebida gratis. +150 puntos = Leduo Leyend.', id: 'benefits' }
           ],
-
           linksModuleData: {
             uris: [
-              {
-                uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA',
-                description: 'Cómo llegar a LeDuo',
-                id: 'location'
-              },
-              {
-                uri: 'tel:+7711295938',
-                description: 'Llamar a LeDuo',
-                id: 'phone'
-              }
+              { uri: 'https://maps.app.goo.gl/j1VUSDoehyfLLZUUA', description: 'Cómo llegar a LeDuo', id: 'location' },
+              { uri: 'tel:+7711295938', description: 'Llamar a LeDuo', id: 'phone' }
             ]
           }
         }]
@@ -216,13 +178,77 @@ app.post('/api/wallet/save', (req, res) => {
   }
 });
 
-// Apple Wallet endpoint
+// ====================================
+// APPLE WALLET - Crear pase
+// ====================================
 app.post('/api/wallet/apple', createApplePass);
 
-// Healthcheck simple
+// ====================================
+// APPLE WALLET WEB SERVICE (Protocolo de actualizaciones)
+// ====================================
+
+// Registrar dispositivo cuando usuario añade pase
+app.post('/api/wallet/v1/devices/:deviceId/registrations/:passTypeId/:serialNumber', registerDevice);
+
+// Listar pases de un dispositivo
+app.get('/api/wallet/v1/devices/:deviceId/registrations/:passTypeId', listPasses);
+
+// Obtener pase actualizado (CRÍTICO)
+app.get('/api/wallet/v1/passes/:passTypeId/:serialNumber', getUpdatedPass);
+
+// Desregistrar dispositivo
+app.delete('/api/wallet/v1/devices/:deviceId/registrations/:passTypeId/:serialNumber', unregisterDevice);
+
+// Logs de errores del pase
+app.post('/api/wallet/v1/log', receiveLog);
+
+// ====================================
+// ENDPOINT PARA NOTIFICAR ACTUALIZACIONES
+// ====================================
+app.post('/api/wallet/notify-update', async (req, res) => {
+  const { userId } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'Falta userId' });
+  }
+  
+  console.log(`[Wallet Notify] Notificando actualización para usuario: ${userId}`);
+  
+  try {
+    // Obtener dispositivos del usuario
+    const result = await notifyUserDevices(userId);
+    
+    if (!result.success) {
+      return res.status(500).json({ error: 'Error obteniendo dispositivos' });
+    }
+    
+    if (result.devices === 0) {
+      return res.json({ success: true, message: 'No hay dispositivos registrados', notified: 0 });
+    }
+    
+    // Enviar notificación push a APNs
+    const pushResult = await sendPassUpdateNotification(result.tokens);
+    
+    res.json({ 
+      success: true, 
+      notified: pushResult.sent,
+      failed: pushResult.failed
+    });
+    
+  } catch (error) {
+    console.error('[Wallet Notify] Error:', error);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ====================================
+// HEALTHCHECK
+// ====================================
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// === STATIC ===
+// ====================================
+// STATIC FILES
+// ====================================
 const distPath = path.join(__dirname, '..', 'dist');
 app.use(express.static(distPath));
 
