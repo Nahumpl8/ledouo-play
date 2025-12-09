@@ -102,6 +102,7 @@ export const createApplePass = async (req, res) => {
     }
 
     // 2. CREAR EL OBJETO pass.json COMPLETO
+    // 2. CREAR EL OBJETO pass.json CON DISEÑO MEJORADO
     const passJsonData = {
       formatVersion: 1,
       passTypeIdentifier: 'pass.com.leduo.loyalty',
@@ -109,34 +110,62 @@ export const createApplePass = async (req, res) => {
       organizationName: 'Le Duo',
       description: 'Tarjeta de Lealtad LeDuo',
       serialNumber: `LEDUO-${cleanUserId}`,
-      backgroundColor: 'rgb(212, 197, 185)',
-      foregroundColor: 'rgb(60, 40, 20)',
-      labelColor: 'rgb(80, 60, 40)',
-      logoText: 'Le Duo',
+      
+      // COLORES (Ajustados para elegancia)
+      backgroundColor: 'rgb(212, 197, 185)', // Tu beige
+      foregroundColor: 'rgb(60, 40, 20)',     // Tu café oscuro (Texto)
+      labelColor: 'rgb(100, 80, 60)',         // Un café un poco más claro para las etiquetas (TITULOS)
+      logoText: 'Le Duo',                     // Texto junto al logo pequeño arriba
+      
       storeCard: {
-        primaryFields: [{
-          key: 'balance',
-          label: 'SELLOS',
-          value: `${stamps} / 8`,
-          textAlignment: 'PKTextAlignmentRight'
-        }],
-        secondaryFields: [{
-          key: 'points',
-          label: 'PUNTOS',
-          value: `${points} pts`,
-          textAlignment: 'PKTextAlignmentLeft'
-        }],
-        auxiliaryFields: [{
-          key: 'name',
-          label: 'CLIENTE',
-          value: name,
-          textAlignment: 'PKTextAlignmentLeft'
-        }],
-        backFields: [{
-          key: 'contact',
-          label: 'Contacto',
-          value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
-        }]
+        // HEADER: Aparece arriba a la derecha (Ideal para Puntos)
+        headerFields: [
+          {
+            key: 'points',
+            label: 'PUNTOS',
+            value: `${points}`,
+            textAlignment: 'PKTextAlignmentRight'
+          }
+        ],
+        // PRIMARY: Aparece grande a la izquierda o sobre la imagen
+        primaryFields: [
+          {
+            key: 'balance',
+            label: 'SELLOS ACUMULADOS',
+            value: `${stamps} / 8`,
+            textAlignment: 'PKTextAlignmentCenter' // Apple a veces ignora esto en primary, pero intentemos
+          }
+        ],
+        // SECONDARY: Aparece debajo de la imagen
+        secondaryFields: [
+          {
+            key: 'name',
+            label: 'CLIENTE',
+            value: name,
+            textAlignment: 'PKTextAlignmentLeft'
+          }
+        ],
+        // AUXILIARY: Fila extra de datos (opcional, aquí ponemos contacto para no saturar)
+        auxiliaryFields: [
+           {
+            key: 'contact',
+            label: 'SITIO WEB',
+            value: 'leduo.mx',
+            textAlignment: 'PKTextAlignmentRight'
+          }
+        ],
+        backFields: [
+          {
+            key: 'full_contact',
+            label: 'Contacto',
+            value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
+          },
+          {
+             key: 'terms',
+             label: 'Términos y Condiciones',
+             value: 'Tarjeta válida solo en sucursales participantes. No canjeable por dinero en efectivo.'
+          }
+        ]
       },
       barcodes: [{
         message: `LEDUO-${cleanUserId}`,
@@ -144,6 +173,7 @@ export const createApplePass = async (req, res) => {
         messageEncoding: 'iso-8859-1',
         altText: cleanUserId.substring(0, 8).toUpperCase()
       }],
+      // Apple a veces pide 'barcode' (singular) para versiones viejas de iOS
       barcode: {
         message: `LEDUO-${cleanUserId}`,
         format: 'PKBarcodeFormatQR',
