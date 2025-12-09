@@ -334,6 +334,69 @@ export type Database = {
           },
         ]
       }
+      wallet_auth_tokens: {
+        Row: {
+          auth_token: string
+          created_at: string | null
+          id: string
+          serial_number: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auth_token: string
+          created_at?: string | null
+          id?: string
+          serial_number: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auth_token?: string
+          created_at?: string | null
+          id?: string
+          serial_number?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_devices: {
+        Row: {
+          auth_token: string
+          created_at: string | null
+          device_library_identifier: string
+          id: string
+          pass_type_id: string
+          push_token: string
+          serial_number: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          auth_token: string
+          created_at?: string | null
+          device_library_identifier: string
+          id?: string
+          pass_type_id?: string
+          push_token: string
+          serial_number: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          auth_token?: string
+          created_at?: string | null
+          device_library_identifier?: string
+          id?: string
+          pass_type_id?: string
+          push_token?: string
+          serial_number?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
