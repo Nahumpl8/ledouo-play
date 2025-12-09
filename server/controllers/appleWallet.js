@@ -13,21 +13,43 @@ const CERTS_DIR = path.join(__dirname, '../certs');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
 
+// Descarga y normaliza imagen a PNG 32-bit RGBA
 async function getImageBuffer(url) {
   try {
     console.log(`[Apple Pass] Descargando: ${url}`);
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     const rawBuffer = Buffer.from(response.data);
 
-    return await sharp(rawBuffer)
-      .resize({ width: 500, withoutEnlargement: true })
+    // Lavar la imagen con Sharp para asegurar PNG 32-bit RGBA limpio
+    const cleanBuffer = await sharp(rawBuffer)
       .ensureAlpha()
-      .toFormat('png', { palette: false, colors: 256, compressionLevel: 9, force: true })
+      .png({ palette: false, compressionLevel: 9, adaptiveFiltering: false })
       .toBuffer();
+
+    console.log(`[Apple Pass] Imagen procesada: ${cleanBuffer.length} bytes`);
+    return cleanBuffer;
   } catch (error) {
     console.error(`[Apple Pass] Error descargando imagen (${url}):`, error.message);
     return null;
   }
+}
+
+// Genera una imagen placeholder simple
+async function createPlaceholderImage(width, height, hexColor = '#d4c5b9') {
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  return await sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { r, g, b, alpha: 1 }
+    }
+  })
+    .png()
+    .toBuffer();
 }
 
 export const createApplePass = async (req, res) => {
@@ -53,100 +75,113 @@ export const createApplePass = async (req, res) => {
 
     console.log(`[Apple Pass] Generando pase para: ${cleanUserId}`);
 
-    // 1. INICIALIZAR VACÍO
-    const pass = new PKPass({}, {
-      wwdr: fs.readFileSync(wwdrPath),
-      signerCert: fs.readFileSync(signerCertPath),
-      signerKey: fs.readFileSync(signerKeyPath),
-      signerKeyPassphrase: undefined
-    });
-
-    // 2. DEFINIR TIPO (Esto crea los arrays vacíos internamente)
-    pass.type = 'storeCard';
-
-    // 3. INYECTAR DATOS OBLIGATORIOS MANUALMENTE
-    pass.formatVersion = 1;  
-    pass.passTypeIdentifier = 'pass.com.leduo.loyalty';
-    pass.teamIdentifier = 'L4P8PF94N6';
-    pass.organizationName = 'Le Duo';
-    pass.description = 'Tarjeta de Lealtad LeDuo';
-    pass.serialNumber = `LEDUO-${cleanUserId}`;
-    
-    // Colores
-    pass.backgroundColor = 'rgb(212, 197, 185)';
-    pass.foregroundColor = 'rgb(60, 40, 20)';
-    pass.labelColor = 'rgb(80, 60, 40)';
-    pass.logoText = 'Le Duo';
-
-    // 4. AGREGAR CAMPOS (CORREGIDO: Usando .push)
-    pass.primaryFields.push({
-      key: 'balance',
-      label: 'SELLOS',
-      value: `${stamps} / 8`,
-      textAlignment: 'PKTextAlignmentRight'
-    });
-
-    pass.secondaryFields.push({
-      key: 'points',
-      label: 'PUNTOS',
-      value: `${points} pts`,
-      textAlignment: 'PKTextAlignmentLeft'
-    });
-
-    pass.auxiliaryFields.push({
-      key: 'name',
-      label: 'CLIENTE',
-      value: name,
-      textAlignment: 'PKTextAlignmentLeft'
-    });
-
-    pass.backFields.push({
-      key: 'contact',
-      label: 'Contacto',
-      value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
-    });
-
-    // 5. CÓDIGOS DE BARRAS
-    pass.setBarcodes({
-      message: `LEDUO-${cleanUserId}`,
-      format: 'PKBarcodeFormatQR',
-      messageEncoding: 'iso-8859-1',
-      altText: cleanUserId.substring(0, 8).toUpperCase()
-    });
-
-    // 6. IMÁGENES
+    // 1. DESCARGAR IMÁGENES PRIMERO
     let logoBuffer = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
-    if (logoBuffer) {
-      pass.addBuffer('logo.png', logoBuffer);
-      // ICONO CUADRADO
-      try {
-        const squareIcon = await sharp(logoBuffer)
-          .resize({ width: 100, height: 100, fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
-          .png().toBuffer();
-        pass.addBuffer('icon.png', squareIcon);
-        pass.addBuffer('icon@2x.png', squareIcon);
-      } catch (e) {
-        pass.addBuffer('icon.png', logoBuffer);
-        pass.addBuffer('icon@2x.png', logoBuffer);
-      }
+    if (!logoBuffer) {
+      console.warn('[Apple Pass] Logo no disponible, usando placeholder');
+      logoBuffer = await createPlaceholderImage(160, 50, '#d4c5b9');
+    }
+
+    // Crear icono cuadrado desde el logo
+    let iconBuffer;
+    try {
+      iconBuffer = await sharp(logoBuffer)
+        .resize(100, 100, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+        .png()
+        .toBuffer();
+    } catch (e) {
+      console.warn('[Apple Pass] Error creando icono, usando placeholder');
+      iconBuffer = await createPlaceholderImage(100, 100, '#d4c5b9');
     }
 
     const stampCount = Math.min(Math.max(0, stamps), 8);
     let stripBuffer = await getImageBuffer(`${STORAGE_BASE}/${stampCount}-sellos.png`);
-    if (stripBuffer) {
-      pass.addBuffer('strip.png', stripBuffer);
-      pass.addBuffer('strip@2x.png', stripBuffer);
+    if (!stripBuffer) {
+      console.warn('[Apple Pass] Strip no disponible, usando placeholder');
+      stripBuffer = await createPlaceholderImage(375, 123, '#d4c5b9');
     }
 
-    // DEBUG FINAL
-    console.log('[DEBUG] formatVersion final:', pass.formatVersion);
+    // 2. CREAR EL OBJETO pass.json COMPLETO
+    const passJsonData = {
+      formatVersion: 1,
+      passTypeIdentifier: 'pass.com.leduo.loyalty',
+      teamIdentifier: 'L4P8PF94N6',
+      organizationName: 'Le Duo',
+      description: 'Tarjeta de Lealtad LeDuo',
+      serialNumber: `LEDUO-${cleanUserId}`,
+      backgroundColor: 'rgb(212, 197, 185)',
+      foregroundColor: 'rgb(60, 40, 20)',
+      labelColor: 'rgb(80, 60, 40)',
+      logoText: 'Le Duo',
+      storeCard: {
+        primaryFields: [{
+          key: 'balance',
+          label: 'SELLOS',
+          value: `${stamps} / 8`,
+          textAlignment: 'PKTextAlignmentRight'
+        }],
+        secondaryFields: [{
+          key: 'points',
+          label: 'PUNTOS',
+          value: `${points} pts`,
+          textAlignment: 'PKTextAlignmentLeft'
+        }],
+        auxiliaryFields: [{
+          key: 'name',
+          label: 'CLIENTE',
+          value: name,
+          textAlignment: 'PKTextAlignmentLeft'
+        }],
+        backFields: [{
+          key: 'contact',
+          label: 'Contacto',
+          value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
+        }]
+      },
+      barcodes: [{
+        message: `LEDUO-${cleanUserId}`,
+        format: 'PKBarcodeFormatQR',
+        messageEncoding: 'iso-8859-1',
+        altText: cleanUserId.substring(0, 8).toUpperCase()
+      }],
+      barcode: {
+        message: `LEDUO-${cleanUserId}`,
+        format: 'PKBarcodeFormatQR',
+        messageEncoding: 'iso-8859-1',
+        altText: cleanUserId.substring(0, 8).toUpperCase()
+      }
+    };
 
-    // 7. GENERAR
+    console.log('[Apple Pass] pass.json creado:', JSON.stringify(passJsonData, null, 2));
+
+    // 3. CREAR BUFFERS CON pass.json E IMÁGENES
+    const buffers = {
+      'pass.json': Buffer.from(JSON.stringify(passJsonData)),
+      'icon.png': iconBuffer,
+      'icon@2x.png': iconBuffer,
+      'logo.png': logoBuffer,
+      'logo@2x.png': logoBuffer,
+      'strip.png': stripBuffer,
+      'strip@2x.png': stripBuffer
+    };
+
+    // 4. CREAR PKPass CON LOS BUFFERS
+    const pass = new PKPass(
+      buffers,
+      {
+        wwdr: fs.readFileSync(wwdrPath),
+        signerCert: fs.readFileSync(signerCertPath),
+        signerKey: fs.readFileSync(signerKeyPath),
+        signerKeyPassphrase: undefined
+      }
+    );
+
+    // 5. GENERAR Y ENVIAR
     const buffer = pass.getAsBuffer();
     res.set('Content-Type', 'application/vnd.apple.pkpass');
     res.set('Content-Disposition', `attachment; filename=leduo-${cleanUserId}.pkpass`);
     res.send(buffer);
-    console.log(`[Apple Pass] Generado correctamente.`);
+    console.log(`[Apple Pass] Enviado correctamente.`);
 
   } catch (error) {
     console.error('[Apple Pass] Error fatal:', error);
