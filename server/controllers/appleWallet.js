@@ -41,7 +41,7 @@ async function getImageBuffer(url) {
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     const rawBuffer = Buffer.from(response.data);
 
-    // "Lavar" la imagen con Sharp
+    // "Lavar" la imagen con Sharp: forzar conversión a PNG 32-bit RGBA limpio
     const cleanBuffer = await sharp(rawBuffer)
       .resize({
         width: 500,
@@ -86,7 +86,7 @@ export const createApplePass = async (req, res) => {
       console.error('[Apple Pass] Faltan certificados en server/certs/');
       return res.status(500).json({ error: 'Error de configuración (Certs)' });
     }
-passTypeIdentifier
+
     const stamps = customerData?.stamps || 0;
     const points = customerData?.cashbackPoints || 0;
     const name = customerData?.name || 'Cliente LeDuo';
@@ -98,12 +98,13 @@ passTypeIdentifier
       wwdr: fs.readFileSync(wwdrPath),
       signerCert: fs.readFileSync(signerCertPath),
       signerKey: fs.readFileSync(signerKeyPath),
-      signerKeyPassphrase: undefined // <--- TIENE QUE SER undefined (sin comillas)
+      signerKeyPassphrase: undefined // CRÍTICO: undefined porque la llave ya no tiene contraseña
     });
 
     pass.type = 'storeCard';
 
     // CONFIGURACIÓN DEL PASE
+    // Estos datos deben coincidir con tu cuenta de Apple Developer
     pass.passTypeIdentifier = 'pass.com.leduo.loyalty';
     pass.teamIdentifier = 'L4P8PF94N6';
     pass.organizationName = 'Le Duo';
@@ -116,7 +117,7 @@ passTypeIdentifier
     pass.labelColor = 'rgb(80, 60, 40)';
     pass.logoText = 'Le Duo';
 
-    // 4. Campos del pase (CORREGIDO: Volvemos a usar .push)
+    // 4. Campos del pase
     pass.primaryFields.push({
       key: 'balance',
       label: 'SELLOS',
@@ -153,16 +154,36 @@ passTypeIdentifier
     }); 
 
     // 6. Imágenes
-    // Logo
+    
+    // A) LOGO
     let logoBuffer = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
 
     if (logoBuffer) {
-      pass.addBuffer('logo.png', logoBuffer);
-      pass.addBuffer('icon.png', logoBuffer);
-      pass.addBuffer('icon@2x.png', logoBuffer);
+      pass.addBuffer('logo.png', logoBuffer); // El logo rectangular va aquí
+      
+      // B) ICONO (SOLUCIÓN CRÍTICA: Crear un cuadrado perfecto 1:1)
+      try {
+        const squareIcon = await sharp(logoBuffer)
+          .resize({
+             width: 100,
+             height: 100,
+             fit: 'contain', // Ajusta el logo dentro del cuadrado sin cortarlo
+             background: { r: 255, g: 255, b: 255, alpha: 1 } // Fondo blanco
+          })
+          .png()
+          .toBuffer();
+        
+        // Agregamos el icono cuadrado
+        pass.addBuffer('icon.png', squareIcon);
+        pass.addBuffer('icon@2x.png', squareIcon);
+      } catch (err) {
+        console.error('Error generando icono cuadrado, usando fallback:', err);
+        pass.addBuffer('icon.png', logoBuffer);
+        pass.addBuffer('icon@2x.png', logoBuffer);
+      }
     }
 
-    // Strip image (Sellos)
+    // C) STRIP IMAGE (Sellos)
     const stampCount = Math.min(Math.max(0, stamps), 8);
     const stripUrl = `${STORAGE_BASE}/${stampCount}-sellos.png`;
 
