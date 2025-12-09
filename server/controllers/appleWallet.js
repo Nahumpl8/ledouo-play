@@ -86,7 +86,7 @@ export const createApplePass = async (req, res) => {
       console.error('[Apple Pass] Faltan certificados en server/certs/');
       return res.status(500).json({ error: 'Error de configuración (Certs)' });
     }
-
+passTypeIdentifier
     const stamps = customerData?.stamps || 0;
     const points = customerData?.cashbackPoints || 0;
     const name = customerData?.name || 'Cliente LeDuo';
