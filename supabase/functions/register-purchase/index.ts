@@ -151,6 +151,37 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
 }
 // --- FIN LÓGICA GOOGLE WALLET ---
 
+// ============================================================
+// Notificar al servidor externo de Apple Wallet
+// ============================================================
+async function notifyAppleWalletServer(userId: string) {
+  const appleWalletServerUrl = Deno.env.get('APPLE_WALLET_SERVER_URL');
+  
+  if (!appleWalletServerUrl) {
+    console.log('ℹ️ APPLE_WALLET_SERVER_URL no configurada, omitiendo notificación Apple Wallet');
+    return;
+  }
+
+  try {
+    console.log(`📱 Notificando Apple Wallet para usuario: ${userId}`);
+    const notifyResponse = await fetch(`${appleWalletServerUrl}/api/wallet/notify-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    
+    if (notifyResponse.ok) {
+      const result = await notifyResponse.json();
+      console.log('✅ Apple Wallet notificado:', result);
+    } else {
+      console.error('⚠️ Error notificando Apple Wallet:', notifyResponse.status, await notifyResponse.text());
+    }
+  } catch (err) {
+    console.error('⚠️ Error de red notificando Apple Wallet:', err instanceof Error ? err.message : String(err));
+    // No lanzamos error - la compra ya fue exitosa
+  }
+}
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -360,6 +391,11 @@ serve(async (req) => {
     // ============================================================
     await updateGoogleWallet(userId, newPoints, finalStamps, newLevelPoints, profile.name);
     console.log('✅ Sincronización con Google Wallet completada');
+
+    // ============================================================
+    // Notificar al servidor de Apple Wallet (externo)
+    // ============================================================
+    await notifyAppleWalletServer(userId);
 
 
     return new Response(

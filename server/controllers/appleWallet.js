@@ -25,6 +25,23 @@ function getSupabase() {
   return supabase;
 }
 
+// ============================================================
+// Helper: Cargar certificado desde variable de entorno Base64 o archivo local
+// ============================================================
+function getCertBuffer(envName, fileName) {
+  const b64 = process.env[envName];
+  if (b64) {
+    console.log(`[Certs] Cargando ${envName} desde variable de entorno`);
+    return Buffer.from(b64, 'base64');
+  }
+  const filePath = path.join(CERTS_DIR, fileName);
+  if (fs.existsSync(filePath)) {
+    console.log(`[Certs] Cargando ${fileName} desde archivo local`);
+    return fs.readFileSync(filePath);
+  }
+  throw new Error(`Certificado no encontrado: ${envName} ni ${fileName}`);
+}
+
 // Color de fondo del pase (Beige LeDuo)
 const PASS_BG_COLOR = { r: 212, g: 197, b: 185, alpha: 1 };
 
@@ -95,14 +112,10 @@ export async function generatePassBuffer(customerData, authToken = null) {
     throw new Error('ID de usuario inválido');
   }
 
-  // Certificados
-  const signerCertPath = path.join(CERTS_DIR, 'signerCert.pem');
-  const signerKeyPath = path.join(CERTS_DIR, 'signerKey.pem');
-  const wwdrPath = path.join(CERTS_DIR, 'wwdr.pem');
-
-  if (!fs.existsSync(signerCertPath) || !fs.existsSync(signerKeyPath) || !fs.existsSync(wwdrPath)) {
-    throw new Error('Faltan certificados');
-  }
+  // Cargar certificados desde env o archivos
+  const wwdrBuffer = getCertBuffer('APPLE_WWDR_CERT_B64', 'wwdr.pem');
+  const signerCertBuffer = getCertBuffer('APPLE_SIGNER_CERT_B64', 'signerCert.pem');
+  const signerKeyBuffer = getCertBuffer('APPLE_SIGNER_KEY_B64', 'signerKey.pem');
 
   const stamps = customerData.stamps || 0;
   const name = customerData.name || 'Cliente LeDuo';
@@ -200,11 +213,11 @@ export async function generatePassBuffer(customerData, authToken = null) {
     'strip@2x.png': stripBuffer
   };
 
-  // 4. GENERAR PKPASS
+  // 4. GENERAR PKPASS usando buffers de certificados
   const pass = new PKPass(buffers, {
-    wwdr: fs.readFileSync(wwdrPath),
-    signerCert: fs.readFileSync(signerCertPath),
-    signerKey: fs.readFileSync(signerKeyPath),
+    wwdr: wwdrBuffer,
+    signerCert: signerCertBuffer,
+    signerKey: signerKeyBuffer,
     signerKeyPassphrase: undefined
   });
 

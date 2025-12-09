@@ -8,14 +8,36 @@ const __dirname = path.dirname(__filename);
 
 let apnProvider = null;
 
+// ============================================================
+// Helper: Cargar certificado desde variable de entorno Base64 o archivo local
+// ============================================================
+function getCertFromEnvOrFile(envName, fileName) {
+  const b64 = process.env[envName];
+  if (b64) {
+    console.log(`[APNs] Cargando ${envName} desde variable de entorno`);
+    return Buffer.from(b64, 'base64');
+  }
+  // Fallback a archivo local (desarrollo)
+  const filePath = path.join(__dirname, '../certs', fileName);
+  console.log(`[APNs] Cargando ${fileName} desde archivo local`);
+  return filePath;
+}
+
 function getApnProvider() {
   if (!apnProvider) {
     try {
-      apnProvider = new apn.Provider({
-        cert: path.join(__dirname, '../certs/signerCert.pem'),
-        key: path.join(__dirname, '../certs/signerKey.pem'),
+      const certValue = getCertFromEnvOrFile('APPLE_SIGNER_CERT_B64', 'signerCert.pem');
+      const keyValue = getCertFromEnvOrFile('APPLE_SIGNER_KEY_B64', 'signerKey.pem');
+      
+      // Si son Buffers (desde env), usar cert/key directamente
+      // Si son strings (rutas de archivo), también funcionan
+      const providerOptions = {
+        cert: certValue,
+        key: keyValue,
         production: true // Apple Wallet usa producción siempre
-      });
+      };
+      
+      apnProvider = new apn.Provider(providerOptions);
       console.log('[APNs] Provider inicializado correctamente');
     } catch (error) {
       console.error('[APNs] Error inicializando provider:', error);
