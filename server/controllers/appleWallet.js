@@ -105,6 +105,7 @@ export const createApplePass = async (req, res) => {
 
     // CONFIGURACIÓN DEL PASE
     // Estos datos deben coincidir con tu cuenta de Apple Developer
+    pass.formatVersion = 1;
     pass.passTypeIdentifier = 'pass.com.leduo.loyalty';
     pass.teamIdentifier = 'L4P8PF94N6';
     pass.organizationName = 'Le Duo';
