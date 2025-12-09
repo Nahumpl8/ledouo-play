@@ -10,53 +10,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CERTS_DIR = path.join(__dirname, '../certs');
-
-// URLs de Supabase Storage
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
 
-// Helper para crear imagen placeholder (fallback seguro)
-async function createPlaceholderImage(width, height, color = { r: 212, g: 197, b: 185, alpha: 1 }) {
-  try {
-    return await sharp({
-      create: {
-        width,
-        height,
-        channels: 4,
-        background: color
-      }
-    })
-      .png()
-      .toBuffer();
-  } catch (error) {
-    console.error('[Apple Pass] Error creando placeholder:', error.message);
-    return null;
-  }
-}
-
-// Helper para descargar y normalizar imágenes (blindado para Apple Wallet)
 async function getImageBuffer(url) {
   try {
     console.log(`[Apple Pass] Descargando: ${url}`);
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     const rawBuffer = Buffer.from(response.data);
 
-    // "Lavar" la imagen con Sharp: forzar conversión a PNG 32-bit RGBA limpio
-    const cleanBuffer = await sharp(rawBuffer)
-      .resize({
-        width: 500,
-        withoutEnlargement: true
-      })
+    return await sharp(rawBuffer)
+      .resize({ width: 500, withoutEnlargement: true })
       .ensureAlpha()
-      .toFormat('png', {
-        palette: false,        // CRÍTICO: Evita error 232 bits
-        colors: 256,
-        compressionLevel: 9,
-        force: true
-      })
+      .toFormat('png', { palette: false, colors: 256, compressionLevel: 9, force: true })
       .toBuffer();
-
-    return cleanBuffer;
   } catch (error) {
     console.error(`[Apple Pass] Error descargando imagen (${url}):`, error.message);
     return null;
@@ -67,58 +34,51 @@ export const createApplePass = async (req, res) => {
   try {
     const { customerData, objectIdSuffix } = req.body || {};
 
-    // 1. Limpieza de ID
     let rawId = customerData?.id || objectIdSuffix || '';
-    const cleanUserId = rawId
-      .replace(/leduo_customer_|LEDUO-|leduo-|:/g, '')
-      .trim();
+    const cleanUserId = rawId.replace(/leduo_customer_|LEDUO-|leduo-|:/g, '').trim();
+    if (!cleanUserId) return res.status(400).json({ error: 'ID inválido' });
 
-    if (!cleanUserId) {
-      return res.status(400).json({ error: 'ID inválido' });
-    }
-
-    // 2. Verificar certificados
+    // Certificados
     const signerCertPath = path.join(CERTS_DIR, 'signerCert.pem');
     const signerKeyPath = path.join(CERTS_DIR, 'signerKey.pem');
     const wwdrPath = path.join(CERTS_DIR, 'wwdr.pem');
 
     if (!fs.existsSync(signerCertPath) || !fs.existsSync(signerKeyPath) || !fs.existsSync(wwdrPath)) {
-      console.error('[Apple Pass] Faltan certificados en server/certs/');
-      return res.status(500).json({ error: 'Error de configuración (Certs)' });
+      return res.status(500).json({ error: 'Faltan certificados' });
     }
 
     const stamps = customerData?.stamps || 0;
     const points = customerData?.cashbackPoints || 0;
     const name = customerData?.name || 'Cliente LeDuo';
 
-    console.log(`[Apple Pass] Generando pase para: ${name} (ID: ${cleanUserId})`);
+    console.log(`[Apple Pass] Generando pase para: ${cleanUserId}`);
 
-    // 3. Crear PKPass
+    // 1. INICIALIZAR VACÍO
     const pass = new PKPass({}, {
       wwdr: fs.readFileSync(wwdrPath),
       signerCert: fs.readFileSync(signerCertPath),
       signerKey: fs.readFileSync(signerKeyPath),
-      signerKeyPassphrase: undefined // CRÍTICO: undefined porque la llave ya no tiene contraseña
+      signerKeyPassphrase: undefined
     });
 
+    // 2. DEFINIR TIPO (Esto crea los arrays vacíos internamente)
     pass.type = 'storeCard';
 
-    // CONFIGURACIÓN DEL PASE
-    // Estos datos deben coincidir con tu cuenta de Apple Developer
-    pass.formatVersion = 1;
+    // 3. INYECTAR DATOS OBLIGATORIOS MANUALMENTE
+    pass.formatVersion = 1;  
     pass.passTypeIdentifier = 'pass.com.leduo.loyalty';
     pass.teamIdentifier = 'L4P8PF94N6';
     pass.organizationName = 'Le Duo';
     pass.description = 'Tarjeta de Lealtad LeDuo';
     pass.serialNumber = `LEDUO-${cleanUserId}`;
-
+    
     // Colores
     pass.backgroundColor = 'rgb(212, 197, 185)';
     pass.foregroundColor = 'rgb(60, 40, 20)';
     pass.labelColor = 'rgb(80, 60, 40)';
     pass.logoText = 'Le Duo';
 
-    // 4. Campos del pase
+    // 4. AGREGAR CAMPOS (CORREGIDO: Usando .push)
     pass.primaryFields.push({
       key: 'balance',
       label: 'SELLOS',
@@ -146,66 +106,50 @@ export const createApplePass = async (req, res) => {
       value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
     });
 
-    // 5. QR Code
+    // 5. CÓDIGOS DE BARRAS
     pass.setBarcodes({
       message: `LEDUO-${cleanUserId}`,
       format: 'PKBarcodeFormatQR',
       messageEncoding: 'iso-8859-1',
       altText: cleanUserId.substring(0, 8).toUpperCase()
-    }); 
+    });
 
-    // 6. Imágenes
-    
-    // A) LOGO
+    // 6. IMÁGENES
     let logoBuffer = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
-
     if (logoBuffer) {
-      pass.addBuffer('logo.png', logoBuffer); // El logo rectangular va aquí
-      
-      // B) ICONO (SOLUCIÓN CRÍTICA: Crear un cuadrado perfecto 1:1)
+      pass.addBuffer('logo.png', logoBuffer);
+      // ICONO CUADRADO
       try {
         const squareIcon = await sharp(logoBuffer)
-          .resize({
-             width: 100,
-             height: 100,
-             fit: 'contain', // Ajusta el logo dentro del cuadrado sin cortarlo
-             background: { r: 255, g: 255, b: 255, alpha: 1 } // Fondo blanco
-          })
-          .png()
-          .toBuffer();
-        
-        // Agregamos el icono cuadrado
+          .resize({ width: 100, height: 100, fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+          .png().toBuffer();
         pass.addBuffer('icon.png', squareIcon);
         pass.addBuffer('icon@2x.png', squareIcon);
-      } catch (err) {
-        console.error('Error generando icono cuadrado, usando fallback:', err);
+      } catch (e) {
         pass.addBuffer('icon.png', logoBuffer);
         pass.addBuffer('icon@2x.png', logoBuffer);
       }
     }
 
-    // C) STRIP IMAGE (Sellos)
     const stampCount = Math.min(Math.max(0, stamps), 8);
-    const stripUrl = `${STORAGE_BASE}/${stampCount}-sellos.png`;
-
-    let stripBuffer = await getImageBuffer(stripUrl);
-
+    let stripBuffer = await getImageBuffer(`${STORAGE_BASE}/${stampCount}-sellos.png`);
     if (stripBuffer) {
       pass.addBuffer('strip.png', stripBuffer);
       pass.addBuffer('strip@2x.png', stripBuffer);
     }
 
-    // 7. Generar y enviar .pkpass
-    const buffer = pass.getAsBuffer();
+    // DEBUG FINAL
+    console.log('[DEBUG] formatVersion final:', pass.formatVersion);
 
+    // 7. GENERAR
+    const buffer = pass.getAsBuffer();
     res.set('Content-Type', 'application/vnd.apple.pkpass');
     res.set('Content-Disposition', `attachment; filename=leduo-${cleanUserId}.pkpass`);
     res.send(buffer);
-
-    console.log(`[Apple Pass] Generado exitosamente.`);
+    console.log(`[Apple Pass] Generado correctamente.`);
 
   } catch (error) {
     console.error('[Apple Pass] Error fatal:', error);
-    res.status(500).json({ error: 'Error interno generando pase', details: error.message });
+    res.status(500).json({ error: 'Error interno', details: error.message });
   }
 };
