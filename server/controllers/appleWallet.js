@@ -82,11 +82,11 @@ export const createApplePass = async (req, res) => {
       logoBuffer = await createPlaceholderImage(160, 50, '#d4c5b9');
     }
 
-    // Crear icono cuadrado desde el logo
+    // Crear icono cuadrado desde el logo con fondo transparente
     let iconBuffer;
     try {
       iconBuffer = await sharp(logoBuffer)
-        .resize(100, 100, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+        .resize(100, 100, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png()
         .toBuffer();
     } catch (e) {
@@ -101,8 +101,7 @@ export const createApplePass = async (req, res) => {
       stripBuffer = await createPlaceholderImage(375, 123, '#d4c5b9');
     }
 
-    // 2. CREAR EL OBJETO pass.json COMPLETO
-    // 2. CREAR EL OBJETO pass.json CON DISEÑO MEJORADO
+    // 2. CREAR EL OBJETO pass.json CON DISEÑO LIMPIO Y MINIMALISTA
     const passJsonData = {
       formatVersion: 1,
       passTypeIdentifier: 'pass.com.leduo.loyalty',
@@ -111,74 +110,66 @@ export const createApplePass = async (req, res) => {
       description: 'Tarjeta de Lealtad LeDuo',
       serialNumber: `LEDUO-${cleanUserId}`,
       
-      // COLORES (Ajustados para elegancia)
-      backgroundColor: 'rgb(212, 197, 185)', // Tu beige
-      foregroundColor: 'rgb(60, 40, 20)',     // Tu café oscuro (Texto)
-      labelColor: 'rgb(100, 80, 60)',         // Un café un poco más claro para las etiquetas (TITULOS)
-      logoText: 'Le Duo',                     // Texto junto al logo pequeño arriba
+      // Colores elegantes
+      backgroundColor: 'rgb(212, 197, 185)',
+      foregroundColor: 'rgb(60, 40, 20)',
+      labelColor: 'rgb(100, 80, 60)',
+      logoText: '',  // Sin texto junto al logo para diseño más limpio
       
       storeCard: {
-        // HEADER: Aparece arriba a la derecha (Ideal para Puntos)
+        // HEADER: Sellos y puntos en la esquina superior derecha
         headerFields: [
+          {
+            key: 'stamps',
+            label: 'SELLOS',
+            value: `${stamps}/8`
+          },
           {
             key: 'points',
             label: 'PUNTOS',
-            value: `${points}`,
-            textAlignment: 'PKTextAlignmentRight'
+            value: `${points}`
           }
         ],
-        // PRIMARY: Aparece grande a la izquierda o sobre la imagen
-        primaryFields: [
-          {
-            key: 'balance',
-            label: 'SELLOS ACUMULADOS',
-            value: `${stamps} / 8`,
-            textAlignment: 'PKTextAlignmentCenter' // Apple a veces ignora esto en primary, pero intentemos
-          }
-        ],
-        // SECONDARY: Aparece debajo de la imagen
+        // PRIMARY: Solo el nombre del cliente (sin texto sobre la imagen de sellos)
+        primaryFields: [],
+        // SECONDARY: Nombre del cliente debajo de la imagen
         secondaryFields: [
           {
             key: 'name',
             label: 'CLIENTE',
-            value: name,
-            textAlignment: 'PKTextAlignmentLeft'
+            value: name
           }
         ],
-        // AUXILIARY: Fila extra de datos (opcional, aquí ponemos contacto para no saturar)
-        auxiliaryFields: [
-           {
-            key: 'contact',
-            label: 'SITIO WEB',
-            value: 'leduo.mx',
-            textAlignment: 'PKTextAlignmentRight'
-          }
-        ],
+        // Sin auxiliaryFields para mantener limpio
+        auxiliaryFields: [],
+        // BACK: Info solo visible al voltear
         backFields: [
           {
-            key: 'full_contact',
-            label: 'Contacto',
-            value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
+            key: 'welcome',
+            label: 'Bienvenido a Le Duo',
+            value: 'Acumula 8 sellos y obtén una bebida gratis.'
           },
           {
-             key: 'terms',
-             label: 'Términos y Condiciones',
-             value: 'Tarjeta válida solo en sucursales participantes. No canjeable por dinero en efectivo.'
+            key: 'contact',
+            label: 'Contacto',
+            value: 'leduo.mx | Tel: 7711295938'
+          },
+          {
+            key: 'terms',
+            label: 'Términos',
+            value: 'Válida solo en sucursales participantes.'
           }
         ]
       },
       barcodes: [{
         message: `LEDUO-${cleanUserId}`,
         format: 'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1',
-        altText: cleanUserId.substring(0, 8).toUpperCase()
+        messageEncoding: 'iso-8859-1'
       }],
-      // Apple a veces pide 'barcode' (singular) para versiones viejas de iOS
       barcode: {
         message: `LEDUO-${cleanUserId}`,
         format: 'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1',
-        altText: cleanUserId.substring(0, 8).toUpperCase()
+        messageEncoding: 'iso-8859-1'
       }
     };
 
