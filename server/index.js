@@ -23,11 +23,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
-// Supabase client con service role para operaciones del servidor
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Supabase URL (lazy client en los controladores)
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 
 // En desarrollo permitimos el front local; en prod no hace falta (misma origin)
 const isDev = process.env.NODE_ENV !== 'production';
