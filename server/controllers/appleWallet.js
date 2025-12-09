@@ -12,15 +12,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CERTS_DIR = path.join(__dirname, '../certs');
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
 const WEB_SERVICE_URL = 'https://www.leduo.mx/api/wallet';
 
-// Inicializar Supabase con service role
-const supabase = createClient(
-  SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Lazy-load Supabase client (solo cuando hay service role key)
+let supabase = null;
+function getSupabase() {
+  if (!supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return supabase;
+}
 
 // Color de fondo del pase (Beige LeDuo)
 const PASS_BG_COLOR = { r: 212, g: 197, b: 185, alpha: 1 };
@@ -230,22 +233,26 @@ export const createApplePass = async (req, res) => {
     const authToken = crypto.randomBytes(32).toString('hex');
 
     // Guardar token en la base de datos antes de generar el pase
-    const { error: upsertError } = await supabase
-      .from('wallet_auth_tokens')
-      .upsert({
-        serial_number: serialNumber,
-        user_id: cleanUserId,
-        auth_token: authToken,
-        updated_at: new Date().toISOString()
-      }, { 
-        onConflict: 'serial_number' 
-      });
+    const db = getSupabase();
+    if (db) {
+      const { error: upsertError } = await db
+        .from('wallet_auth_tokens')
+        .upsert({
+          serial_number: serialNumber,
+          user_id: cleanUserId,
+          auth_token: authToken,
+          updated_at: new Date().toISOString()
+        }, { 
+          onConflict: 'serial_number' 
+        });
 
-    if (upsertError) {
-      console.error('[Apple Pass] Error guardando token:', upsertError);
-      // Continuar aunque falle, el pase funcionará pero sin actualizaciones
+      if (upsertError) {
+        console.error('[Apple Pass] Error guardando token:', upsertError);
+      } else {
+        console.log(`[Apple Pass] Token guardado para: ${serialNumber}`);
+      }
     } else {
-      console.log(`[Apple Pass] Token guardado para: ${serialNumber}`);
+      console.warn('[Apple Pass] SUPABASE_SERVICE_ROLE_KEY no configurada, token no guardado');
     }
 
     // Generar el pase
