@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
 import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -26,15 +27,23 @@ app.use(express.json());
 // Supabase URL (lazy client en los controladores)
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 
-// En desarrollo permitimos el front local; en prod no hace falta (misma origin)
+// ============================================================
+// CORS: Configuración para desarrollo y producción
+// ============================================================
 const isDev = process.env.NODE_ENV !== 'production';
-if (isDev) {
-  app.use(cors({
-    origin: ['http://localhost:8080'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
-}
+const allowedOrigins = isDev 
+  ? ['http://localhost:8080', 'http://localhost:5173', 'http://localhost:3000']
+  : [
+      'https://www.leduo.mx', 
+      'https://leduo.mx',
+      'https://eohpjvbbrvktqyacpcmn.supabase.co'
+    ];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 // URLs de Supabase Storage para imágenes de sellos
 const STORAGE_BASE = 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images';
@@ -239,9 +248,21 @@ app.post('/api/wallet/notify-update', async (req, res) => {
 });
 
 // ====================================
-// HEALTHCHECK
+// HEALTHCHECK DETALLADO
 // ====================================
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/api/health', (_req, res) => {
+  res.json({ 
+    ok: true,
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development',
+    services: {
+      supabase: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      appleWallet: !!(process.env.APPLE_SIGNER_CERT_B64 || 
+        fs.existsSync(path.join(__dirname, 'certs/signerCert.pem'))),
+      googleWallet: !!process.env.WALLET_SERVICE_ACCOUNT_EMAIL
+    }
+  });
+});
 
 // ====================================
 // STATIC FILES
@@ -258,5 +279,6 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server listening on :${PORT}`);
-  if (isDev) console.log('Dev CORS enabled for http://localhost:8080');
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
 });
