@@ -82,11 +82,11 @@ export const createApplePass = async (req, res) => {
       logoBuffer = await createPlaceholderImage(160, 50, '#d4c5b9');
     }
 
-    // Crear icono cuadrado desde el logo con fondo transparente
+    // Crear icono cuadrado desde el logo
     let iconBuffer;
     try {
       iconBuffer = await sharp(logoBuffer)
-        .resize(100, 100, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .resize(100, 100, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
         .png()
         .toBuffer();
     } catch (e) {
@@ -101,7 +101,7 @@ export const createApplePass = async (req, res) => {
       stripBuffer = await createPlaceholderImage(375, 123, '#d4c5b9');
     }
 
-    // 2. CREAR EL OBJETO pass.json CON DISEÑO LIMPIO Y MINIMALISTA
+    // 2. CREAR EL OBJETO pass.json COMPLETO
     const passJsonData = {
       formatVersion: 1,
       passTypeIdentifier: 'pass.com.leduo.loyalty',
@@ -109,67 +109,46 @@ export const createApplePass = async (req, res) => {
       organizationName: 'Le Duo',
       description: 'Tarjeta de Lealtad LeDuo',
       serialNumber: `LEDUO-${cleanUserId}`,
-      
-      // Colores elegantes
       backgroundColor: 'rgb(212, 197, 185)',
       foregroundColor: 'rgb(60, 40, 20)',
-      labelColor: 'rgb(100, 80, 60)',
-      logoText: '',  // Sin texto junto al logo para diseño más limpio
-      
+      labelColor: 'rgb(80, 60, 40)',
+      logoText: 'Le Duo',
       storeCard: {
-        // HEADER: Sellos y puntos en la esquina superior derecha
-        headerFields: [
-          {
-            key: 'stamps',
-            label: 'SELLOS',
-            value: `${stamps}/8`
-          },
-          {
-            key: 'points',
-            label: 'PUNTOS',
-            value: `${points}`
-          }
-        ],
-        // PRIMARY: Solo el nombre del cliente (sin texto sobre la imagen de sellos)
-        primaryFields: [],
-        // SECONDARY: Nombre del cliente debajo de la imagen
-        secondaryFields: [
-          {
-            key: 'name',
-            label: 'CLIENTE',
-            value: name
-          }
-        ],
-        // Sin auxiliaryFields para mantener limpio
-        auxiliaryFields: [],
-        // BACK: Info solo visible al voltear
-        backFields: [
-          {
-            key: 'welcome',
-            label: 'Bienvenido a Le Duo',
-            value: 'Acumula 8 sellos y obtén una bebida gratis.'
-          },
-          {
-            key: 'contact',
-            label: 'Contacto',
-            value: 'leduo.mx | Tel: 7711295938'
-          },
-          {
-            key: 'terms',
-            label: 'Términos',
-            value: 'Válida solo en sucursales participantes.'
-          }
-        ]
+        primaryFields: [{
+          key: 'balance',
+          label: 'SELLOS',
+          value: `${stamps} / 8`,
+          textAlignment: 'PKTextAlignmentRight'
+        }],
+        secondaryFields: [{
+          key: 'points',
+          label: 'PUNTOS',
+          value: `${points} pts`,
+          textAlignment: 'PKTextAlignmentLeft'
+        }],
+        auxiliaryFields: [{
+          key: 'name',
+          label: 'CLIENTE',
+          value: name,
+          textAlignment: 'PKTextAlignmentLeft'
+        }],
+        backFields: [{
+          key: 'contact',
+          label: 'Contacto',
+          value: 'Visítanos en LeDuo.mx\nTel: 7711295938'
+        }]
       },
       barcodes: [{
         message: `LEDUO-${cleanUserId}`,
         format: 'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1'
+        messageEncoding: 'iso-8859-1',
+        altText: cleanUserId.substring(0, 8).toUpperCase()
       }],
       barcode: {
         message: `LEDUO-${cleanUserId}`,
         format: 'PKBarcodeFormatQR',
-        messageEncoding: 'iso-8859-1'
+        messageEncoding: 'iso-8859-1',
+        altText: cleanUserId.substring(0, 8).toUpperCase()
       }
     };
 
