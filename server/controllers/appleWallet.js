@@ -13,7 +13,8 @@ const __dirname = path.dirname(__filename);
 const CERTS_DIR = path.join(__dirname, '../certs');
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
-const WEB_SERVICE_URL = 'https://www.leduo.mx/api/wallet';
+// Asegúrate de que esta URL sea la de tu Railway (sin barra al final)
+const WEB_SERVICE_URL = process.env.APPLE_WALLET_SERVER_URL || 'https://ledouo-play-production.up.railway.app/api/wallet';
 
 // Proxy URL para operaciones de base de datos
 const PROXY_URL = process.env.WALLET_PROXY_URL || `${SUPABASE_URL}/functions/v1/wallet-db-proxy`;
@@ -57,15 +58,17 @@ async function callProxy(action, data) {
 function getCertBuffer(envName, fileName) {
   const b64 = process.env[envName];
   if (b64) {
-    console.log(`[Certs] Cargando ${envName} desde variable de entorno`);
+    // console.log(`[Certs] Cargando ${envName} desde variable de entorno`);
     return Buffer.from(b64, 'base64');
   }
   const filePath = path.join(CERTS_DIR, fileName);
   if (fs.existsSync(filePath)) {
-    console.log(`[Certs] Cargando ${fileName} desde archivo local`);
+    // console.log(`[Certs] Cargando ${fileName} desde archivo local`);
     return fs.readFileSync(filePath);
   }
-  throw new Error(`Certificado no encontrado: ${envName} ni ${fileName}`);
+  // No lanzamos error aquí para permitir depuración, pero fallará la firma más adelante
+  console.warn(`[Certs] Advertencia: Certificado no encontrado: ${envName} ni ${fileName}`);
+  return null;
 }
 
 // Color de fondo del pase (Beige LeDuo)
@@ -74,7 +77,7 @@ const PASS_BG_COLOR = { r: 212, g: 197, b: 185, alpha: 1 };
 // Función: Descarga imagen desde URL
 async function getImageBuffer(url) {
   try {
-    console.log(`[Apple Pass] Descargando: ${url}`);
+    // console.log(`[Apple Pass] Descargando: ${url}`);
     const response = await axios.get(url, { responseType: 'arraybuffer' });
     return Buffer.from(response.data);
   } catch (error) {
@@ -122,12 +125,6 @@ async function getStripWithPadding(buffer) {
 
 /**
  * Genera el buffer del pase Apple Wallet
- * @param {Object} customerData - Datos del cliente
- * @param {string} customerData.id - ID del usuario
- * @param {number} customerData.stamps - Número de sellos
- * @param {string} customerData.name - Nombre del cliente
- * @param {string} [authToken] - Token de autenticación (opcional, se genera si no se proporciona)
- * @returns {Promise<Buffer>} - Buffer del archivo .pkpass
  */
 export async function generatePassBuffer(customerData, authToken = null) {
   const cleanUserId = (customerData.id || '')
@@ -138,22 +135,29 @@ export async function generatePassBuffer(customerData, authToken = null) {
     throw new Error('ID de usuario inválido');
   }
 
-  // Cargar certificados desde env o archivos
+  // Cargar certificados
   const wwdrBuffer = getCertBuffer('APPLE_WWDR_CERT_B64', 'wwdr.pem');
   const signerCertBuffer = getCertBuffer('APPLE_SIGNER_CERT_B64', 'signerCert.pem');
   const signerKeyBuffer = getCertBuffer('APPLE_SIGNER_KEY_B64', 'signerKey.pem');
+
+  if (!wwdrBuffer || !signerCertBuffer || !signerKeyBuffer) {
+      throw new Error("Faltan certificados para firmar el pase.");
+  }
 
   const stamps = customerData.stamps || 0;
   const name = customerData.name || 'Cliente LeDuo';
   const serialNumber = `LEDUO-${cleanUserId}`;
   
-  // Generar token si no se proporciona
   const finalAuthToken = authToken || crypto.randomBytes(32).toString('hex');
 
-  console.log(`[Apple Pass] Generando pase para: ${cleanUserId}`);
+  console.log(`[Apple Pass] Generando pase para: ${cleanUserId} (Sellos: ${stamps})`);
+
+  // --- TRUCO ANTI-CACHÉ ---
+  const ts = Date.now(); // Marca de tiempo única
 
   // 1. PROCESAMIENTO DE IMÁGENES
-  let logoRaw = await getImageBuffer('https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png');
+  // Agregamos ?t=${ts} para que el iPhone crea que es una imagen nueva
+  let logoRaw = await getImageBuffer(`https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png?t=${ts}`);
   let logoBuffer = logoRaw; 
   let iconBuffer = logoRaw;
 
@@ -164,7 +168,8 @@ export async function generatePassBuffer(customerData, authToken = null) {
 
   // Strip (Sellos)
   const stampCount = Math.min(Math.max(0, stamps), 8);
-  let stripRaw = await getImageBuffer(`${STORAGE_BASE}/${stampCount}-sellos.png`);
+  // Agregamos ?t=${ts} aquí también. CRÍTICO para que se actualicen los sellos.
+  let stripRaw = await getImageBuffer(`${STORAGE_BASE}/${stampCount}-sellos.png?t=${ts}`);
   let stripBuffer = stripRaw;
   
   if (stripRaw) {
@@ -180,7 +185,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
     description: 'Tarjeta de Lealtad Le Duo',
     serialNumber: serialNumber,
     
-    // Web Service para actualizaciones automáticas
+    // Web Service
     webServiceURL: WEB_SERVICE_URL,
     authenticationToken: finalAuthToken,
     
@@ -214,6 +219,12 @@ export async function generatePassBuffer(customerData, authToken = null) {
           label: 'Nosotros',
           value: 'Visítanos en www.leduo.mx\nTel: 7711295938\nCoahuila 111, Roma Nte., CDMX\nInstagram: @leduomx',
           textAlignment: 'PKTextAlignmentLeft'
+        },
+        {
+          key: 'last_update',
+          label: 'Actualizado',
+          value: new Date().toLocaleTimeString(), // Para verificar visualmente
+          textAlignment: 'PKTextAlignmentRight'
         }
       ]
     },
@@ -224,9 +235,6 @@ export async function generatePassBuffer(customerData, authToken = null) {
       altText: cleanUserId.substring(0, 8).toUpperCase()
     }]
   };
-
-  console.log('[DEBUG JSON] formatVersion:', passJsonData.formatVersion);
-  console.log('[DEBUG JSON] webServiceURL:', passJsonData.webServiceURL);
 
   // 3. BUFFERS
   const buffers = {
@@ -239,7 +247,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
     'strip@2x.png': stripBuffer
   };
 
-  // 4. GENERAR PKPASS usando buffers de certificados
+  // 4. GENERAR PKPASS
   const pass = new PKPass(buffers, {
     wwdr: wwdrBuffer,
     signerCert: signerCertBuffer,
@@ -268,10 +276,9 @@ export const createApplePass = async (req, res) => {
     const name = customerData?.name || 'Cliente LeDuo';
     const serialNumber = `LEDUO-${cleanUserId}`;
 
-    // Generar token de autenticación único
     const authToken = crypto.randomBytes(32).toString('hex');
 
-    // Guardar token usando el proxy
+    // Guardar token
     const result = await callProxy('save-token', {
       serial_number: serialNumber,
       user_id: cleanUserId,
@@ -281,10 +288,10 @@ export const createApplePass = async (req, res) => {
     if (result?.success) {
       console.log(`[Apple Pass] Token guardado para: ${serialNumber}`);
     } else {
-      console.warn('[Apple Pass] No se pudo guardar el token (proxy no disponible o error)');
+      console.warn('[Apple Pass] No se pudo guardar el token (proxy error)');
     }
 
-    // Generar el pase
+    // Generar pase
     const buffer = await generatePassBuffer({
       id: cleanUserId,
       stamps,
@@ -293,6 +300,11 @@ export const createApplePass = async (req, res) => {
 
     res.set('Content-Type', 'application/vnd.apple.pkpass');
     res.set('Content-Disposition', `attachment; filename=leduo-${cleanUserId}.pkpass`);
+    // HEADERS ANTI-CACHÉ (Importante)
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    
     res.send(buffer);
     console.log(`[Apple Pass] Enviado correctamente.`);
 
