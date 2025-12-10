@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X } from 'lucide-react';
+import { X, Calendar, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,7 +19,7 @@ const Overlay = styled.div`
 const Modal = styled.div`
   background: white;
   width: 100%;
-  max-width: 600px;
+  max-width: 650px;
   border-radius: 24px;
   max-height: 90vh;
   overflow-y: auto;
@@ -101,6 +101,52 @@ const FormRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+  
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const EventTypeSelector = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+`;
+
+const EventTypeOption = styled.button`
+  padding: 1.2rem;
+  border: 2px solid ${props => props.$selected ? '#B3B792' : '#eee'};
+  background: ${props => props.$selected ? 'rgba(179, 183, 146, 0.1)' : 'white'};
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    border-color: #B3B792;
+  }
+  
+  svg {
+    width: 28px;
+    height: 28px;
+    color: ${props => props.$selected ? '#686145' : '#888'};
+  }
+  
+  span {
+    font-weight: 600;
+    color: ${props => props.$selected ? '#686145' : '#666'};
+    font-size: 0.9rem;
+  }
+  
+  small {
+    color: #888;
+    font-size: 0.75rem;
+    text-align: center;
+  }
 `;
 
 const GradientPicker = styled.div`
@@ -144,6 +190,13 @@ const SubmitButton = styled.button`
   }
 `;
 
+const HelpText = styled.small`
+  display: block;
+  color: #888;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+`;
+
 const GRADIENT_OPTIONS = [
   'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
   'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -167,16 +220,26 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
     capacity: event?.capacity || 20,
     image_gradient: event?.image_gradient || GRADIENT_OPTIONS[0],
     tags: event?.tags?.join(', ') || '',
-    is_active: event?.is_active ?? true
+    is_active: event?.is_active ?? true,
+    event_type: event?.event_type || 'fixed',
+    duration_minutes: event?.duration_minutes || 60
   });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.date || !formData.time || !formData.price) {
-      toast.error('Por favor completa los campos requeridos');
-      return;
+    // Validación según tipo de evento
+    if (formData.event_type === 'fixed') {
+      if (!formData.title || !formData.date || !formData.time || !formData.price) {
+        toast.error('Por favor completa los campos requeridos');
+        return;
+      }
+    } else {
+      if (!formData.title || !formData.price || !formData.duration_minutes) {
+        toast.error('Por favor completa los campos requeridos');
+        return;
+      }
     }
 
     setLoading(true);
@@ -186,15 +249,17 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
         title: formData.title,
         description: formData.description,
         long_description: formData.long_description,
-        date: formData.date,
-        time: formData.time,
+        date: formData.event_type === 'fixed' ? formData.date : new Date().toISOString().split('T')[0],
+        time: formData.event_type === 'fixed' ? formData.time : 'Horario abierto',
         location: formData.location,
         price: parseFloat(formData.price),
         capacity: parseInt(formData.capacity),
         spots_available: event ? event.spots_available : parseInt(formData.capacity),
         image_gradient: formData.image_gradient,
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        event_type: formData.event_type,
+        duration_minutes: parseInt(formData.duration_minutes)
       };
 
       if (event) {
@@ -229,13 +294,38 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
         <ModalHeader>
-          <h2>{event ? 'Editar Evento' : 'Nuevo Evento'}</h2>
+          <h2>{event ? 'Editar Evento' : 'Nuevo Evento / Experiencia'}</h2>
           <CloseButton onClick={onClose}><X size={20} /></CloseButton>
         </ModalHeader>
 
         <ModalBody>
           <form onSubmit={handleSubmit}>
             <FormGrid>
+              {/* Selector de tipo de evento */}
+              <FormGroup>
+                <label>Tipo de evento</label>
+                <EventTypeSelector>
+                  <EventTypeOption
+                    type="button"
+                    $selected={formData.event_type === 'fixed'}
+                    onClick={() => setFormData(prev => ({ ...prev, event_type: 'fixed' }))}
+                  >
+                    <Calendar />
+                    <span>Fecha fija</span>
+                    <small>Evento en fecha y hora específica</small>
+                  </EventTypeOption>
+                  <EventTypeOption
+                    type="button"
+                    $selected={formData.event_type === 'open_schedule'}
+                    onClick={() => setFormData(prev => ({ ...prev, event_type: 'open_schedule' }))}
+                  >
+                    <Clock />
+                    <span>Horario abierto</span>
+                    <small>Experiencia con múltiples horarios</small>
+                  </EventTypeOption>
+                </EventTypeSelector>
+              </FormGroup>
+
               <FormGroup>
                 <label>Título del evento *</label>
                 <input
@@ -267,27 +357,46 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
                 />
               </FormGroup>
 
-              <FormRow>
+              {/* Campos condicionales según tipo */}
+              {formData.event_type === 'fixed' ? (
+                <FormRow>
+                  <FormGroup>
+                    <label>Fecha *</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <label>Hora *</label>
+                    <input
+                      type="text"
+                      value={formData.time}
+                      onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))}
+                      placeholder="Ej: 17:00 HRS"
+                      required
+                    />
+                  </FormGroup>
+                </FormRow>
+              ) : (
                 <FormGroup>
-                  <label>Fecha *</label>
+                  <label>Duración aproximada (minutos) *</label>
                   <input
-                    type="date"
-                    value={formData.date}
-                    onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                    type="number"
+                    value={formData.duration_minutes}
+                    onChange={e => setFormData(prev => ({ ...prev, duration_minutes: e.target.value }))}
+                    placeholder="60"
+                    min="15"
+                    step="15"
                     required
                   />
+                  <HelpText>
+                    Los horarios disponibles se gestionarán después de crear la experiencia
+                  </HelpText>
                 </FormGroup>
-                <FormGroup>
-                  <label>Hora *</label>
-                  <input
-                    type="text"
-                    value={formData.time}
-                    onChange={e => setFormData(prev => ({ ...prev, time: e.target.value }))}
-                    placeholder="Ej: 17:00 HRS"
-                    required
-                  />
-                </FormGroup>
-              </FormRow>
+              )}
 
               <FormRow>
                 <FormGroup>
@@ -302,7 +411,7 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
                   />
                 </FormGroup>
                 <FormGroup>
-                  <label>Capacidad</label>
+                  <label>Capacidad {formData.event_type === 'open_schedule' ? 'por horario' : 'total'}</label>
                   <input
                     type="number"
                     value={formData.capacity}

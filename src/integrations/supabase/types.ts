@@ -133,6 +133,8 @@ export type Database = {
           created_by: string | null
           date: string
           description: string
+          duration_minutes: number | null
+          event_type: string | null
           id: string
           image_gradient: string | null
           is_active: boolean | null
@@ -151,6 +153,8 @@ export type Database = {
           created_by?: string | null
           date: string
           description: string
+          duration_minutes?: number | null
+          event_type?: string | null
           id?: string
           image_gradient?: string | null
           is_active?: boolean | null
@@ -169,6 +173,8 @@ export type Database = {
           created_by?: string | null
           date?: string
           description?: string
+          duration_minutes?: number | null
+          event_type?: string | null
           id?: string
           image_gradient?: string | null
           is_active?: boolean | null
@@ -182,6 +188,116 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      experience_reservations: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          notes: string | null
+          spots_reserved: number | null
+          status: string | null
+          time_slot_id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id?: string
+          notes?: string | null
+          spots_reserved?: number | null
+          status?: string | null
+          time_slot_id: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          guest_email?: string
+          guest_name?: string
+          guest_phone?: string
+          id?: string
+          notes?: string | null
+          spots_reserved?: number | null
+          status?: string | null
+          time_slot_id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experience_reservations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "experience_reservations_time_slot_id_fkey"
+            columns: ["time_slot_id"]
+            isOneToOne: false
+            referencedRelation: "experience_time_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      experience_time_slots: {
+        Row: {
+          blocked_reason: string | null
+          capacity: number
+          created_at: string | null
+          date: string
+          end_time: string
+          event_id: string
+          id: string
+          is_blocked: boolean | null
+          spots_available: number
+          start_time: string
+          updated_at: string | null
+        }
+        Insert: {
+          blocked_reason?: string | null
+          capacity?: number
+          created_at?: string | null
+          date: string
+          end_time: string
+          event_id: string
+          id?: string
+          is_blocked?: boolean | null
+          spots_available?: number
+          start_time: string
+          updated_at?: string | null
+        }
+        Update: {
+          blocked_reason?: string | null
+          capacity?: number
+          created_at?: string | null
+          date?: string
+          end_time?: string
+          event_id?: string
+          id?: string
+          is_blocked?: boolean | null
+          spots_available?: number
+          start_time?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experience_time_slots_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
