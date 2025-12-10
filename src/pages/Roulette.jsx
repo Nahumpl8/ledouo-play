@@ -6,6 +6,7 @@ import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { stateStorage } from '../lib/storage';
 import { mockAPI } from '../services/api';
+import { Clock, Sparkles } from 'lucide-react';
 
 const RouletteWrapper = styled.div`
   min-height: 80vh;
@@ -28,6 +29,62 @@ const RouletteCard = styled(Card)`
   padding: ${props => props.theme.spacing.xl};
   margin-bottom: ${props => props.theme.spacing.lg};
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  position: relative;
+  overflow: hidden;
+`;
+
+const ComingSoonOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.98) 100%
+  );
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: ${props => props.theme.spacing.xl};
+`;
+
+const ComingSoonBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #1e3932 0%, #2d5a4e 100%);
+  color: white;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: ${props => props.theme.spacing.md};
+  box-shadow: 0 8px 30px rgba(30, 57, 50, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+`;
+
+const ComingSoonTitle = styled.h2`
+  font-family: ${props => props.theme.fontPrimary};
+  color: ${props => props.theme.colors.primary};
+  font-size: 1.8rem;
+  margin-bottom: ${props => props.theme.spacing.sm};
+`;
+
+const ComingSoonText = styled.p`
+  color: ${props => props.theme.colors.text};
+  font-size: 1rem;
+  max-width: 320px;
+  line-height: 1.6;
+  opacity: 0.8;
 `;
 
 const WheelContainer = styled.div`
@@ -35,6 +92,8 @@ const WheelContainer = styled.div`
   width: 300px;
   height: 300px;
   margin: 0 auto ${props => props.theme.spacing.lg} auto;
+  opacity: 0.4;
+  filter: grayscale(50%);
 
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
     width: 280px;
@@ -44,7 +103,6 @@ const WheelContainer = styled.div`
     width: 220px;
     height: 220px;
   }
-  
 `;
 
 const Wheel = styled.div`
@@ -80,7 +138,6 @@ const Segment = styled.div`
     z-index: 5;
     left: 50%;
     top: 50%;
-    /* Centra el texto en el segmento y lo orienta horizontalmente */
     transform:
       rotate(-30deg)
       translate(45px, -30px)
@@ -110,11 +167,8 @@ const Pointer = styled.div`
 
 const StatusCard = styled.div`
   padding: ${props => props.theme.spacing.md};
-  background: ${props => props.canSpin ? 
-    'linear-gradient(135deg, #10B981, #059669)' : 
-    props.theme.colors.bgAlt
-  };
-  color: ${props => props.canSpin ? props.theme.colors.white : props.theme.colors.text};
+  background: ${props => props.theme.colors.bgAlt};
+  color: ${props => props.theme.colors.text};
   border-radius: ${props => props.theme.radius};
   margin-bottom: ${props => props.theme.spacing.lg};
   
@@ -171,6 +225,9 @@ const segments = [
   { color: '#FF9FF3', label: '20% desc.', icon: '🎁' }
 ];
 
+// Feature flag - set to false to enable roulette
+const ROULETTE_COMING_SOON = true;
+
 export const Roulette = () => {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -179,8 +236,8 @@ export const Roulette = () => {
   
   const state = stateStorage.get();
 
-  // Calculate if user can spin
   const canSpinRoulette = () => {
+    if (ROULETTE_COMING_SOON) return false;
     if (!state.roulette.lastSpinAt) return true;
     
     const lastSpin = new Date(state.roulette.lastSpinAt);
@@ -195,6 +252,14 @@ export const Roulette = () => {
   };
 
   const getStatusText = () => {
+    if (ROULETTE_COMING_SOON) {
+      return {
+        icon: '🚧',
+        text: 'Próximamente',
+        detail: 'Estamos preparando algo increíble para ti'
+      };
+    }
+    
     if (canSpinRoulette()) {
       return {
         icon: '🎰',
@@ -230,21 +295,17 @@ export const Roulette = () => {
     setSpinning(true);
     
     try {
-      // Get result from API
       const response = await mockAPI.spinRoulette();
       const { reward, spinAngle } = response.data;
       
-      // Spin animation
       const finalRotation = rotation + spinAngle;
       setRotation(finalRotation);
       
-      // Wait for animation to complete
       setTimeout(() => {
         setLastResult(reward);
         setResultModalOpen(true);
         setSpinning(false);
         
-        // Update storage
         const currentState = stateStorage.get();
         const updates = {
           roulette: {
@@ -254,7 +315,6 @@ export const Roulette = () => {
           }
         };
         
-        // Apply reward
         if (reward.type === 'points') {
           updates.cashbackPoints = currentState.cashbackPoints + reward.value;
         } else if (reward.type === 'stamp') {
@@ -280,6 +340,24 @@ export const Roulette = () => {
           <Title>🎰 Ruleta LeDuo</Title>
           
           <RouletteCard>
+            {/* Coming Soon Overlay */}
+            {ROULETTE_COMING_SOON && (
+              <ComingSoonOverlay>
+                <ComingSoonBadge>
+                  <Clock size={20} />
+                  Próximamente
+                </ComingSoonBadge>
+                <ComingSoonTitle>
+                  <Sparkles size={24} style={{ display: 'inline', marginRight: 8 }} />
+                  ¡Algo increíble viene!
+                </ComingSoonTitle>
+                <ComingSoonText>
+                  Estamos preparando la ruleta de premios para que puedas ganar recompensas exclusivas. 
+                  ¡Mantente atento!
+                </ComingSoonText>
+              </ComingSoonOverlay>
+            )}
+            
             <StatusCard canSpin={canSpin}>
               <span className="status-icon">{status.icon}</span>
               <div className="status-text">{status.text}</div>
@@ -307,9 +385,9 @@ export const Roulette = () => {
               onClick={handleSpin}
               disabled={!canSpin || spinning}
               size="lg"
-              variant={canSpin ? "primary" : "outline"}
+              variant="outline"
             >
-              {spinning ? '🎰 Girando...' : canSpin ? '🎰 ¡Girar Ruleta!' : '⏰ No disponible'}
+              {ROULETTE_COMING_SOON ? '🚧 Próximamente' : spinning ? '🎰 Girando...' : canSpin ? '🎰 ¡Girar Ruleta!' : '⏰ No disponible'}
             </Button>
           </RouletteCard>
 
@@ -329,7 +407,6 @@ export const Roulette = () => {
         </RouletteContainer>
       </Section>
 
-      {/* Result Modal */}
       <Modal
         isOpen={resultModalOpen}
         onClose={() => setResultModalOpen(false)}
