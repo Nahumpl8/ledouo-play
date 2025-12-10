@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Section } from '../components/common/Section';
-import { Card } from '../components/common/Card';
 import { HeroSection } from '../components/landing/HeroSection';
 import { BentoGrid } from '../components/landing/BentoGrid';
 import { Timeline } from '../components/landing/Timeline';
 import { useOnScrollReveal } from '../hooks/useOnScrollReveal';
+import { supabase } from '@/integrations/supabase/client';
+import { Smartphone, Clock, MapPin } from 'lucide-react';
 
 const PageWrapper = styled.main`
   background: ${props => props.theme.colors.bg};
@@ -40,14 +41,14 @@ const StepsSection = styled(Section)`
   background: ${props => props.theme.colors.white};
 `;
 
-const BenefitsSection = styled(Section)`
+const ExperiencesSection = styled(Section)`
   background: ${props => props.theme.colors.bgAlt};
 `;
 
-const BenefitsGrid = styled.div`
+const ExperiencesGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: ${props => props.theme.spacing.md};
+  gap: ${props => props.theme.spacing.lg};
   
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
     grid-template-columns: repeat(2, 1fr);
@@ -58,77 +59,93 @@ const BenefitsGrid = styled.div`
   }
 `;
 
-const BenefitCard = styled(Card)`
+const ExperienceCard = styled.div`
   background: ${props => props.theme.colors.white};
-  border: 1px solid ${props => props.theme.colors.bgAlt};
-  border-radius: 16px;
-  padding: ${props => props.theme.spacing.lg};
-  display: flex;
-  align-items: flex-start;
-  gap: ${props => props.theme.spacing.md};
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  border-radius: 20px;
   overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, ${props => props.theme.colors.primary}10, transparent);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-  }
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   
   &:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-    border-color: ${props => props.theme.colors.primary};
+    transform: translateY(-8px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
   }
+`;
+
+const ExperienceGradient = styled.div`
+  height: 160px;
+  background: ${props => props.$gradient};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+`;
+
+const ExperienceContent = styled.div`
+  padding: ${props => props.theme.spacing.lg};
+`;
+
+const ExperienceTitle = styled.h3`
+  font-family: ${props => props.theme.fontPrimary};
+  font-size: 1.4rem;
+  color: ${props => props.theme.colors.accent};
+  margin-bottom: ${props => props.theme.spacing.sm};
+`;
+
+const ExperienceDescription = styled.p`
+  color: ${props => props.theme.colors.text};
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: ${props => props.theme.spacing.md};
+  opacity: 0.85;
+`;
+
+const ExperienceMeta = styled.div`
+  display: flex;
+  gap: ${props => props.theme.spacing.md};
+  margin-bottom: ${props => props.theme.spacing.md};
+  flex-wrap: wrap;
+`;
+
+const MetaItem = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: ${props => props.theme.colors.secondary};
   
-  &:hover::before {
-    opacity: 1;
-  }
-  
-  .icon {
-    font-size: 2.5rem;
-    flex-shrink: 0;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    z-index: 1;
-  }
-  
-  &:hover .icon {
-    transform: scale(1.2) rotate(5deg);
-  }
-  
-  .content {
-    position: relative;
-    z-index: 1;
-    
-    h4 {
-      font-family: ${props => props.theme.fontPrimary};
-      color: ${props => props.theme.colors.accent};
-      font-size: 1.25rem;
-      margin-bottom: ${props => props.theme.spacing.xs};
-      font-weight: 600;
-      transition: color 0.3s ease;
-    }
-    
-    p {
-      color: ${props => props.theme.colors.text};
-      font-size: 0.95rem;
-      line-height: 1.5;
-      opacity: 0.85;
-      transition: opacity 0.3s ease;
-    }
-  }
-  
-  &:hover .content h4 {
+  svg {
+    width: 16px;
+    height: 16px;
     color: ${props => props.theme.colors.primary};
   }
+`;
+
+const ExperienceFooter = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const ExperiencePrice = styled.span`
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: ${props => props.theme.colors.accent};
+`;
+
+const ExperienceButton = styled(Link)`
+  padding: 10px 20px;
+  background: ${props => props.theme.colors.primary};
+  color: white;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
   
-  &:hover .content p {
-    opacity: 1;
+  &:hover {
+    background: ${props => props.theme.colors.secondary};
+    transform: scale(1.05);
   }
 `;
 
@@ -231,7 +248,7 @@ const CTAButton = styled(Link)`
   }
 `;
 
-const QRContainer = styled.div`
+const WalletContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -242,29 +259,63 @@ const QRContainer = styled.div`
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
     margin-top: 0;
   }
+`;
+
+const WalletIconBox = styled.div`
+  width: 180px;
+  height: 180px;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.8) 100%
+  );
+  border-radius: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  backdrop-filter: blur(10px);
   
-  .qr-box {
-    width: 200px;
-    height: 200px;
-    background: ${props => props.theme.colors.white};
-    border-radius: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 4rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  svg {
+    width: 80px;
+    height: 80px;
+    color: ${props => props.theme.colors.accent};
   }
-  
-  p {
-    color: ${props => props.theme.colors.white};
-    font-size: 0.9rem;
-    opacity: 0.85;
-    text-align: center;
-  }
+`;
+
+const WalletBadges = styled.div`
+  display: flex;
+  gap: ${props => props.theme.spacing.sm};
+  flex-wrap: wrap;
+  justify-content: center;
+`;
+
+const WalletBadge = styled.span`
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(5px);
+`;
+
+const WalletText = styled.p`
+  color: ${props => props.theme.colors.white};
+  font-size: 0.95rem;
+  opacity: 0.9;
+  text-align: center;
+  max-width: 250px;
 `;
 
 export const Landing = () => {
   useOnScrollReveal();
+  const navigate = useNavigate();
+  const [experiences, setExperiences] = useState([]);
 
   useEffect(() => {
     // Smooth scroll para enlaces internos
@@ -285,15 +336,33 @@ export const Landing = () => {
     });
   }, []);
 
+  // Cargar experiencias (eventos tipo open_schedule)
+  useEffect(() => {
+    const fetchExperiences = async () => {
+      const { data } = await supabase
+        .from('events')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      
+      if (data) {
+        setExperiences(data);
+      }
+    };
+    
+    fetchExperiences();
+  }, []);
+
   return (
     <PageWrapper>
       <HeroSection />
 
       <LoyaltySection id="lealtad" spacing="lg">
         <div className="fade-up">
-          <SectionTitle>Tu Programa de Lealtad</SectionTitle>
+          <SectionTitle>Tu Tarjeta de Lealtad Digital</SectionTitle>
           <SectionSubtitle>
-            Cuatro formas de ganar recompensas con cada visita
+            Agrega tu tarjeta a Apple Wallet o Google Wallet y lleva tus sellos siempre contigo
           </SectionSubtitle>
           <BentoGrid />
         </div>
@@ -309,63 +378,51 @@ export const Landing = () => {
         </div>
       </StepsSection>
 
-      <BenefitsSection id="beneficios" spacing="lg">
-        <div className="fade-up">
-          <SectionTitle>Beneficios Exclusivos</SectionTitle>
-          <SectionSubtitle>
-            Recompensas diseñadas para ti
-          </SectionSubtitle>
-          <BenefitsGrid>
-            <BenefitCard>
-              <span className="icon">☕</span>
-              <div className="content">
-                <h4>Café Gratis</h4>
-                <p>Cada 10 sellos = 1 café de cortesía de tu elección</p>
-              </div>
-            </BenefitCard>
-            
-            <BenefitCard>
-              <span className="icon">🍰</span>
-              <div className="content">
-                <h4>Descuentos Especiales</h4>
-                <p>20% off en pasteles y postres todos los miércoles</p>
-              </div>
-            </BenefitCard>
-            
-            <BenefitCard>
-              <span className="icon">🎁</span>
-              <div className="content">
-                <h4>Regalo de Cumpleaños</h4>
-                <p>Sorpresa especial el día de tu cumpleaños</p>
-              </div>
-            </BenefitCard>
-            
-            <BenefitCard>
-              <span className="icon">⭐</span>
-              <div className="content">
-                <h4>Acceso VIP</h4>
-                <p>Eventos exclusivos y degustaciones para miembros</p>
-              </div>
-            </BenefitCard>
-            
-            <BenefitCard>
-              <span className="icon">📱</span>
-              <div className="content">
-                <h4>Wallet Digital</h4>
-                <p>Tu tarjeta siempre disponible en Apple/Google Wallet</p>
-              </div>
-            </BenefitCard>
-            
-            <BenefitCard>
-              <span className="icon">🎯</span>
-              <div className="content">
-                <h4>Ofertas Personalizadas</h4>
-                <p>Promociones exclusivas basadas en tus preferencias</p>
-              </div>
-            </BenefitCard>
-          </BenefitsGrid>
-        </div>
-      </BenefitsSection>
+      {experiences.length > 0 && (
+        <ExperiencesSection id="experiencias" spacing="lg">
+          <div className="fade-up">
+            <SectionTitle>Experiencias Le Duo</SectionTitle>
+            <SectionSubtitle>
+              Talleres, eventos y actividades únicas para disfrutar
+            </SectionSubtitle>
+            <ExperiencesGrid>
+              {experiences.slice(0, 6).map((exp) => (
+                <ExperienceCard key={exp.id}>
+                  <ExperienceGradient $gradient={exp.image_gradient || 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'}>
+                    {exp.tags?.[0] === 'Creativo' ? '🎨' : 
+                     exp.tags?.[0] === 'Relax' ? '🧘' :
+                     exp.tags?.[0] === 'Gastronomía' ? '👨‍🍳' : '✨'}
+                  </ExperienceGradient>
+                  <ExperienceContent>
+                    <ExperienceTitle>{exp.title}</ExperienceTitle>
+                    <ExperienceDescription>
+                      {exp.description?.slice(0, 100)}{exp.description?.length > 100 ? '...' : ''}
+                    </ExperienceDescription>
+                    <ExperienceMeta>
+                      {exp.duration_minutes && (
+                        <MetaItem>
+                          <Clock />
+                          {exp.duration_minutes} min
+                        </MetaItem>
+                      )}
+                      <MetaItem>
+                        <MapPin />
+                        {exp.location || 'Le Duo'}
+                      </MetaItem>
+                    </ExperienceMeta>
+                    <ExperienceFooter>
+                      <ExperiencePrice>${exp.price} MXN</ExperiencePrice>
+                      <ExperienceButton to={`/workshops/${exp.id}`}>
+                        Ver horarios
+                      </ExperienceButton>
+                    </ExperienceFooter>
+                  </ExperienceContent>
+                </ExperienceCard>
+              ))}
+            </ExperiencesGrid>
+          </div>
+        </ExperiencesSection>
+      )}
 
       <CTASection spacing="lg">
         <div className="fade-up">
@@ -373,21 +430,26 @@ export const Landing = () => {
             <CTAText>
               <h2>¡Únete a LeDuo Hoy!</h2>
               <p>
-                Comienza a disfrutar de todos los beneficios de nuestro programa de lealtad. 
-                Regístrate ahora y recibe puntos de bienvenida.
+                Regístrate a nuestro programa de lealtad y agrega tu tarjeta digital 
+                a Apple Wallet o Google Wallet. Acumula sellos con cada compra.
               </p>
-              <CTAButton to="/app/login">
-                Crear mi cuenta
+              <CTAButton to="/register">
+                Regístrate al programa
               </CTAButton>
             </CTAText>
             
-            <QRContainer>
-              <div className="qr-box">📱</div>
-              <p>
-                También puedes registrarte escaneando<br />
-                el código QR en nuestra sucursal
-              </p>
-            </QRContainer>
+            <WalletContainer>
+              <WalletIconBox>
+                <Smartphone />
+              </WalletIconBox>
+              <WalletBadges>
+                <WalletBadge>🍎 Apple Wallet</WalletBadge>
+                <WalletBadge>📱 Google Wallet</WalletBadge>
+              </WalletBadges>
+              <WalletText>
+                Tu tarjeta siempre disponible en tu teléfono, sin apps adicionales
+              </WalletText>
+            </WalletContainer>
           </CTAContent>
         </div>
       </CTASection>

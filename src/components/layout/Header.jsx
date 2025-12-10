@@ -106,10 +106,14 @@ const MobileMenu = styled.div`
   left: 0;
   right: 0;
   height: 100vh;
-  background: linear-gradient(180deg, rgba(245, 247, 250, 0.98) 0%, rgba(235, 238, 245, 0.95) 100%);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
-  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  background: linear-gradient(
+    180deg, 
+    rgba(229, 224, 216, 0.95) 0%, 
+    rgba(224, 217, 207, 0.92) 100%
+  );
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-top: 1px solid rgba(179, 183, 146, 0.3);
   padding: ${props => props.theme.spacing.lg};
   z-index: 50;
   animation: slideDown 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -130,6 +134,7 @@ const MobileMenu = styled.div`
   }
 `;
 
+// Liquid Glass Styles con colores de Le Duo
 const liquidGlassStyles = `
   display: flex;
   flex-direction: column;
@@ -138,74 +143,77 @@ const liquidGlassStyles = `
   gap: 0.6rem;
   padding: 1.4rem 1rem;
   
-  /* FONDO: Gradiente más suave y elegante */
+  /* FONDO: Gradiente con toques de Le Duo */
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.75) 0%, 
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.15) 100%
+    rgba(179, 183, 146, 0.12) 0%,   /* primary verde olivo */
+    rgba(255, 255, 255, 0.7) 35%, 
+    rgba(255, 255, 255, 0.5) 65%,
+    rgba(203, 162, 88, 0.08) 100%   /* accent dorado sutil */
   );
   
   /* EFECTO BORROSO mejorado */
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
   
-  /* BORDES: Luz más definida */
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-top-color: rgba(255, 255, 255, 0.9);
-  border-left-color: rgba(255, 255, 255, 0.8);
+  /* BORDES: Con toque de Le Duo */
+  border: 1px solid rgba(179, 183, 146, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  border-left-color: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
   
-  /* SOMBRAS MULTICAPA mejoradas */
+  /* SOMBRAS MULTICAPA con colores Le Duo */
   box-shadow: 
-    0 10px 40px -10px rgba(30, 57, 50, 0.15),
-    0 4px 20px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.03),
-    inset 0 20px 40px rgba(255, 255, 255, 0.5);
+    0 10px 40px -10px rgba(104, 97, 69, 0.15),
+    0 4px 20px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(104, 97, 69, 0.05),
+    inset 0 20px 40px rgba(255, 255, 255, 0.4);
 
   text-decoration: none;
-  color: #1e3932;
+  color: #686145;
   font-weight: 600;
   font-size: 0.8rem;
   letter-spacing: 0.3px;
   text-transform: uppercase;
   
   /* Transición elástica mejorada */
-  transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   
   svg {
     width: 26px;
     height: 26px;
-    color: #1e3932;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08)); 
-    transition: all 0.3s ease;
+    color: #686145;
+    filter: drop-shadow(0 2px 4px rgba(104, 97, 69, 0.1)); 
+    transition: all 0.35s ease;
   }
 
   &:hover {
-    transform: translateY(-4px) scale(1.02);
+    transform: translateY(-5px) scale(1.03);
     background: linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.9) 0%, 
-      rgba(255, 255, 255, 0.5) 100%
+      rgba(179, 183, 146, 0.2) 0%,
+      rgba(255, 255, 255, 0.85) 50%,
+      rgba(203, 162, 88, 0.12) 100%
     );
+    border-color: rgba(179, 183, 146, 0.5);
     box-shadow: 
-      0 15px 50px -10px rgba(30, 57, 50, 0.2),
-      0 8px 25px rgba(0, 0, 0, 0.08),
+      0 18px 50px -10px rgba(104, 97, 69, 0.2),
+      0 8px 25px rgba(0, 0, 0, 0.06),
       inset 0 1px 0 rgba(255, 255, 255, 1),
-      inset 0 25px 50px rgba(255, 255, 255, 0.7);
+      inset 0 25px 50px rgba(255, 255, 255, 0.6);
       
     svg {
-      transform: scale(1.1);
-      color: #cba258;
+      transform: scale(1.15);
+      color: #B3B792;
     }
   }
 
   &:active {
     transform: scale(0.97) translateY(0);
     box-shadow: 
-      0 4px 15px rgba(30, 57, 50, 0.1),
-      inset 0 3px 8px rgba(0,0,0,0.04);
+      0 4px 15px rgba(104, 97, 69, 0.12),
+      inset 0 3px 8px rgba(0,0,0,0.03);
   }
 `;
 
@@ -307,13 +315,13 @@ export const Header = () => {
   const isAdmin = userRoles.includes('admin');
   const isTransparent = isLandingPage && !isScrolled;
 
-  // Build menu items based on role
+  // Build menu items based on role - RUTAS CORREGIDAS
   const getMenuItems = () => {
     const items = [];
     
     // Common items for everyone
     items.push({ to: '/', icon: Home, label: 'Inicio' });
-    items.push({ to: '/eventos-talleres', icon: Calendar, label: 'Eventos' });
+    items.push({ to: '/workshops', icon: Calendar, label: 'Eventos' });
     
     if (isLoggedIn) {
       // Logged in users
@@ -329,9 +337,9 @@ export const Header = () => {
         items.push({ to: '/admin/clients', icon: Users, label: 'Clientes' });
       }
     } else {
-      // Not logged in
+      // Not logged in - RUTAS CORREGIDAS
       items.push({ to: '/app/login', icon: LogIn, label: 'Ingresar' });
-      items.push({ to: '/app/register', icon: UserPlus, label: 'Crear Cuenta' });
+      items.push({ to: '/register', icon: UserPlus, label: 'Crear Cuenta' });
     }
     
     return items;
