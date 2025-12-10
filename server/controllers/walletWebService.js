@@ -1,19 +1,37 @@
 // server/controllers/walletWebService.js
-import { createClient } from '@supabase/supabase-js';
 import { generatePassBuffer } from './appleWallet.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 
-// Lazy-load Supabase client
-let supabaseClient = null;
-function getSupabase() {
-  if (!supabaseClient && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseClient = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Proxy URL para operaciones de base de datos
+const PROXY_URL = process.env.WALLET_PROXY_URL || `${SUPABASE_URL}/functions/v1/wallet-db-proxy`;
+const PROXY_SECRET = process.env.WALLET_PROXY_SECRET;
+
+/**
+ * Helper: Llamar al proxy de base de datos
+ */
+async function callProxy(action, data) {
+  if (!PROXY_SECRET) {
+    console.error('[Wallet WS] WALLET_PROXY_SECRET no configurado');
+    throw new Error('WALLET_PROXY_SECRET no configurada');
   }
-  if (!supabaseClient) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY no configurada');
+
+  const response = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-proxy-secret': PROXY_SECRET
+    },
+    body: JSON.stringify({ action, ...data })
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error(`[Wallet WS] Proxy error (${action}):`, error);
+    throw new Error(`Proxy error: ${error}`);
   }
-  return supabaseClient;
+
+  return await response.json();
 }
 
 /**
@@ -25,32 +43,25 @@ function extractAuthToken(authHeader) {
 }
 
 /**
- * Valida el token de autenticación contra la base de datos
+ * Valida el token de autenticación usando el proxy
  */
 async function validateAuthToken(serialNumber, token) {
   if (!token) return null;
   
-  const supabase = getSupabase();
-  
-  // Primero buscar en wallet_devices (dispositivos ya registrados)
-  const { data: device } = await supabase
-    .from('wallet_devices')
-    .select('user_id')
-    .eq('serial_number', serialNumber)
-    .eq('auth_token', token)
-    .single();
-  
-  if (device) return device;
-  
-  // Si no está en devices, buscar en auth_tokens (pase recién generado)
-  const { data: authToken } = await supabase
-    .from('wallet_auth_tokens')
-    .select('user_id')
-    .eq('serial_number', serialNumber)
-    .eq('auth_token', token)
-    .single();
-  
-  return authToken;
+  try {
+    const result = await callProxy('verify-token', {
+      serial_number: serialNumber,
+      auth_token: token
+    });
+
+    if (result.valid) {
+      return { user_id: result.user_id };
+    }
+    return null;
+  } catch (error) {
+    console.error('[Wallet WS] Error validando token:', error);
+    return null;
+  }
 }
 
 /**
@@ -75,27 +86,19 @@ export async function registerDevice(req, res) {
   }
   
   try {
-    const { error } = await getSupabase()
-      .from('wallet_devices')
-      .upsert({
-        device_library_identifier: deviceId,
-        push_token: pushToken,
-        pass_type_id: passTypeId,
-        serial_number: serialNumber,
-        auth_token: authToken,
-        user_id: validToken.user_id,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'device_library_identifier,serial_number' });
-    
-    if (error) {
-      console.error('[Wallet WS] Error registrando:', error);
-      return res.status(500).send();
-    }
+    await callProxy('register-device', {
+      device_library_identifier: deviceId,
+      push_token: pushToken,
+      pass_type_id: passTypeId,
+      serial_number: serialNumber,
+      auth_token: authToken,
+      user_id: validToken.user_id
+    });
     
     console.log(`[Wallet WS] Dispositivo registrado: ${deviceId}`);
     res.status(201).send();
   } catch (error) {
-    console.error('[Wallet WS] Error:', error);
+    console.error('[Wallet WS] Error registrando:', error);
     res.status(500).send();
   }
 }
@@ -110,39 +113,22 @@ export async function listPasses(req, res) {
   console.log(`[Wallet WS] Listando pases para device=${deviceId}`);
   
   try {
-    let query = getSupabase()
-      .from('wallet_devices')
-      .select('serial_number, updated_at')
-      .eq('device_library_identifier', deviceId)
-      .eq('pass_type_id', passTypeId);
+    const result = await callProxy('list-passes', {
+      device_library_identifier: deviceId,
+      pass_type_id: passTypeId,
+      passes_updated_since: passesUpdatedSince
+    });
     
-    if (passesUpdatedSince) {
-      const sinceDate = new Date(parseInt(passesUpdatedSince) * 1000).toISOString();
-      query = query.gt('updated_at', sinceDate);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      console.error('[Wallet WS] Error listando:', error);
-      return res.status(500).send();
-    }
-    
-    if (!data || data.length === 0) {
+    if (!result.serial_numbers || result.serial_numbers.length === 0) {
       return res.status(204).send();
     }
     
-    const maxUpdated = data.reduce((max, d) => {
-      const date = new Date(d.updated_at);
-      return date > max ? date : max;
-    }, new Date(0));
-    
     res.json({
-      serialNumbers: data.map(d => d.serial_number),
-      lastUpdated: Math.floor(maxUpdated.getTime() / 1000).toString()
+      serialNumbers: result.serial_numbers,
+      lastUpdated: result.last_updated
     });
   } catch (error) {
-    console.error('[Wallet WS] Error:', error);
+    console.error('[Wallet WS] Error listando:', error);
     res.status(500).send();
   }
 }
@@ -163,34 +149,24 @@ export async function getUpdatedPass(req, res) {
   }
   
   try {
-    const supabase = getSupabase();
+    const userData = await callProxy('get-user-state', {
+      user_id: validToken.user_id
+    });
     
-    const { data: state } = await supabase
-      .from('customer_state')
-      .select('stamps, cashback_points, level_points')
-      .eq('user_id', validToken.user_id)
-      .single();
-    
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', validToken.user_id)
-      .single();
-    
-    if (!state || !profile) {
+    if (userData.error) {
       console.error('[Wallet WS] Usuario no encontrado:', validToken.user_id);
       return res.status(404).send();
     }
     
     const passBuffer = await generatePassBuffer({
       id: validToken.user_id,
-      stamps: state.stamps,
-      cashbackPoints: state.cashback_points,
-      levelPoints: state.level_points,
-      name: profile.name
+      stamps: userData.stamps,
+      cashbackPoints: userData.cashback_points,
+      levelPoints: userData.level_points,
+      name: userData.name
     });
     
-    console.log(`[Wallet WS] Pase generado: ${serialNumber}, ${state.stamps} sellos`);
+    console.log(`[Wallet WS] Pase generado: ${serialNumber}, ${userData.stamps} sellos`);
     
     res.set('Content-Type', 'application/vnd.apple.pkpass');
     res.set('Last-Modified', new Date().toUTCString());
@@ -210,21 +186,15 @@ export async function unregisterDevice(req, res) {
   console.log(`[Wallet WS] Desregistrar: device=${deviceId}, serial=${serialNumber}`);
   
   try {
-    const { error } = await getSupabase()
-      .from('wallet_devices')
-      .delete()
-      .eq('device_library_identifier', deviceId)
-      .eq('serial_number', serialNumber);
-    
-    if (error) {
-      console.error('[Wallet WS] Error desregistrando:', error);
-      return res.status(500).send();
-    }
+    await callProxy('unregister-device', {
+      device_library_identifier: deviceId,
+      serial_number: serialNumber
+    });
     
     console.log(`[Wallet WS] Dispositivo desregistrado: ${deviceId}`);
     res.status(200).send();
   } catch (error) {
-    console.error('[Wallet WS] Error:', error);
+    console.error('[Wallet WS] Error desregistrando:', error);
     res.status(500).send();
   }
 }
@@ -242,32 +212,21 @@ export function receiveLog(req, res) {
  */
 export async function notifyUserDevices(userId) {
   try {
-    const supabase = getSupabase();
+    const result = await callProxy('notify-devices', { user_id: userId });
     
-    const { data: devices, error } = await supabase
-      .from('wallet_devices')
-      .select('push_token')
-      .eq('user_id', userId);
-    
-    if (error) {
-      console.error('[Wallet WS] Error obteniendo dispositivos:', error);
-      return { success: false, error };
+    if (result.error) {
+      console.error('[Wallet WS] Error obteniendo dispositivos:', result.error);
+      return { success: false, error: result.error };
     }
     
-    if (!devices || devices.length === 0) {
+    if (result.devices === 0) {
       console.log(`[Wallet WS] Usuario ${userId} no tiene dispositivos registrados`);
-      return { success: true, devices: 0 };
     }
-    
-    await supabase
-      .from('wallet_devices')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
     
     return {
       success: true,
-      devices: devices.length,
-      tokens: devices.map(d => d.push_token)
+      devices: result.devices,
+      tokens: result.tokens
     };
   } catch (error) {
     console.error('[Wallet WS] Error:', error);
