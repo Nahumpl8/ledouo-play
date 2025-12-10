@@ -36,10 +36,15 @@ async function callProxy(action, data) {
 
 /**
  * Extrae el token de autorización del header
+ * Normaliza el token quitando el prefijo y espacios extra
  */
 function extractAuthToken(authHeader) {
   if (!authHeader) return null;
-  return authHeader.replace('ApplePass ', '').trim();
+  // Normalizar: quitar prefijo "ApplePass ", espacios extra y trim
+  return authHeader
+    .replace(/^ApplePass\s+/i, '') // Quitar prefijo con cualquier cantidad de espacios
+    .replace(/\s+/g, '') // Quitar espacios intermedios
+    .trim();
 }
 
 /**
@@ -138,13 +143,18 @@ export async function listPasses(req, res) {
  */
 export async function getUpdatedPass(req, res) {
   const { serialNumber } = req.params;
-  const authToken = extractAuthToken(req.headers.authorization);
+  const authHeader = req.headers.authorization;
+  const authToken = extractAuthToken(authHeader);
   
   console.log(`[Wallet WS] Solicitando pase actualizado: ${serialNumber}`);
+  console.log(`[Wallet WS] Auth header recibido: "${authHeader}"`);
+  console.log(`[Wallet WS] Token extraído (primeros 20): "${authToken?.substring(0, 20)}..."`);
+  console.log(`[Wallet WS] Token length: ${authToken?.length || 0}`);
   
   const validToken = await validateAuthToken(serialNumber, authToken);
   if (!validToken) {
-    console.error('[Wallet WS] Token inválido');
+    console.error(`[Wallet WS] Token inválido para serial: ${serialNumber}`);
+    console.error(`[Wallet WS] Token enviado: "${authToken}"`);
     return res.status(401).send();
   }
   

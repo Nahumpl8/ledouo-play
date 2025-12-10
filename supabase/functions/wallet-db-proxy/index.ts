@@ -74,32 +74,78 @@ Deno.serve(async (req) => {
       case "verify-token": {
         const { serial_number, auth_token } = body;
 
+        console.log(`[wallet-db-proxy] Verificando token para serial: ${serial_number}`);
+        console.log(`[wallet-db-proxy] Token recibido (primeros 20): "${auth_token?.substring(0, 20)}..."`);
+        console.log(`[wallet-db-proxy] Token length: ${auth_token?.length || 0}`);
+
         if (!serial_number || !auth_token) {
+          console.log(`[wallet-db-proxy] Campos faltantes: serial=${!!serial_number}, token=${!!auth_token}`);
           return jsonResponse({ error: "Missing required fields" }, 400);
         }
 
         // First check wallet_devices
-        const { data: device } = await supabase
+        const { data: device, error: deviceError } = await supabase
           .from("wallet_devices")
-          .select("user_id")
+          .select("user_id, auth_token")
           .eq("serial_number", serial_number)
           .eq("auth_token", auth_token)
           .maybeSingle();
 
+        if (deviceError) {
+          console.error(`[wallet-db-proxy] Error buscando en wallet_devices:`, deviceError);
+        }
+
         if (device) {
+          console.log(`[wallet-db-proxy] Token válido encontrado en wallet_devices para user: ${device.user_id}`);
           return jsonResponse({ valid: true, user_id: device.user_id });
         }
 
         // Then check wallet_auth_tokens
-        const { data: authToken } = await supabase
+        const { data: authTokenData, error: authError } = await supabase
           .from("wallet_auth_tokens")
-          .select("user_id")
+          .select("user_id, auth_token")
           .eq("serial_number", serial_number)
           .eq("auth_token", auth_token)
           .maybeSingle();
 
-        if (authToken) {
-          return jsonResponse({ valid: true, user_id: authToken.user_id });
+        if (authError) {
+          console.error(`[wallet-db-proxy] Error buscando en wallet_auth_tokens:`, authError);
+        }
+
+        if (authTokenData) {
+          console.log(`[wallet-db-proxy] Token válido encontrado en wallet_auth_tokens para user: ${authTokenData.user_id}`);
+          return jsonResponse({ valid: true, user_id: authTokenData.user_id });
+        }
+
+        // Token no encontrado - buscar qué tokens existen para este serial para debugging
+        console.log(`[wallet-db-proxy] Token NO encontrado. Buscando tokens existentes para serial: ${serial_number}`);
+        
+        const { data: existingDevice } = await supabase
+          .from("wallet_devices")
+          .select("auth_token, user_id")
+          .eq("serial_number", serial_number)
+          .maybeSingle();
+          
+        const { data: existingAuthToken } = await supabase
+          .from("wallet_auth_tokens")
+          .select("auth_token, user_id")
+          .eq("serial_number", serial_number)
+          .maybeSingle();
+          
+        if (existingDevice) {
+          console.log(`[wallet-db-proxy] Token en wallet_devices (primeros 20): "${existingDevice.auth_token?.substring(0, 20)}..."`);
+          console.log(`[wallet-db-proxy] Token en wallet_devices length: ${existingDevice.auth_token?.length || 0}`);
+          console.log(`[wallet-db-proxy] Tokens iguales: ${existingDevice.auth_token === auth_token}`);
+        } else {
+          console.log(`[wallet-db-proxy] No hay registro en wallet_devices para este serial`);
+        }
+        
+        if (existingAuthToken) {
+          console.log(`[wallet-db-proxy] Token en wallet_auth_tokens (primeros 20): "${existingAuthToken.auth_token?.substring(0, 20)}..."`);
+          console.log(`[wallet-db-proxy] Token en wallet_auth_tokens length: ${existingAuthToken.auth_token?.length || 0}`);
+          console.log(`[wallet-db-proxy] Tokens iguales: ${existingAuthToken.auth_token === auth_token}`);
+        } else {
+          console.log(`[wallet-db-proxy] No hay registro en wallet_auth_tokens para este serial`);
         }
 
         return jsonResponse({ valid: false, user_id: null });
