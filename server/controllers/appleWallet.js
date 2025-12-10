@@ -6,7 +6,6 @@ import axios from 'axios';
 import sharp from 'sharp';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,13 +15,40 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const STORAGE_BASE = `${SUPABASE_URL}/storage/v1/object/public/wallet-images`;
 const WEB_SERVICE_URL = 'https://www.leduo.mx/api/wallet';
 
-// Lazy-load Supabase client (solo cuando hay service role key)
-let supabase = null;
-function getSupabase() {
-  if (!supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Proxy URL para operaciones de base de datos
+const PROXY_URL = process.env.WALLET_PROXY_URL || `${SUPABASE_URL}/functions/v1/wallet-db-proxy`;
+const PROXY_SECRET = process.env.WALLET_PROXY_SECRET;
+
+// ============================================================
+// Helper: Llamar al proxy de base de datos
+// ============================================================
+async function callProxy(action, data) {
+  if (!PROXY_SECRET) {
+    console.warn('[Apple Pass] WALLET_PROXY_SECRET no configurado');
+    return null;
   }
-  return supabase;
+
+  try {
+    const response = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-secret': PROXY_SECRET
+      },
+      body: JSON.stringify({ action, ...data })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(`[Apple Pass] Proxy error (${action}):`, error);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`[Apple Pass] Proxy fetch error (${action}):`, error.message);
+    return null;
+  }
 }
 
 // ============================================================
@@ -245,27 +271,17 @@ export const createApplePass = async (req, res) => {
     // Generar token de autenticación único
     const authToken = crypto.randomBytes(32).toString('hex');
 
-    // Guardar token en la base de datos antes de generar el pase
-    const db = getSupabase();
-    if (db) {
-      const { error: upsertError } = await db
-        .from('wallet_auth_tokens')
-        .upsert({
-          serial_number: serialNumber,
-          user_id: cleanUserId,
-          auth_token: authToken,
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'serial_number' 
-        });
+    // Guardar token usando el proxy
+    const result = await callProxy('save-token', {
+      serial_number: serialNumber,
+      user_id: cleanUserId,
+      auth_token: authToken
+    });
 
-      if (upsertError) {
-        console.error('[Apple Pass] Error guardando token:', upsertError);
-      } else {
-        console.log(`[Apple Pass] Token guardado para: ${serialNumber}`);
-      }
+    if (result?.success) {
+      console.log(`[Apple Pass] Token guardado para: ${serialNumber}`);
     } else {
-      console.warn('[Apple Pass] SUPABASE_SERVICE_ROLE_KEY no configurada, token no guardado');
+      console.warn('[Apple Pass] No se pudo guardar el token (proxy no disponible o error)');
     }
 
     // Generar el pase
