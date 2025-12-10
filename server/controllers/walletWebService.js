@@ -1,5 +1,5 @@
 // server/controllers/walletWebService.js
-import { generatePassBuffer } from './appleWallet.js';
+import { generatePassBuffer, generateDeterministicToken } from './appleWallet.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://eohpjvbbrvktqyacpcmn.supabase.co';
 
@@ -48,11 +48,31 @@ function extractAuthToken(authHeader) {
 }
 
 /**
- * Valida el token de autenticación usando el proxy
+ * Extrae el userId del serialNumber (LEDUO-{userId})
+ */
+function extractUserIdFromSerial(serialNumber) {
+  if (!serialNumber) return null;
+  return serialNumber.replace(/^LEDUO-/i, '').trim();
+}
+
+/**
+ * Valida el token de autenticación
+ * Primero verifica contra la BD, luego contra el token determinístico
  */
 async function validateAuthToken(serialNumber, token) {
   if (!token) return null;
   
+  const userId = extractUserIdFromSerial(serialNumber);
+  if (!userId) return null;
+  
+  // Primero: verificar contra token determinístico (más confiable)
+  const expectedToken = generateDeterministicToken(userId);
+  if (token === expectedToken) {
+    console.log(`[Wallet WS] Token válido (determinístico) para: ${serialNumber}`);
+    return { user_id: userId };
+  }
+  
+  // Segundo: verificar contra la BD (retrocompatibilidad)
   try {
     const result = await callProxy('verify-token', {
       serial_number: serialNumber,
@@ -60,13 +80,18 @@ async function validateAuthToken(serialNumber, token) {
     });
 
     if (result.valid) {
+      console.log(`[Wallet WS] Token válido (BD) para: ${serialNumber}`);
       return { user_id: result.user_id };
     }
-    return null;
   } catch (error) {
-    console.error('[Wallet WS] Error validando token:', error);
-    return null;
+    console.error('[Wallet WS] Error validando token en BD:', error);
   }
+  
+  // Debug: mostrar tokens para comparación
+  console.log(`[Wallet WS] Token esperado (determinístico): "${expectedToken.substring(0, 20)}..."`);
+  console.log(`[Wallet WS] Token recibido: "${token.substring(0, 20)}..."`);
+  
+  return null;
 }
 
 /**
