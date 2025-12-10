@@ -9,15 +9,15 @@ const corsHeaders = {
 };
 
 const STAMP_SPRITES: Record<number, string> = {
-  0: 'https://i.ibb.co/63CV4yN/0-sellos.png',
-  1: 'https://i.ibb.co/Z6JMptkH/1-sello.png',
-  2: 'https://i.ibb.co/VYD6Kpk0/2-sellos.png',
-  3: 'https://i.ibb.co/BHbybkYM/3-sellos.png',
-  4: 'https://i.ibb.co/39YtppFz/4-sellos.png',
-  5: 'https://i.ibb.co/pBpkMX7L/5-sellos.png',
-  6: 'https://i.ibb.co/KzcK4mXh/6-sellos.png',
-  7: 'https://i.ibb.co/358Mc3Q4/7-sellos.png',
-  8: 'https://i.ibb.co/Z6LLrZpr/8-sellos.png',
+  0: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/0-sellos.png',
+  1: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/1-sellos.png',
+  2: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/2-sellos.png',
+  3: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/3-sellos.png',
+  4: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/4-sellos.png',
+  5: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/5-sellos.png',
+  6: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/6-sellos.png',
+  7: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/7-sellos.png',
+  8: 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/8-sellos.png',
 };
 
 function getCustomerLevel(levelPoints: number): string {
@@ -137,6 +137,39 @@ async function updateGoogleWallet(userId: string, points: number, stamps: number
       stack: err instanceof Error ? err.stack : undefined,
       userId: userId
     });
+  }
+}
+
+// ============================================================
+// Notificar al servidor externo de Apple Wallet
+// ============================================================
+async function notifyAppleWalletServer(userId: string) {
+  let appleWalletServerUrl = Deno.env.get('APPLE_WALLET_SERVER_URL');
+  
+  if (!appleWalletServerUrl) {
+    console.log('ℹ️ APPLE_WALLET_SERVER_URL no configurada, omitiendo notificación Apple Wallet');
+    return;
+  }
+
+  // Eliminar slash final si existe para evitar //api/...
+  appleWalletServerUrl = appleWalletServerUrl.replace(/\/+$/, '');
+
+  try {
+    console.log(`📱 Notificando Apple Wallet para usuario: ${userId}`);
+    const notifyResponse = await fetch(`${appleWalletServerUrl}/api/wallet/notify-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+    
+    if (notifyResponse.ok) {
+      const result = await notifyResponse.json();
+      console.log('✅ Apple Wallet notificado:', result);
+    } else {
+      console.error('⚠️ Error notificando Apple Wallet:', notifyResponse.status, await notifyResponse.text());
+    }
+  } catch (err) {
+    console.error('⚠️ Error de red notificando Apple Wallet:', err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -285,6 +318,9 @@ serve(async (req) => {
       currentState.level_points,
       profile.name
     );
+
+    // Notificar al servidor de Apple Wallet
+    await notifyAppleWalletServer(userId);
 
     console.log('✅ Bebida canjeada exitosamente');
 
