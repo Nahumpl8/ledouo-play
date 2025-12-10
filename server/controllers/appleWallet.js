@@ -19,6 +19,17 @@ const WEB_SERVICE_URL = process.env.APPLE_WALLET_SERVER_URL || 'https://ledouo-p
 // Proxy URL para operaciones de base de datos
 const PROXY_URL = process.env.WALLET_PROXY_URL || `${SUPABASE_URL}/functions/v1/wallet-db-proxy`;
 const PROXY_SECRET = process.env.WALLET_PROXY_SECRET;
+const WALLET_TOKEN_SECRET = process.env.WALLET_TOKEN_SECRET || 'leduo-wallet-secret-2024';
+
+// ============================================================
+// Helper: Genera un token determinístico basado en el userId
+// Esto asegura que siempre sea el mismo token para el mismo usuario
+// ============================================================
+export function generateDeterministicToken(userId) {
+  return crypto.createHmac('sha256', WALLET_TOKEN_SECRET)
+    .update(userId)
+    .digest('hex');
+}
 
 // ============================================================
 // Helper: Llamar al proxy de base de datos
@@ -148,7 +159,8 @@ export async function generatePassBuffer(customerData, authToken = null) {
   const name = customerData.name || 'Cliente LeDuo';
   const serialNumber = `LEDUO-${cleanUserId}`;
   
-  const finalAuthToken = authToken || crypto.randomBytes(32).toString('hex');
+  // Usar token determinístico si no se proporciona uno
+  const finalAuthToken = authToken || generateDeterministicToken(cleanUserId);
 
   console.log(`[Apple Pass] Generando pase para: ${cleanUserId} (Sellos: ${stamps})`);
 
@@ -276,7 +288,8 @@ export const createApplePass = async (req, res) => {
     const name = customerData?.name || 'Cliente LeDuo';
     const serialNumber = `LEDUO-${cleanUserId}`;
 
-    const authToken = crypto.randomBytes(32).toString('hex');
+    // Usar token determinístico basado en el userId para consistencia
+    const authToken = generateDeterministicToken(cleanUserId);
 
     // Guardar token
     const result = await callProxy('save-token', {
