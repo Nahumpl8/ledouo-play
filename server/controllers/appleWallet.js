@@ -216,7 +216,8 @@ export async function generatePassBuffer(customerData, authToken = null) {
           key: 'balance',
           label: 'SELLOS',
           value: `${stamps} / 8`,
-          textAlignment: 'PKTextAlignmentLeft'
+          textAlignment: 'PKTextAlignmentLeft',
+          changeMessage: '¡Felicidades! Acabas de recibir un sello Le Duo 🍵.'
         },
         {
           key: 'name',
