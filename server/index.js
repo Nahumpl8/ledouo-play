@@ -17,6 +17,11 @@ import {
   notifyUserDevices 
 } from './controllers/walletWebService.js';
 import { sendPassUpdateNotification } from './controllers/apnsPush.js';
+import { 
+  sendPromotion, 
+  getBirthdayConfig, 
+  updateBirthdayConfig 
+} from './controllers/walletPromotion.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -246,6 +251,13 @@ app.post('/api/wallet/notify-update', async (req, res) => {
     res.status(500).json({ error: 'Error interno' });
   }
 });
+
+// ====================================
+// ADMIN ENDPOINTS PARA PROMOCIONES
+// ====================================
+app.post('/api/wallet/admin/send-promotion', sendPromotion);
+app.get('/api/wallet/admin/birthday-config', getBirthdayConfig);
+app.put('/api/wallet/admin/birthday-config', updateBirthdayConfig);
 
 // ====================================
 // HEALTHCHECK DETALLADO

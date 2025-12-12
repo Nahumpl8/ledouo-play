@@ -135,6 +135,19 @@ async function getStripWithPadding(buffer) {
 }
 
 /**
+ * Obtiene promoción activa para el usuario (cumpleaños o general)
+ */
+async function getActivePromotion(userId) {
+  try {
+    const result = await callProxy('get-active-promotion', { user_id: userId });
+    return result?.promotion || null;
+  } catch (error) {
+    console.error('[Apple Pass] Error obteniendo promoción:', error.message);
+    return null;
+  }
+}
+
+/**
  * Genera el buffer del pase Apple Wallet
  */
 export async function generatePassBuffer(customerData, authToken = null) {
@@ -156,6 +169,8 @@ export async function generatePassBuffer(customerData, authToken = null) {
   }
 
   const stamps = customerData.stamps || 0;
+  const cashbackPoints = customerData.cashbackPoints || 0;
+  const levelPoints = customerData.levelPoints || 0;
   const name = customerData.name || 'Cliente LeDuo';
   const serialNumber = `LEDUO-${cleanUserId}`;
   
@@ -164,11 +179,26 @@ export async function generatePassBuffer(customerData, authToken = null) {
 
   console.log(`[Apple Pass] Generando pase para: ${cleanUserId} (Sellos: ${stamps})`);
 
+  // Obtener promoción activa
+  const activePromotion = await getActivePromotion(cleanUserId);
+  
+  // Construir mensaje de actualizaciones
+  let updatesValue = `📅 ${new Date().toLocaleDateString('es-MX', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  })}\n\n`;
+  
+  if (activePromotion) {
+    updatesValue += `${activePromotion.message}`;
+  } else {
+    updatesValue += '¡Gracias por tu lealtad! Acumula sellos y gana recompensas.';
+  }
+
   // --- TRUCO ANTI-CACHÉ ---
-  const ts = Date.now(); // Marca de tiempo única
+  const ts = Date.now();
 
   // 1. PROCESAMIENTO DE IMÁGENES
-  // Agregamos ?t=${ts} para que el iPhone crea que es una imagen nueva
   let logoRaw = await getImageBuffer(`https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png?t=${ts}`);
   let logoBuffer = logoRaw; 
   let iconBuffer = logoRaw;
@@ -180,13 +210,15 @@ export async function generatePassBuffer(customerData, authToken = null) {
 
   // Strip (Sellos)
   const stampCount = Math.min(Math.max(0, stamps), 8);
-  // Agregamos ?t=${ts} aquí también. CRÍTICO para que se actualicen los sellos.
   let stripRaw = await getImageBuffer(`${STORAGE_BASE}/${stampCount}-sellos.png?t=${ts}`);
   let stripBuffer = stripRaw;
   
   if (stripRaw) {
     stripBuffer = await getStripWithPadding(stripRaw);
   }
+
+  // Determinar nivel del cliente
+  const level = levelPoints > 150 ? 'LeDuo Legend ⭐' : 'Cliente LeDuo';
 
   // 2. CREAR JSON DEL PASE
   const passJsonData = {
@@ -226,17 +258,52 @@ export async function generatePassBuffer(customerData, authToken = null) {
         }
       ],
       backFields: [
+        // ACTUALIZACIONES (dinámico - promociones/cumpleaños)
+        {
+          key: 'updates',
+          label: '📢 ÚLTIMAS NOTICIAS',
+          value: updatesValue
+        },
+        // PROGRESO
+        {
+          key: 'progress',
+          label: '🎯 TU PROGRESO',
+          value: `Sellos: ${stamps}/8 ${stamps >= 8 ? '🎁 ¡Bebida gratis lista!' : ''}\nPuntos cashback: ${cashbackPoints}\nPuntos nivel: ${levelPoints}\nNivel: ${level}`
+        },
+        // ENLACES
+        {
+          key: 'links',
+          label: '🔗 SÍGUENOS',
+          value: '📸 Instagram: @leduomx\n🎵 Nuestra playlist en Spotify\n👥 Invita amigos y gana puntos',
+          attributedValue: '<a href="https://instagram.com/leduomx">@leduomx</a>'
+        },
+        // CONTACTO
         {
           key: 'contact',
-          label: 'Nosotros',
-          value: 'Visítanos en www.leduo.mx\nTel: 7711295938\nCoahuila 111, Roma Nte., CDMX\nInstagram: @leduomx',
-          textAlignment: 'PKTextAlignmentLeft'
+          label: '📍 ENCUÉNTRANOS',
+          value: 'Coahuila 111, Roma Nte., CDMX\n📞 7711295938\n🌐 www.leduo.mx\n✉️ hola@leduo.mx',
+          attributedValue: '<a href="https://maps.app.goo.gl/j1VUSDoehyfLLZUUA">Cómo llegar</a>'
         },
+        // BENEFICIOS
+        {
+          key: 'benefits',
+          label: '🎁 BENEFICIOS',
+          value: '• 8 sellos = 1 bebida gratis\n• Acumula puntos cashback\n• +150 puntos = LeDuo Legend\n• Ruleta de premios semanal\n• Ofertas exclusivas de cumpleaños'
+        },
+        // TÉRMINOS
+        {
+          key: 'terms',
+          label: '📋 TÉRMINOS',
+          value: 'Puntos válidos por 1 año desde la última visita.\nRecompensas no acumulables con otras promociones.\nConsulta términos completos en leduo.mx/terminos'
+        },
+        // ÚLTIMA ACTUALIZACIÓN
         {
           key: 'last_update',
-          label: 'Actualizado',
-          value: new Date().toLocaleTimeString(), // Para verificar visualmente
-          textAlignment: 'PKTextAlignmentRight'
+          label: '🔄 Actualizado',
+          value: new Date().toLocaleString('es-MX', { 
+            dateStyle: 'short', 
+            timeStyle: 'short' 
+          })
         }
       ]
     },

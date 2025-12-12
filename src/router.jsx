@@ -23,6 +23,7 @@ import { EventDetail } from './pages/EventDetail';
 import { AdminEvents } from './pages/admin/AdminEvents';
 import { EventReservations } from './pages/admin/EventReservations';
 import { AdminClients } from './pages/admin/AdminClients';
+import { AdminPromotions } from './pages/admin/AdminPromotions';
 
 export const Router = () => {
   return (
@@ -76,6 +77,11 @@ export const Router = () => {
         <Route path="/admin/clients" element={
           <RequireAdminEvents>
             <AdminClients />
+          </RequireAdminEvents>
+        } />
+        <Route path="/admin/promotions" element={
+          <RequireAdminEvents>
+            <AdminPromotions />
           </RequireAdminEvents>
         } />
 

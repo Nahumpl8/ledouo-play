@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      birthday_config: {
+        Row: {
+          birthday_discount: number
+          birthday_gift: string
+          birthday_message: string
+          created_at: string | null
+          days_before_notification: number
+          id: string
+          is_active: boolean
+          pre_birthday_discount: number
+          pre_birthday_message: string
+          updated_at: string | null
+        }
+        Insert: {
+          birthday_discount?: number
+          birthday_gift?: string
+          birthday_message?: string
+          created_at?: string | null
+          days_before_notification?: number
+          id?: string
+          is_active?: boolean
+          pre_birthday_discount?: number
+          pre_birthday_message?: string
+          updated_at?: string | null
+        }
+        Update: {
+          birthday_discount?: number
+          birthday_gift?: string
+          birthday_message?: string
+          created_at?: string | null
+          days_before_notification?: number
+          id?: string
+          is_active?: boolean
+          pre_birthday_discount?: number
+          pre_birthday_message?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      birthday_notifications_log: {
+        Row: {
+          id: string
+          notification_type: string
+          sent_at: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          id?: string
+          notification_type: string
+          sent_at?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          id?: string
+          notification_type?: string
+          sent_at?: string | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "birthday_notifications_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_state: {
         Row: {
           cashback_points: number
@@ -510,6 +581,51 @@ export type Database = {
           serial_number?: string
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      wallet_promotions: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          sent_at: string | null
+          starts_at: string | null
+          target_type: string
+          target_users: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          sent_at?: string | null
+          starts_at?: string | null
+          target_type?: string
+          target_users?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          sent_at?: string | null
+          starts_at?: string | null
+          target_type?: string
+          target_users?: string[] | null
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

@@ -355,6 +355,131 @@ Deno.serve(async (req) => {
         });
       }
 
+      // ─────────────────────────────────────────────────────────────────
+      // ACTION: get-active-promotion
+      // Gets the active promotion for a user (birthday or general)
+      // ─────────────────────────────────────────────────────────────────
+      case "get-active-promotion": {
+        const { user_id } = body;
+
+        if (!user_id) {
+          return jsonResponse({ error: "Missing user_id" }, 400);
+        }
+
+        // First check for user-specific promotions (birthday)
+        const { data: userPromo } = await supabase
+          .from("wallet_promotions")
+          .select("*")
+          .eq("is_active", true)
+          .eq("target_type", "specific_users")
+          .contains("target_users", [user_id])
+          .or("expires_at.is.null,expires_at.gt.now()")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (userPromo) {
+          return jsonResponse({ promotion: userPromo });
+        }
+
+        // Then check for general promotions
+        const { data: generalPromo } = await supabase
+          .from("wallet_promotions")
+          .select("*")
+          .eq("is_active", true)
+          .eq("target_type", "all")
+          .or("expires_at.is.null,expires_at.gt.now()")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return jsonResponse({ promotion: generalPromo || null });
+      }
+
+      // ─────────────────────────────────────────────────────────────────
+      // ACTION: get-all-devices
+      // Gets all registered devices for push notifications
+      // ─────────────────────────────────────────────────────────────────
+      case "get-all-devices": {
+        const { data: devices, error } = await supabase
+          .from("wallet_devices")
+          .select("id, push_token, user_id, serial_number");
+
+        if (error) {
+          console.error("[wallet-db-proxy] get-all-devices error:", error);
+          return jsonResponse({ error: error.message }, 500);
+        }
+
+        return jsonResponse({ devices: devices || [] });
+      }
+
+      // ─────────────────────────────────────────────────────────────────
+      // ACTION: mark-promotion-sent
+      // Marks a promotion as sent
+      // ─────────────────────────────────────────────────────────────────
+      case "mark-promotion-sent": {
+        const { promotion_id } = body;
+
+        if (!promotion_id) {
+          return jsonResponse({ error: "Missing promotion_id" }, 400);
+        }
+
+        const { error } = await supabase
+          .from("wallet_promotions")
+          .update({ sent_at: new Date().toISOString() })
+          .eq("id", promotion_id);
+
+        if (error) {
+          console.error("[wallet-db-proxy] mark-promotion-sent error:", error);
+          return jsonResponse({ error: error.message }, 500);
+        }
+
+        return jsonResponse({ success: true });
+      }
+
+      // ─────────────────────────────────────────────────────────────────
+      // ACTION: get-birthday-config
+      // Gets the birthday configuration
+      // ─────────────────────────────────────────────────────────────────
+      case "get-birthday-config": {
+        const { data: config, error } = await supabase
+          .from("birthday_config")
+          .select("*")
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.error("[wallet-db-proxy] get-birthday-config error:", error);
+          return jsonResponse({ error: error.message }, 500);
+        }
+
+        return jsonResponse({ config });
+      }
+
+      // ─────────────────────────────────────────────────────────────────
+      // ACTION: update-birthday-config
+      // Updates the birthday configuration
+      // ─────────────────────────────────────────────────────────────────
+      case "update-birthday-config": {
+        const { config } = body;
+
+        if (!config) {
+          return jsonResponse({ error: "Missing config" }, 400);
+        }
+
+        const { error } = await supabase
+          .from("birthday_config")
+          .update(config)
+          .eq("id", config.id);
+
+        if (error) {
+          console.error("[wallet-db-proxy] update-birthday-config error:", error);
+          return jsonResponse({ error: error.message }, 500);
+        }
+
+        return jsonResponse({ success: true });
+      }
+
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }

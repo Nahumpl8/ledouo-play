@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { Container } from '../common/Container';
 import { Button } from '../common/Button';
 import { supabase } from '@/integrations/supabase/client';
-import { Home, User, Zap, Calendar, LogOut, Scan, Plus, Users, LogIn, UserPlus } from 'lucide-react';
+import { Home, User, Zap, Calendar, LogOut, Scan, Plus, Users, LogIn, UserPlus, Bell } from 'lucide-react';
 
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
 
@@ -335,6 +335,7 @@ export const Header = () => {
       if (isAdmin) {
         items.push({ to: '/admin/events', icon: Plus, label: 'Crear Evento' });
         items.push({ to: '/admin/clients', icon: Users, label: 'Clientes' });
+        items.push({ to: '/admin/promotions', icon: Bell, label: 'Promociones' });
       }
     } else {
       // Not logged in - RUTAS CORREGIDAS
