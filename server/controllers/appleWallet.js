@@ -19,7 +19,7 @@ const WEB_SERVICE_URL = process.env.APPLE_WALLET_SERVER_URL || 'https://ledouo-p
 // Proxy URL para operaciones de base de datos
 const PROXY_URL = process.env.WALLET_PROXY_URL || `${SUPABASE_URL}/functions/v1/wallet-db-proxy`;
 const PROXY_SECRET = process.env.WALLET_PROXY_SECRET;
-const WALLET_TOKEN_SECRET = process.env.WALLET_TOKEN_SECRET;
+const WALLET_TOKEN_SECRET = process.env.WALLET_TOKEN_SECRET || 'leduo-wallet-secret-2024';
 
 // ============================================================
 // Helper: Genera un token determinístico basado en el userId
