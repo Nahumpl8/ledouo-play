@@ -5,11 +5,12 @@ import { Section } from '../components/common/Section';
 import { HeroSection } from '../components/landing/HeroSection';
 import { Timeline } from '../components/landing/Timeline';
 import { EventsHomePreview } from '../components/common/EventsHomePreview';
+import { TestimonialsSection } from '../components/landing/TestimonialsSection';
+import { FAQChatSection } from '../components/landing/FAQChatSection';
 import { useOnScrollReveal } from '../hooks/useOnScrollReveal';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, Clock, MapPin, Check, ChevronDown, User, Plus, Minus } from 'lucide-react';
+import { Smartphone, Check, User } from 'lucide-react';
 import loyaltyCardPreview from '@/assets/loyalty-card-preview.png';
-import * as Accordion from '@radix-ui/react-accordion';
 
 const PageWrapper = styled.main`
   background: ${props => props.theme.colors.bg};
@@ -132,284 +133,6 @@ const StepsSection = styled(Section)`
   background: ${props => props.theme.colors.white};
 `;
 
-const ExperiencesSection = styled(Section)`
-  background: ${props => props.theme.colors.bgAlt};
-`;
-
-const ExperiencesGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: ${props => props.theme.spacing.lg};
-  
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  @media (min-width: ${props => props.theme.breakpoints.desktop}) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-`;
-
-const ExperienceCard = styled.div`
-  background: ${props => props.theme.colors.white};
-  border-radius: 20px;
-  overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-  
-  &:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
-  }
-`;
-
-const ExperienceGradient = styled.div`
-  height: 160px;
-  background: ${props => props.$gradient};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-`;
-
-const ExperienceContent = styled.div`
-  padding: ${props => props.theme.spacing.lg};
-`;
-
-const ExperienceTitle = styled.h3`
-  font-family: ${props => props.theme.fontPrimary};
-  font-size: 1.4rem;
-  color: ${props => props.theme.colors.accent};
-  margin-bottom: ${props => props.theme.spacing.sm};
-`;
-
-const ExperienceDescription = styled.p`
-  color: ${props => props.theme.colors.text};
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin-bottom: ${props => props.theme.spacing.md};
-  opacity: 0.85;
-`;
-
-const ExperienceMeta = styled.div`
-  display: flex;
-  gap: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.md};
-  flex-wrap: wrap;
-`;
-
-const MetaItem = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: ${props => props.theme.colors.secondary};
-  
-  svg {
-    width: 16px;
-    height: 16px;
-    color: ${props => props.theme.colors.primary};
-  }
-`;
-
-const ExperienceFooter = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const ExperiencePrice = styled.span`
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: ${props => props.theme.colors.accent};
-`;
-
-const ExperienceButton = styled(Link)`
-  padding: 10px 20px;
-  background: ${props => props.theme.colors.primary};
-  color: white;
-  border-radius: 50px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: ${props => props.theme.colors.secondary};
-    transform: scale(1.05);
-  }
-`;
-
-/* FAQ Styles - Creative Redesign */
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-const FAQSection = styled(Section)`
-  background: linear-gradient(180deg, 
-    ${props => props.theme.colors.bg} 0%, 
-    ${props => props.theme.colors.white} 50%,
-    ${props => props.theme.colors.bg} 100%
-  );
-  position: relative;
-  overflow: hidden;
-`;
-
-const FAQGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: ${props => props.theme.spacing.lg};
-  max-width: 1200px;
-  margin: 0 auto;
-  
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-`;
-
-const FAQCard = styled.div`
-  background: ${props => props.theme.colors.white};
-  border-radius: 24px;
-  padding: ${props => props.theme.spacing.lg};
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  border: 2px solid transparent;
-  
-  &:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
-    border-color: ${props => props.theme.colors.primary}20;
-  }
-  
-  &[data-state='open'] {
-    border-color: ${props => props.theme.colors.primary};
-    background: linear-gradient(135deg, 
-      ${props => props.theme.colors.white} 0%, 
-      ${props => props.theme.colors.primary}08 100%
-    );
-  }
-`;
-
-const FAQNumber = styled.div`
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  font-size: 5rem;
-  font-weight: 900;
-  font-family: ${props => props.theme.fontPrimary};
-  color: ${props => props.theme.colors.primary}10;
-  line-height: 1;
-  pointer-events: none;
-  transition: all 0.4s ease;
-  
-  ${FAQCard}:hover &,
-  ${FAQCard}[data-state='open'] & {
-    color: ${props => props.theme.colors.primary}20;
-    transform: scale(1.1);
-  }
-`;
-
-const FAQEmoji = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  font-size: 1.5rem;
-  background: linear-gradient(135deg, 
-    ${props => props.theme.colors.primary}15 0%, 
-    ${props => props.theme.colors.secondary}15 100%
-  );
-  border-radius: 14px;
-  margin-bottom: ${props => props.theme.spacing.sm};
-  transition: all 0.3s ease;
-  
-  ${FAQCard}:hover & {
-    transform: scale(1.1) rotate(-5deg);
-  }
-`;
-
-const FAQQuestion = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: ${props => props.theme.spacing.md};
-`;
-
-const FAQQuestionText = styled.h3`
-  font-family: ${props => props.theme.fontPrimary};
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: ${props => props.theme.colors.accent};
-  margin: 0;
-  flex: 1;
-  line-height: 1.4;
-`;
-
-const FAQToggle = styled.button`
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  border-radius: 50%;
-  border: 2px solid ${props => props.theme.colors.primary};
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  svg {
-    width: 16px;
-    height: 16px;
-    color: ${props => props.theme.colors.primary};
-    transition: transform 0.3s ease;
-  }
-  
-  &:hover {
-    background: ${props => props.theme.colors.primary};
-    
-    svg {
-      color: white;
-    }
-  }
-  
-  ${FAQCard}[data-state='open'] & {
-    background: ${props => props.theme.colors.primary};
-    
-    svg {
-      color: white;
-    }
-  }
-`;
-
-const FAQAnswer = styled.div`
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: 0;
-  
-  ${FAQCard}[data-state='open'] & {
-    max-height: 200px;
-    opacity: 1;
-    margin-top: ${props => props.theme.spacing.md};
-  }
-`;
-
-const FAQAnswerText = styled.p`
-  font-size: 0.95rem;
-  color: ${props => props.theme.colors.text};
-  line-height: 1.7;
-  margin: 0;
-  padding-top: ${props => props.theme.spacing.md};
-  border-top: 1px solid ${props => props.theme.colors.primary}15;
-`;
-
 /* CTA Section */
 const CTASection = styled(Section)`
   background: linear-gradient(135deg, 
@@ -486,7 +209,7 @@ const CTAButton = styled(Link)`
   &:hover {
     transform: translateY(-4px) scale(1.05);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-    background: ${props => props.$variant === 'secondary' ? props.theme.colors.white : props.theme.colors.white};
+    background: ${props => props.theme.colors.white};
     color: ${props => props.theme.colors.accent};
   }
   
@@ -516,39 +239,6 @@ const WalletBadge = styled.span`
   backdrop-filter: blur(5px);
 `;
 
-const faqData = [
-  {
-    emoji: '☕',
-    question: '¿Cómo funciona el programa de lealtad?',
-    answer: 'Cada vez que compras en Le Duo, recibes un sello digital en tu tarjeta. Al acumular 8 sellos, obtienes una bebida gratis de tu elección. Además, ganas puntos de cashback en cada compra que puedes canjear por descuentos.'
-  },
-  {
-    emoji: '📱',
-    question: '¿Cómo agrego mi tarjeta a mi celular?',
-    answer: 'Después de registrarte, podrás descargar tu tarjeta digital a Apple Wallet (iPhone) o Google Wallet (Android). La tarjeta se actualiza automáticamente cada vez que compras, sin necesidad de apps adicionales.'
-  },
-  {
-    emoji: '🎯',
-    question: '¿Cuántos sellos necesito para una bebida gratis?',
-    answer: '¡Solo 8 sellos! Cada compra te da un sello, y cuando llegues a 8, tu próxima bebida es completamente gratis. Los sellos se reinician después de canjear tu recompensa.'
-  },
-  {
-    emoji: '🔒',
-    question: '¿Qué pasa si pierdo mi teléfono?',
-    answer: 'No te preocupes, tus sellos y puntos están guardados en tu cuenta. Solo inicia sesión desde otro dispositivo y vuelve a agregar tu tarjeta a tu wallet. Todo estará igual.'
-  },
-  {
-    emoji: '💰',
-    question: '¿Cómo canjeo mis puntos de cashback?',
-    answer: 'Los puntos de cashback se acumulan con cada compra. Puedes usarlos para obtener descuentos en tus siguientes pedidos. Solo muestra tu tarjeta digital al momento de pagar.'
-  },
-  {
-    emoji: '🎁',
-    question: '¿El programa tiene algún costo?',
-    answer: '¡No! El programa de lealtad de Le Duo es completamente gratuito. Solo regístrate y comienza a ganar sellos y puntos con cada compra.'
-  }
-];
-
 const loyaltyFeatures = [
   {
     title: 'Sellos Digitales',
@@ -571,12 +261,9 @@ const loyaltyFeatures = [
 export const Landing = () => {
   useOnScrollReveal();
   const navigate = useNavigate();
-  const [experiences, setExperiences] = useState([]);
   const [user, setUser] = useState(null);
-  const [openFAQ, setOpenFAQ] = useState(null);
 
   useEffect(() => {
-    // Check auth state
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user || null);
@@ -588,43 +275,6 @@ export const Landing = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    // Smooth scroll para enlaces internos
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        const href = this.getAttribute('href');
-        if (href !== '#') {
-          e.preventDefault();
-          const target = document.querySelector(href);
-          if (target) {
-            target.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start'
-            });
-          }
-        }
-      });
-    });
-  }, []);
-
-  // Cargar experiencias (eventos tipo open_schedule)
-  useEffect(() => {
-    const fetchExperiences = async () => {
-      const { data } = await supabase
-        .from('events')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(6);
-      
-      if (data) {
-        setExperiences(data);
-      }
-    };
-    
-    fetchExperiences();
   }, []);
 
   return (
@@ -673,84 +323,14 @@ export const Landing = () => {
         </div>
       </StepsSection>
 
+      {/* Events Preview - Now with real Supabase data */}
       <EventsHomePreview />
 
-      {experiences.length > 0 && (
-        <ExperiencesSection id="experiencias" spacing="lg">
-          <div className="fade-up">
-            <SectionTitle>Experiencias Le Duo</SectionTitle>
-            <SectionSubtitle>
-              Talleres, eventos y actividades únicas para disfrutar
-            </SectionSubtitle>
-            <ExperiencesGrid>
-              {experiences.slice(0, 6).map((exp) => (
-                <ExperienceCard key={exp.id}>
-                  <ExperienceGradient $gradient={exp.image_gradient || 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'}>
-                    {exp.tags?.[0] === 'Creativo' ? '🎨' : 
-                     exp.tags?.[0] === 'Relax' ? '🧘' :
-                     exp.tags?.[0] === 'Gastronomía' ? '👨‍🍳' : '✨'}
-                  </ExperienceGradient>
-                  <ExperienceContent>
-                    <ExperienceTitle>{exp.title}</ExperienceTitle>
-                    <ExperienceDescription>
-                      {exp.description?.slice(0, 100)}{exp.description?.length > 100 ? '...' : ''}
-                    </ExperienceDescription>
-                    <ExperienceMeta>
-                      {exp.duration_minutes && (
-                        <MetaItem>
-                          <Clock />
-                          {exp.duration_minutes} min
-                        </MetaItem>
-                      )}
-                      <MetaItem>
-                        <MapPin />
-                        {exp.location || 'Le Duo'}
-                      </MetaItem>
-                    </ExperienceMeta>
-                    <ExperienceFooter>
-                      <ExperiencePrice>${exp.price} MXN</ExperiencePrice>
-                      <ExperienceButton to={`/workshops/${exp.id}`}>
-                        Ver horarios
-                      </ExperienceButton>
-                    </ExperienceFooter>
-                  </ExperienceContent>
-                </ExperienceCard>
-              ))}
-            </ExperiencesGrid>
-          </div>
-        </ExperiencesSection>
-      )}
+      {/* Testimonials Section - Real Google Reviews */}
+      <TestimonialsSection />
 
-      <FAQSection id="faq" spacing="lg">
-        <div className="fade-up">
-          <SectionTitle>Preguntas Frecuentes</SectionTitle>
-          <SectionSubtitle>
-            Todo lo que necesitas saber sobre nuestro programa de lealtad
-          </SectionSubtitle>
-          
-          <FAQGrid>
-            {faqData.map((faq, index) => (
-              <FAQCard 
-                key={index}
-                data-state={openFAQ === index ? 'open' : 'closed'}
-                onClick={() => setOpenFAQ(openFAQ === index ? null : index)}
-              >
-                <FAQNumber>{String(index + 1).padStart(2, '0')}</FAQNumber>
-                <FAQEmoji>{faq.emoji}</FAQEmoji>
-                <FAQQuestion>
-                  <FAQQuestionText>{faq.question}</FAQQuestionText>
-                  <FAQToggle type="button">
-                    {openFAQ === index ? <Minus /> : <Plus />}
-                  </FAQToggle>
-                </FAQQuestion>
-                <FAQAnswer>
-                  <FAQAnswerText>{faq.answer}</FAQAnswerText>
-                </FAQAnswer>
-              </FAQCard>
-            ))}
-          </FAQGrid>
-        </div>
-      </FAQSection>
+      {/* FAQ Chat Section - Creative chat bubble design */}
+      <FAQChatSection />
 
       <CTASection spacing="lg">
         <div className="fade-up">

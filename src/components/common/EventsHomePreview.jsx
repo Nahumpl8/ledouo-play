@@ -1,32 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, ArrowRight, MapPin } from 'lucide-react';
-
-// --- DATOS DE EJEMPLO (Solo mostramos 3 en el Home) ---
-const PREVIEW_EVENTS = [
-    {
-        id: 1,
-        title: "Taller de Velas Aromáticas",
-        date: "14 OCT",
-        time: "17:00 HRS",
-        imageColor: "linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)",
-    },
-    {
-        id: 2,
-        title: "Cata de Café: Orígenes",
-        date: "21 OCT",
-        time: "18:00 HRS",
-        imageColor: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-    },
-    {
-        id: 3,
-        title: "Arte Latte Básico",
-        date: "28 OCT",
-        time: "16:30 HRS",
-        imageColor: "linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)",
-    }
-];
+import { Calendar, Clock, ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 // --- STYLED COMPONENTS ---
 
@@ -35,32 +11,9 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
-const float = keyframes`
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-30px); }
-`;
-
-const BackgroundBlobs = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-  overflow: hidden;
-`;
-
-const Blob = styled.div`
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.6;
-  animation: ${float} 8s ease-in-out infinite;
-`;
-
 const SectionWrapper = styled.section`
   padding: 5rem 0;
-  background-color: #e5e0d8; /* Fondo ligero para diferenciar del menú */
+  background-color: #f8f6f3;
   position: relative;
 `;
 
@@ -109,8 +62,6 @@ const MiniCard = styled.div`
   border: 1px solid rgba(0,0,0,0.05);
   animation: ${fadeIn} 0.6s ease-out forwards;
   opacity: 0;
-  
-  /* Stagger animation delay logic would go here ideally, hardcoded below */
 
   &:hover {
     transform: translateY(-8px);
@@ -196,48 +147,114 @@ const ViewAllBtn = styled(Link)`
   }
 `;
 
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+  
+  p {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+`;
+
+const formatEventDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+  const month = months[date.getMonth()];
+  return { day, month };
+};
+
 export const EventsHomePreview = () => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('is_active', true)
+          .gte('date', new Date().toISOString().split('T')[0])
+          .order('date', { ascending: true })
+          .limit(3);
+
+        if (error) throw error;
+        setEvents(data || []);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  if (loading) {
+    return null;
+  }
+
+  if (events.length === 0) {
     return (
-        <SectionWrapper>
-            <BackgroundBlobs>
-                <Blob style={{ top: '-10%', left: '-20%', width: '500px', height: '500px', background: '#e0c3fc' }} />
-                <Blob style={{ top: '30%', right: '-20%', width: '400px', height: '400px', background: '#8ec5fc', animationDelay: '-7s' }} />
-                <Blob style={{ bottom: '-10%', left: '10%', width: '350px', height: '350px', background: '#f5576c', animationDelay: '-15s' }} />
-            </BackgroundBlobs>
-            <Container>
-                <SectionHeader>
-                    <h2>Experiencias Le Duo</h2>
-                    <p>Conecta, aprende y disfruta. Talleres diseñados para amantes del café y el arte.</p>
-                </SectionHeader>
-
-                <Grid>
-                    {PREVIEW_EVENTS.map((event, index) => (
-                        <MiniCard key={event.id} style={{ animationDelay: `${index * 150}ms` }}>
-                            <CardHeader $bg={event.imageColor}>
-                                <DateBadge>
-                                    <span className="day">{event.date.split(' ')[0]}</span>
-                                    <span className="month">{event.date.split(' ')[1]}</span>
-                                </DateBadge>
-                            </CardHeader>
-
-                            <CardBody>
-                                <CardTitle>{event.title}</CardTitle>
-                                <MetaInfo>
-                                    <div><Clock size={16} /> {event.time}</div>
-                                    <div><Calendar size={16} /> {event.date}</div>
-                                </MetaInfo>
-                            </CardBody>
-                        </MiniCard>
-                    ))}
-                </Grid>
-
-                <ActionButtonWrapper>
-                    <ViewAllBtn to="/workshops">
-                        Ver todos los Talleres y Eventos <ArrowRight size={20} />
-                    </ViewAllBtn>
-                </ActionButtonWrapper>
-
-            </Container>
-        </SectionWrapper>
+      <SectionWrapper>
+        <Container>
+          <SectionHeader>
+            <h2>Experiencias Le Duo</h2>
+            <p>Conecta, aprende y disfruta. Talleres diseñados para amantes del café y el arte.</p>
+          </SectionHeader>
+          <EmptyState>
+            <p>Próximamente nuevos talleres y experiencias</p>
+            <ViewAllBtn to="/workshops">
+              Ver Talleres <ArrowRight size={20} />
+            </ViewAllBtn>
+          </EmptyState>
+        </Container>
+      </SectionWrapper>
     );
+  }
+
+  return (
+    <SectionWrapper>
+      <Container>
+        <SectionHeader>
+          <h2>Experiencias Le Duo</h2>
+          <p>Conecta, aprende y disfruta. Talleres diseñados para amantes del café y el arte.</p>
+        </SectionHeader>
+
+        <Grid>
+          {events.map((event, index) => {
+            const { day, month } = formatEventDate(event.date);
+            return (
+              <MiniCard key={event.id} style={{ animationDelay: `${index * 150}ms` }}>
+                <CardHeader $bg={event.image_gradient || 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'}>
+                  <DateBadge>
+                    <span className="day">{day}</span>
+                    <span className="month">{month}</span>
+                  </DateBadge>
+                </CardHeader>
+
+                <CardBody>
+                  <CardTitle>{event.title}</CardTitle>
+                  <MetaInfo>
+                    <div><Clock size={16} /> {event.time}</div>
+                    <div><Calendar size={16} /> {day} {month}</div>
+                  </MetaInfo>
+                </CardBody>
+              </MiniCard>
+            );
+          })}
+        </Grid>
+
+        <ActionButtonWrapper>
+          <ViewAllBtn to="/workshops">
+            Ver todos los Talleres y Eventos <ArrowRight size={20} />
+          </ViewAllBtn>
+        </ActionButtonWrapper>
+
+      </Container>
+    </SectionWrapper>
+  );
 };
