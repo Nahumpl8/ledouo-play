@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Gift, Send, Calendar, Settings, Plus, Trash2, Bell } from 'lucide-react';
+import { Gift, Send, Calendar, Settings, Plus, Trash2, Bell, Users } from 'lucide-react'; // Agregué icono Users
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -77,9 +77,10 @@ const FlexGap = styled.div`
   display: flex;
   gap: ${props => props.gap || '0.5rem'};
   align-items: center;
+  flex-wrap: wrap;
 `;
 
-// --- UI COMPONENTS (Cards, Inputs, Buttons) ---
+// --- UI COMPONENTS ---
 
 const Card = styled.div`
   border-radius: ${theme.radius};
@@ -152,6 +153,30 @@ const StyledInput = styled.input`
   }
 `;
 
+// --- NUEVO COMPONENTE: SELECT ---
+const StyledSelect = styled.select`
+  height: 2.5rem;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid ${theme.colors.border};
+  background-color: transparent;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  appearance: none; /* Quita el estilo default del navegador */
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem top 50%;
+  background-size: 0.65rem auto;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 1px ${theme.colors.primary};
+  }
+`;
+
 const StyledTextarea = styled.textarea`
   min-height: 80px;
   width: 100%;
@@ -197,7 +222,6 @@ const StyledButton = styled.button`
       color: ${theme.colors.destructiveForeground};
       &:hover { opacity: 0.9; }
     `;
-    // Default
     return css`
       background-color: ${theme.colors.primary};
       color: ${theme.colors.primaryForeground};
@@ -353,6 +377,24 @@ const PromoMeta = styled.div`
   font-size: 0.75rem;
   color: ${theme.colors.mutedForeground};
   margin-top: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+const Badge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: ${theme.colors.muted};
+  color: ${theme.colors.foreground};
+  
+  /* Badge variants */
+  ${props => props.variant === 'audience' && css`
+    background-color: #dbeafe; /* blue-100 */
+    color: #1e40af; /* blue-800 */
+  `}
 `;
 
 // --- MAIN COMPONENT ---
@@ -374,12 +416,13 @@ export const AdminPromotions = () => {
     birthday_discount: 15
   });
   
-  // Promotions
+  // Promotions State
   const [promotions, setPromotions] = useState([]);
   const [newPromotion, setNewPromotion] = useState({
     title: '',
     message: '',
-    expires_at: ''
+    expires_at: '',
+    target_type: 'all' // --- NUEVO: Estado para la audiencia ---
   });
 
   useEffect(() => {
@@ -418,7 +461,6 @@ export const AdminPromotions = () => {
   const saveBirthdayConfig = async () => {
     try {
       setSaving(true);
-      
       const { error } = await supabase
         .from('birthday_config')
         .update({
@@ -433,7 +475,6 @@ export const AdminPromotions = () => {
         .eq('id', birthdayConfig.id);
       
       if (error) throw error;
-      
       toast.success('Configuración guardada');
     } catch (error) {
       console.error('Error saving config:', error);
@@ -454,10 +495,11 @@ export const AdminPromotions = () => {
       
       const { data: { user } } = await supabase.auth.getUser();
       
+      // --- MODIFICADO: Ahora guardamos el target_type ---
       const { error } = await supabase.from('wallet_promotions').insert({
         title: newPromotion.title,
         message: newPromotion.message,
-        target_type: 'all',
+        target_type: newPromotion.target_type, 
         is_active: true,
         expires_at: newPromotion.expires_at || null,
         created_by: user?.id
@@ -466,7 +508,8 @@ export const AdminPromotions = () => {
       if (error) throw error;
       
       toast.success('Promoción creada');
-      setNewPromotion({ title: '', message: '', expires_at: '' });
+      // Reseteamos el formulario
+      setNewPromotion({ title: '', message: '', expires_at: '', target_type: 'all' });
       loadData();
     } catch (error) {
       console.error('Error creating promotion:', error);
@@ -489,7 +532,7 @@ export const AdminPromotions = () => {
       const result = await response.json();
       
       if (result.success) {
-        toast.success(`Promoción enviada a ${result.notified} dispositivos`);
+        toast.success(`Promoción enviada: ${result.notified} dispositivos`);
         loadData();
       } else {
         throw new Error(result.error);
@@ -510,7 +553,6 @@ export const AdminPromotions = () => {
         .eq('id', id);
       
       if (error) throw error;
-      
       toast.success('Promoción eliminada');
       loadData();
     } catch (error) {
@@ -522,17 +564,24 @@ export const AdminPromotions = () => {
   const triggerBirthdayCheck = async () => {
     try {
       setSending(true);
-      
       const { data, error } = await supabase.functions.invoke('birthday-check');
-      
       if (error) throw error;
-      
       toast.success(`Verificación completada: ${data.preBirthdayNotifications} pre-cumple, ${data.birthdayNotifications} cumpleaños`);
     } catch (error) {
       console.error('Error triggering birthday check:', error);
       toast.error('Error ejecutando verificación');
     } finally {
       setSending(false);
+    }
+  };
+
+  // Helper para mostrar etiqueta legible de audiencia
+  const getTargetLabel = (type) => {
+    switch(type) {
+      case 'new_users': return 'Nuevos (1 sello)';
+      case 'near_reward': return 'Cerca del premio (6-7)';
+      case 'inactive': return 'Inactivos (30 días)';
+      default: return 'Todos';
     }
   };
 
@@ -604,13 +653,12 @@ export const AdminPromotions = () => {
               </FlexBetween>
             </CardHeader>
             <CardContent>
-              {/* Pre-cumpleaños */}
+              {/* Contenido de Cumpleaños (Igual que antes) */}
               <GrayBox>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                   <Calendar size={16} />
                   Notificación Pre-Cumpleaños
                 </h3>
-                
                 <Grid>
                   <FormGroup>
                     <Label>Días antes del cumpleaños</Label>
@@ -619,12 +667,7 @@ export const AdminPromotions = () => {
                       min="1"
                       max="30"
                       value={birthdayConfig.days_before_notification}
-                      onChange={(e) => 
-                        setBirthdayConfig(prev => ({ 
-                          ...prev, 
-                          days_before_notification: parseInt(e.target.value) || 7 
-                        }))
-                      }
+                      onChange={(e) => setBirthdayConfig(prev => ({ ...prev, days_before_notification: parseInt(e.target.value) || 7 }))}
                     />
                   </FormGroup>
                   <FormGroup>
@@ -634,44 +677,32 @@ export const AdminPromotions = () => {
                       min="0"
                       max="100"
                       value={birthdayConfig.pre_birthday_discount}
-                      onChange={(e) => 
-                        setBirthdayConfig(prev => ({ 
-                          ...prev, 
-                          pre_birthday_discount: parseInt(e.target.value) || 0 
-                        }))
-                      }
+                      onChange={(e) => setBirthdayConfig(prev => ({ ...prev, pre_birthday_discount: parseInt(e.target.value) || 0 }))}
                     />
                   </FormGroup>
                 </Grid>
-                
                 <FormGroup>
                   <Label>Mensaje pre-cumpleaños</Label>
                   <StyledTextarea
                     value={birthdayConfig.pre_birthday_message}
-                    onChange={(e) => 
-                      setBirthdayConfig(prev => ({ ...prev, pre_birthday_message: e.target.value }))
-                    }
+                    onChange={(e) => setBirthdayConfig(prev => ({ ...prev, pre_birthday_message: e.target.value }))}
                     placeholder="🎂 ¡Tu semana especial se acerca!..."
                     rows={3}
                   />
                 </FormGroup>
               </GrayBox>
 
-              {/* Día del cumpleaños */}
               <GrayBox>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                   <Gift size={16} />
                   Día del Cumpleaños
                 </h3>
-                
                 <Grid>
                   <FormGroup>
                     <Label>Regalo de cumpleaños</Label>
                     <StyledInput
                       value={birthdayConfig.birthday_gift}
-                      onChange={(e) => 
-                        setBirthdayConfig(prev => ({ ...prev, birthday_gift: e.target.value }))
-                      }
+                      onChange={(e) => setBirthdayConfig(prev => ({ ...prev, birthday_gift: e.target.value }))}
                       placeholder="1 Galleta gratis"
                     />
                   </FormGroup>
@@ -682,23 +713,15 @@ export const AdminPromotions = () => {
                       min="0"
                       max="100"
                       value={birthdayConfig.birthday_discount}
-                      onChange={(e) => 
-                        setBirthdayConfig(prev => ({ 
-                          ...prev, 
-                          birthday_discount: parseInt(e.target.value) || 0 
-                        }))
-                      }
+                      onChange={(e) => setBirthdayConfig(prev => ({ ...prev, birthday_discount: parseInt(e.target.value) || 0 }))}
                     />
                   </FormGroup>
                 </Grid>
-                
                 <FormGroup>
                   <Label>Mensaje de cumpleaños</Label>
                   <StyledTextarea
                     value={birthdayConfig.birthday_message}
-                    onChange={(e) => 
-                      setBirthdayConfig(prev => ({ ...prev, birthday_message: e.target.value }))
-                    }
+                    onChange={(e) => setBirthdayConfig(prev => ({ ...prev, birthday_message: e.target.value }))}
                     placeholder="🎂 ¡Feliz Cumpleaños!..."
                     rows={3}
                   />
@@ -709,11 +732,7 @@ export const AdminPromotions = () => {
                 <StyledButton onClick={saveBirthdayConfig} disabled={saving}>
                   {saving ? 'Guardando...' : 'Guardar Configuración'}
                 </StyledButton>
-                <StyledButton 
-                  variant="outline" 
-                  onClick={triggerBirthdayCheck}
-                  disabled={sending}
-                >
+                <StyledButton variant="outline" onClick={triggerBirthdayCheck} disabled={sending}>
                   {sending ? 'Verificando...' : 'Ejecutar Verificación Ahora'}
                 </StyledButton>
               </FlexGap>
@@ -736,16 +755,19 @@ export const AdminPromotions = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* --- NUEVA SECCIÓN DE AUDIENCIA --- */}
                 <Grid>
                   <FormGroup>
-                    <Label>Título</Label>
-                    <StyledInput
-                      value={newPromotion.title}
-                      onChange={(e) => 
-                        setNewPromotion(prev => ({ ...prev, title: e.target.value }))
-                      }
-                      placeholder="☕ Promoción Especial"
-                    />
+                    <Label>Audiencia Objetivo</Label>
+                    <StyledSelect
+                      value={newPromotion.target_type}
+                      onChange={(e) => setNewPromotion(prev => ({ ...prev, target_type: e.target.value }))}
+                    >
+                      <option value="all">Todos los usuarios</option>
+                      <option value="new_users">Nuevos (1 sello)</option>
+                      <option value="near_reward">Cerca del premio (6-7 sellos)</option>
+                      <option value="inactive">Inactivos (30 días sin visita)</option>
+                    </StyledSelect>
                   </FormGroup>
                   <FormGroup>
                     <Label>Fecha de expiración (opcional)</Label>
@@ -755,6 +777,19 @@ export const AdminPromotions = () => {
                       onChange={(e) => 
                         setNewPromotion(prev => ({ ...prev, expires_at: e.target.value }))
                       }
+                    />
+                  </FormGroup>
+                </Grid>
+
+                <Grid>
+                  <FormGroup>
+                    <Label>Título</Label>
+                    <StyledInput
+                      value={newPromotion.title}
+                      onChange={(e) => 
+                        setNewPromotion(prev => ({ ...prev, title: e.target.value }))
+                      }
+                      placeholder="☕ Promoción Especial"
                     />
                   </FormGroup>
                 </Grid>
@@ -795,8 +830,16 @@ export const AdminPromotions = () => {
                     {promotions.map((promo) => (
                       <PromoItem key={promo.id}>
                         <PromoInfo>
-                          <h4 style={{ fontWeight: 600, margin: 0 }}>{promo.title}</h4>
-                          <p style={{ fontSize: '0.875rem', color: theme.colors.mutedForeground, margin: 0 }}>{promo.message}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <h4 style={{ fontWeight: 600, margin: 0 }}>{promo.title}</h4>
+                            {/* --- MOSTRAR AUDIENCIA --- */}
+                            <Badge variant="audience">
+                              <Users size={12} style={{ marginRight: '4px' }}/>
+                              {getTargetLabel(promo.target_type)}
+                            </Badge>
+                          </div>
+                          
+                          <p style={{ fontSize: '0.875rem', color: theme.colors.mutedForeground, margin: '0.5rem 0' }}>{promo.message}</p>
                           <PromoMeta>
                             <span>
                               Creada: {format(new Date(promo.created_at), 'dd MMM yyyy', { locale: es })}
