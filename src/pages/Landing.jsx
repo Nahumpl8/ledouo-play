@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { Link, useNavigate } from 'react-router-dom';
 import { Section } from '../components/common/Section';
 import { HeroSection } from '../components/landing/HeroSection';
 import { Timeline } from '../components/landing/Timeline';
+import { EventsHomePreview } from '../components/common/EventsHomePreview';
 import { useOnScrollReveal } from '../hooks/useOnScrollReveal';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, Clock, MapPin, Check, ChevronDown, User } from 'lucide-react';
+import { Smartphone, Clock, MapPin, Check, ChevronDown, User, Plus, Minus } from 'lucide-react';
 import loyaltyCardPreview from '@/assets/loyalty-card-preview.png';
 import * as Accordion from '@radix-ui/react-accordion';
 
@@ -239,105 +240,174 @@ const ExperienceButton = styled(Link)`
   }
 `;
 
-/* FAQ Styles */
+/* FAQ Styles - Creative Redesign */
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
 const FAQSection = styled(Section)`
-  background: ${props => props.theme.colors.white};
-`;
-
-const FAQContainer = styled.div`
-  max-width: 800px;
-  margin: 0 auto;
-`;
-
-const StyledAccordion = styled(Accordion.Root)`
-  display: flex;
-  flex-direction: column;
-  gap: ${props => props.theme.spacing.sm};
-`;
-
-const AccordionItem = styled(Accordion.Item)`
-  background: ${props => props.theme.colors.bg};
-  border-radius: 16px;
+  background: linear-gradient(180deg, 
+    ${props => props.theme.colors.bg} 0%, 
+    ${props => props.theme.colors.white} 50%,
+    ${props => props.theme.colors.bg} 100%
+  );
+  position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+`;
+
+const FAQGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: ${props => props.theme.spacing.lg};
+  max-width: 1200px;
+  margin: 0 auto;
   
-  &[data-state='open'] {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
+    grid-template-columns: repeat(2, 1fr);
   }
 `;
 
-const AccordionHeader = styled(Accordion.Header)`
-  margin: 0;
-`;
-
-const AccordionTrigger = styled(Accordion.Trigger)`
-  width: 100%;
+const FAQCard = styled.div`
+  background: ${props => props.theme.colors.white};
+  border-radius: 24px;
   padding: ${props => props.theme.spacing.lg};
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${props => props.theme.spacing.md};
-  background: transparent;
-  border: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  text-align: left;
-  font-family: ${props => props.theme.fontPrimary};
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: ${props => props.theme.colors.accent};
-  transition: all 0.2s ease;
+  border: 2px solid transparent;
   
   &:hover {
-    color: ${props => props.theme.colors.primary};
+    transform: translateY(-8px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+    border-color: ${props => props.theme.colors.primary}20;
   }
   
+  &[data-state='open'] {
+    border-color: ${props => props.theme.colors.primary};
+    background: linear-gradient(135deg, 
+      ${props => props.theme.colors.white} 0%, 
+      ${props => props.theme.colors.primary}08 100%
+    );
+  }
+`;
+
+const FAQNumber = styled.div`
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  font-size: 5rem;
+  font-weight: 900;
+  font-family: ${props => props.theme.fontPrimary};
+  color: ${props => props.theme.colors.primary}10;
+  line-height: 1;
+  pointer-events: none;
+  transition: all 0.4s ease;
+  
+  ${FAQCard}:hover &,
+  ${FAQCard}[data-state='open'] & {
+    color: ${props => props.theme.colors.primary}20;
+    transform: scale(1.1);
+  }
+`;
+
+const FAQEmoji = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, 
+    ${props => props.theme.colors.primary}15 0%, 
+    ${props => props.theme.colors.secondary}15 100%
+  );
+  border-radius: 14px;
+  margin-bottom: ${props => props.theme.spacing.sm};
+  transition: all 0.3s ease;
+  
+  ${FAQCard}:hover & {
+    transform: scale(1.1) rotate(-5deg);
+  }
+`;
+
+const FAQQuestion = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: ${props => props.theme.spacing.md};
+`;
+
+const FAQQuestionText = styled.h3`
+  font-family: ${props => props.theme.fontPrimary};
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: ${props => props.theme.colors.accent};
+  margin: 0;
+  flex: 1;
+  line-height: 1.4;
+`;
+
+const FAQToggle = styled.button`
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  border: 2px solid ${props => props.theme.colors.primary};
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
   svg {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     color: ${props => props.theme.colors.primary};
     transition: transform 0.3s ease;
   }
   
-  &[data-state='open'] svg {
-    transform: rotate(180deg);
+  &:hover {
+    background: ${props => props.theme.colors.primary};
+    
+    svg {
+      color: white;
+    }
+  }
+  
+  ${FAQCard}[data-state='open'] & {
+    background: ${props => props.theme.colors.primary};
+    
+    svg {
+      color: white;
+    }
   }
 `;
 
-const AccordionContent = styled(Accordion.Content)`
-  padding: 0 ${props => props.theme.spacing.lg} ${props => props.theme.spacing.lg};
+const FAQAnswer = styled.div`
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 0;
+  
+  ${FAQCard}[data-state='open'] & {
+    max-height: 200px;
+    opacity: 1;
+    margin-top: ${props => props.theme.spacing.md};
+  }
+`;
+
+const FAQAnswerText = styled.p`
+  font-size: 0.95rem;
   color: ${props => props.theme.colors.text};
-  font-size: 1rem;
   line-height: 1.7;
-  
-  &[data-state='open'] {
-    animation: slideDown 0.3s ease;
-  }
-  
-  &[data-state='closed'] {
-    animation: slideUp 0.3s ease;
-  }
-  
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  @keyframes slideUp {
-    from {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-  }
+  margin: 0;
+  padding-top: ${props => props.theme.spacing.md};
+  border-top: 1px solid ${props => props.theme.colors.primary}15;
 `;
 
 /* CTA Section */
@@ -448,26 +518,32 @@ const WalletBadge = styled.span`
 
 const faqData = [
   {
+    emoji: '☕',
     question: '¿Cómo funciona el programa de lealtad?',
     answer: 'Cada vez que compras en Le Duo, recibes un sello digital en tu tarjeta. Al acumular 8 sellos, obtienes una bebida gratis de tu elección. Además, ganas puntos de cashback en cada compra que puedes canjear por descuentos.'
   },
   {
+    emoji: '📱',
     question: '¿Cómo agrego mi tarjeta a mi celular?',
     answer: 'Después de registrarte, podrás descargar tu tarjeta digital a Apple Wallet (iPhone) o Google Wallet (Android). La tarjeta se actualiza automáticamente cada vez que compras, sin necesidad de apps adicionales.'
   },
   {
+    emoji: '🎯',
     question: '¿Cuántos sellos necesito para una bebida gratis?',
     answer: '¡Solo 8 sellos! Cada compra te da un sello, y cuando llegues a 8, tu próxima bebida es completamente gratis. Los sellos se reinician después de canjear tu recompensa.'
   },
   {
+    emoji: '🔒',
     question: '¿Qué pasa si pierdo mi teléfono?',
     answer: 'No te preocupes, tus sellos y puntos están guardados en tu cuenta. Solo inicia sesión desde otro dispositivo y vuelve a agregar tu tarjeta a tu wallet. Todo estará igual.'
   },
   {
+    emoji: '💰',
     question: '¿Cómo canjeo mis puntos de cashback?',
     answer: 'Los puntos de cashback se acumulan con cada compra. Puedes usarlos para obtener descuentos en tus siguientes pedidos. Solo muestra tu tarjeta digital al momento de pagar.'
   },
   {
+    emoji: '🎁',
     question: '¿El programa tiene algún costo?',
     answer: '¡No! El programa de lealtad de Le Duo es completamente gratuito. Solo regístrate y comienza a ganar sellos y puntos con cada compra.'
   }
@@ -497,6 +573,7 @@ export const Landing = () => {
   const navigate = useNavigate();
   const [experiences, setExperiences] = useState([]);
   const [user, setUser] = useState(null);
+  const [openFAQ, setOpenFAQ] = useState(null);
 
   useEffect(() => {
     // Check auth state
@@ -596,6 +673,8 @@ export const Landing = () => {
         </div>
       </StepsSection>
 
+      <EventsHomePreview />
+
       {experiences.length > 0 && (
         <ExperiencesSection id="experiencias" spacing="lg">
           <div className="fade-up">
@@ -649,23 +728,27 @@ export const Landing = () => {
             Todo lo que necesitas saber sobre nuestro programa de lealtad
           </SectionSubtitle>
           
-          <FAQContainer>
-            <StyledAccordion type="single" collapsible>
-              {faqData.map((faq, index) => (
-                <AccordionItem key={index} value={`item-${index}`}>
-                  <AccordionHeader>
-                    <AccordionTrigger>
-                      {faq.question}
-                      <ChevronDown />
-                    </AccordionTrigger>
-                  </AccordionHeader>
-                  <AccordionContent>
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </StyledAccordion>
-          </FAQContainer>
+          <FAQGrid>
+            {faqData.map((faq, index) => (
+              <FAQCard 
+                key={index}
+                data-state={openFAQ === index ? 'open' : 'closed'}
+                onClick={() => setOpenFAQ(openFAQ === index ? null : index)}
+              >
+                <FAQNumber>{String(index + 1).padStart(2, '0')}</FAQNumber>
+                <FAQEmoji>{faq.emoji}</FAQEmoji>
+                <FAQQuestion>
+                  <FAQQuestionText>{faq.question}</FAQQuestionText>
+                  <FAQToggle type="button">
+                    {openFAQ === index ? <Minus /> : <Plus />}
+                  </FAQToggle>
+                </FAQQuestion>
+                <FAQAnswer>
+                  <FAQAnswerText>{faq.answer}</FAQAnswerText>
+                </FAQAnswer>
+              </FAQCard>
+            ))}
+          </FAQGrid>
         </div>
       </FAQSection>
 
