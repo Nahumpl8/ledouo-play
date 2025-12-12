@@ -24,7 +24,7 @@ const slideIn = keyframes`
 `;
 
 const SectionWrapper = styled.section`
-  padding: 5rem 0;
+  padding: 1rem 0;
   background: linear-gradient(180deg, #fff 0%, #f5f0eb 100%);
   position: relative;
 `;
@@ -61,7 +61,7 @@ const SectionHeader = styled.div`
 const ChatContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 `;
 
 const ChatItem = styled.div`
@@ -209,34 +209,39 @@ const TypingIndicator = styled.div`
 
 const FAQ_DATA = [
   {
+    emoji: "📍",
+    question: "¿Dónde están ubicados y cuál es su horario?",
+    answer: "Nos encuentras en el corazón de la Roma Norte: Coahuila 111, CDMX. Abrimos de Martes a Sábado de 8am a 8pm, y Domingos de 9am a 4pm. ¡Cerramos los lunes para recargar energías!"
+  },
+  {
     emoji: "☕",
     question: "¿Cómo funciona el programa de lealtad?",
-    answer: "¡Muy simple! Con cada compra que hagas en Le Duo, ganas un sello digital en tu tarjeta de Wallet. Al juntar 8 sellos, te regalamos una bebida de cortesía. ¡Todo automático desde tu celular!"
+    answer: "Es nuestra forma de consentirte. Con cada bebida que pidas ganas 1 sello digital. Al juntar 8 sellos, ¡te regalamos la siguiente bebida totalmente gratis! Sin tarjetas de plástico, todo en tu celular."
+  },
+  {
+    emoji: "☕️",
+    question: "¿De dónde es su café?",
+    answer: "Es un café de especialidad de Veracruz, México. En el café podrás encontrar notas a chocolate, nuez y cítricos, con una acidez balanceada y un cuerpo medio. Perfecto para disfrutar solo o en tus bebidas favoritas."
+  },
+  {
+    emoji: "🍵",
+    question: "¿Cuál es la especialidad de la casa?",
+    answer: "¡Definitivamente nuestro Matcha! Seleccionamos el mejor grado ceremonial y creamos recetas únicas (tienes que probar el de temporada). También horneamos pan dulce delicioso todos los días."
+  },
+  {
+    emoji: "🐾",
+    question: "¿Son Pet Friendly?",
+    answer: "¡Sí, al 100%! Nos encanta recibir a tus peluditos. Tienen su propio espacio y siempre son bienvenidos a acompañarte mientras disfrutas tu café."
+  },
+  {
+    emoji: "💻",
+    question: "¿Puedo ir a trabajar en la cafetería?",
+    answer: "¡Claro! Tenemos WiFi de alta velocidad, enchufes accesibles y sillas cómodas. Es el spot ideal para hacer home office, estudiar o tener reuniones creativas con un buen ambiente."
   },
   {
     emoji: "📱",
-    question: "¿Necesito descargar una app?",
-    answer: "¡No necesitas ninguna app! Tu tarjeta de lealtad vive directamente en Apple Wallet o Google Wallet. Solo regístrate en nuestra web y agrégala a tu celular. Es súper fácil y siempre la tendrás a la mano."
-  },
-  {
-    emoji: "🎁",
-    question: "¿Cómo canjeo mi bebida gratis?",
-    answer: "Cuando juntes 8 sellos, tu tarjeta se actualizará automáticamente. Solo muéstrala al barista en tu próxima visita y él escaneará el código para darte tu bebida de cortesía. ¡Puedes elegir cualquier bebida del menú!"
-  },
-  {
-    emoji: "🎰",
-    question: "¿Qué es la ruleta de premios?",
-    answer: "Es un extra divertido de nuestro programa. Después de ciertas visitas, desbloqueas un giro de ruleta donde puedes ganar desde descuentos especiales hasta bebidas gratis. ¡Es como un mini-juego con premios reales!"
-  },
-  {
-    emoji: "🎂",
-    question: "¿Hay beneficios por cumpleaños?",
-    answer: "¡Por supuesto! En la semana de tu cumpleaños recibirás una notificación especial con un regalo: una galleta gratis y 15% de descuento en tu compra. Solo asegúrate de tener tu fecha de nacimiento en tu perfil."
-  },
-  {
-    emoji: "💳",
-    question: "¿Puedo acumular puntos en cualquier compra?",
-    answer: "Sí, cada compra que hagas en Le Duo cuenta. Solo muestra tu tarjeta digital antes de pagar y el barista registrará tu sello. Acumulas 1 sello por visita, sin importar el monto de tu compra."
+    question: "¿Necesito descargar una app para los puntos?",
+    answer: "¡No! Odiamos que tengas el celular lleno de apps. Tu tarjeta Le Duo vive directamente en tu Apple Wallet o Google Wallet. Se actualiza sola y siempre la tienes a la mano."
   }
 ];
 
@@ -261,7 +266,7 @@ export const FAQChatSection = () => {
         <ChatContainer>
           {FAQ_DATA.map((faq, index) => (
             <ChatItem key={index} $delay={index * 100}>
-              <QuestionBubble 
+              <QuestionBubble
                 onClick={() => toggleFAQ(index)}
                 $isOpen={openIndex === index}
               >
@@ -272,7 +277,7 @@ export const FAQChatSection = () => {
                 </QuestionContent>
                 <ChevronIcon size={20} $isOpen={openIndex === index} />
               </QuestionBubble>
-              
+
               <AnswerWrapper $isOpen={openIndex === index}>
                 <AnswerBubble $isOpen={openIndex === index}>
                   <BaristaAvatar>

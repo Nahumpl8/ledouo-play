@@ -11,6 +11,7 @@ import { useOnScrollReveal } from '../hooks/useOnScrollReveal';
 import { supabase } from '@/integrations/supabase/client';
 import { Smartphone, Check, User } from 'lucide-react';
 import loyaltyCardPreview from '@/assets/loyalty-card-preview.png';
+import { VideoSection } from '../components/landing/VideoSection';
 
 const PageWrapper = styled.main`
   background: ${props => props.theme.colors.bg};
@@ -131,6 +132,7 @@ const FeatureText = styled.div`
 
 const StepsSection = styled(Section)`
   background: ${props => props.theme.colors.white};
+  padding: ${props => props.theme.spacing.xl} 0;
 `;
 
 /* CTA Section */
@@ -287,15 +289,15 @@ export const Landing = () => {
           <SectionSubtitle>
             Agrega tu tarjeta a Apple Wallet o Google Wallet y lleva tus sellos siempre contigo
           </SectionSubtitle>
-          
+
           <LoyaltyContent>
             <LoyaltyImageWrapper>
-              <img 
-                src={loyaltyCardPreview} 
-                alt="Vista previa de la tarjeta de lealtad Le Duo con sellos" 
+              <img
+                src={loyaltyCardPreview}
+                alt="Vista previa de la tarjeta de lealtad Le Duo con sellos"
               />
             </LoyaltyImageWrapper>
-            
+
             <LoyaltyInfo>
               {loyaltyFeatures.map((feature, index) => (
                 <LoyaltyFeature key={index}>
@@ -313,18 +315,14 @@ export const Landing = () => {
         </div>
       </LoyaltySection>
 
-      <StepsSection id="como-funciona" spacing="lg">
+      <StepsSection id="como-funciona" >
         <div className="fade-up">
-          <SectionTitle>Cómo Funciona</SectionTitle>
-          <SectionSubtitle>
-            Tres pasos simples para comenzar a ganar
-          </SectionSubtitle>
-          <Timeline />
+          <VideoSection />
         </div>
       </StepsSection>
 
       {/* Events Preview - Now with real Supabase data */}
-      <EventsHomePreview />
+      <EventsHomePreview/>
 
       {/* Testimonials Section - Real Google Reviews */}
       <TestimonialsSection />
@@ -339,12 +337,12 @@ export const Landing = () => {
               {user ? '¡Bienvenido de vuelta!' : '¡Únete a Le Duo Hoy!'}
             </CTATitle>
             <CTADescription>
-              {user 
+              {user
                 ? 'Accede a tu cuenta para ver tus sellos, puntos y recompensas disponibles.'
                 : 'Regístrate a nuestro programa de lealtad y agrega tu tarjeta digital a Apple Wallet o Google Wallet.'
               }
             </CTADescription>
-            
+
             <CTAButtons>
               {user ? (
                 <CTAButton to="/app">
@@ -362,9 +360,9 @@ export const Landing = () => {
                 </>
               )}
             </CTAButtons>
-            
+
             <WalletBadges>
-              <WalletBadge>🍎 Apple Wallet</WalletBadge>
+              <WalletBadge>📱 Apple Wallet</WalletBadge>
               <WalletBadge>📱 Google Wallet</WalletBadge>
             </WalletBadges>
           </CTAContent>

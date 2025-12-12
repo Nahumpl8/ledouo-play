@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import styled, { keyframes } from 'styled-components';
-import { Star, ExternalLink } from 'lucide-react';
+import React, { useRef } from 'react';
+import styled, { keyframes, css } from 'styled-components';
+import { Star, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 
+// --- Animaciones ---
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 `;
 
-const float = keyframes`
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-`;
+// --- Styled Components ---
 
 const SectionWrapper = styled.section`
   padding: 5rem 0;
@@ -24,6 +22,7 @@ const Container = styled.div`
   width: 100%;
   margin: 0 auto;
   padding: 0 24px;
+  position: relative;
 `;
 
 const SectionHeader = styled.div`
@@ -80,35 +79,98 @@ const StarsContainer = styled.div`
   }
 `;
 
-const TestimonialsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
+// --- Nuevo Contenedor Scroll Horizontal ---
+const CarouselContainer = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+`;
+
+const ScrollTrack = styled.div`
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 1rem 0.5rem; /* Padding para que la sombra no se corte */
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
   
-  @media (max-width: 1024px) {
-    grid-template-columns: repeat(2, 1fr);
+  /* Ocultar barra de scroll */
+  &::-webkit-scrollbar {
+    display: none;
   }
-  
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 `;
 
 const TestimonialCard = styled.div`
+  /* Cambios clave para el carrusel */
+  min-width: 350px; 
+  max-width: 350px;
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+  
   background: white;
   border-radius: 20px;
-  padding: 1.5rem;
+  padding: 2rem;
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
   border: 1px solid rgba(0,0,0,0.05);
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   animation: ${fadeIn} 0.6s ease-out forwards;
   opacity: 0;
   animation-delay: ${props => props.$delay}ms;
   
+  /* Efecto al pasar el mouse */
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    border-color: rgba(46, 64, 40, 0.2);
   }
+
+  @media (max-width: 480px) {
+    min-width: 280px;
+    max-width: 280px;
+  }
+`;
+
+const NavButton = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 10;
+  transition: all 0.2s ease;
+  color: #1f1f1f;
+
+  &:hover {
+    background: #2E4028;
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  ${props => props.$position === 'left' && css`
+    left: -20px;
+    @media (max-width: 768px) { left: 0; }
+  `}
+
+  ${props => props.$position === 'right' && css`
+    right: -20px;
+    @media (max-width: 768px) { right: 0; }
+  `}
 `;
 
 const CardHeader = styled.div`
@@ -129,6 +191,7 @@ const Avatar = styled.div`
   color: white;
   font-weight: 700;
   font-size: 1.1rem;
+  flex-shrink: 0;
 `;
 
 const UserInfo = styled.div`
@@ -209,6 +272,20 @@ const TESTIMONIALS = [
 ];
 
 export const TestimonialsSection = () => {
+  const scrollRef = useRef(null);
+
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const { current } = scrollRef;
+      const scrollAmount = 370; // Ancho de tarjeta + gap aproximado
+      if (direction === 'left') {
+        current.scrollLeft -= scrollAmount;
+      } else {
+        current.scrollLeft += scrollAmount;
+      }
+    }
+  };
+
   return (
     <SectionWrapper>
       <Container>
@@ -219,37 +296,43 @@ export const TestimonialsSection = () => {
             ))}
           </StarsContainer>
           <h2>Lo que dicen nuestros clientes</h2>
-          <p>Más de 50 reseñas con 5 estrellas en Google</p>
-          <GoogleBadge 
-            href="https://maps.app.goo.gl/fi40qnXXHMUvjxNO5" 
-            target="_blank" 
+          <p>Más de 20 reseñas con 5 estrellas en Google</p>
+          <GoogleBadge
+            href="https://goo.gl/maps/tu-link-aqui"
+            target="_blank"
             rel="noopener noreferrer"
           >
-            <span>4.9 ⭐ en Google Reviews</span>
+            <span>5 ⭐ en Google Reviews</span>
             <ExternalLink size={14} />
           </GoogleBadge>
         </SectionHeader>
 
-        <TestimonialsGrid>
-          {TESTIMONIALS.map((testimonial, index) => (
-            <TestimonialCard key={index} $delay={index * 100}>
-              <CardHeader>
-                <Avatar>{testimonial.initials}</Avatar>
-                <UserInfo>
-                  <h4>{testimonial.name}</h4>
-                  <StarsContainer>
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={12} />
-                    ))}
-                  </StarsContainer>
-                  <span>{testimonial.time}</span>
-                </UserInfo>
-              </CardHeader>
-              <Quote>{testimonial.quote}</Quote>
-            </TestimonialCard>
-          ))}
-        </TestimonialsGrid>
+        <CarouselContainer>
+
+          <ScrollTrack ref={scrollRef}>
+            {TESTIMONIALS.map((testimonial, index) => (
+              <TestimonialCard key={index} $delay={index * 100}>
+                <CardHeader>
+                  <Avatar>{testimonial.initials}</Avatar>
+                  <UserInfo>
+                    <h4>{testimonial.name}</h4>
+                    <StarsContainer>
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={12} />
+                      ))}
+                    </StarsContainer>
+                    <span>{testimonial.time}</span>
+                  </UserInfo>
+                </CardHeader>
+                <Quote>{testimonial.quote}</Quote>
+              </TestimonialCard>
+
+            ))}
+          </ScrollTrack>
+
+        </CarouselContainer>
       </Container>
+
     </SectionWrapper>
   );
 };
