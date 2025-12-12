@@ -64,15 +64,21 @@ async function callProxy(action, data) {
 }
 
 // ============================================================
-// Helper: Cargar certificado desde variable de entorno Base64
-// Los certificados DEBEN estar configurados como variables de entorno
+// Helper: Cargar certificado desde variable de entorno Base64 o archivo local
 // ============================================================
-function getCertBuffer(envName) {
+function getCertBuffer(envName, fileName) {
   const b64 = process.env[envName];
   if (b64) {
+    // console.log(`[Certs] Cargando ${envName} desde variable de entorno`);
     return Buffer.from(b64, 'base64');
   }
-  console.error(`[Certs] ERROR: Variable de entorno ${envName} no configurada`);
+  const filePath = path.join(CERTS_DIR, fileName);
+  if (fs.existsSync(filePath)) {
+    // console.log(`[Certs] Cargando ${fileName} desde archivo local`);
+    return fs.readFileSync(filePath);
+  }
+  // No lanzamos error aquí para permitir depuración, pero fallará la firma más adelante
+  console.warn(`[Certs] Advertencia: Certificado no encontrado: ${envName} ni ${fileName}`);
   return null;
 }
 
@@ -140,10 +146,10 @@ export async function generatePassBuffer(customerData, authToken = null) {
     throw new Error('ID de usuario inválido');
   }
 
-  // Cargar certificados desde variables de entorno (Base64)
-  const wwdrBuffer = getCertBuffer('APPLE_WWDR_CERT_B64');
-  const signerCertBuffer = getCertBuffer('APPLE_SIGNER_CERT_B64');
-  const signerKeyBuffer = getCertBuffer('APPLE_SIGNER_KEY_B64');
+  // Cargar certificados
+  const wwdrBuffer = getCertBuffer('APPLE_WWDR_CERT_B64', 'wwdr.pem');
+  const signerCertBuffer = getCertBuffer('APPLE_SIGNER_CERT_B64', 'signerCert.pem');
+  const signerKeyBuffer = getCertBuffer('APPLE_SIGNER_KEY_B64', 'signerKey.pem');
 
   if (!wwdrBuffer || !signerCertBuffer || !signerKeyBuffer) {
       throw new Error("Faltan certificados para firmar el pase.");
@@ -210,8 +216,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
           key: 'balance',
           label: 'SELLOS',
           value: `${stamps} / 8`,
-          textAlignment: 'PKTextAlignmentLeft',
-          changeMessage: '¡Felicidades! Acabas de recibir un sello Le Duo 🍵.'
+          textAlignment: 'PKTextAlignmentLeft'
         },
         {
           key: 'name',
