@@ -558,7 +558,7 @@ export const HeroSection = () => {
 
       {/* Sección del Menú integrada abajo */}
       <MenuSection />
-      <EventsHomePreview />
+      
     </>
   );
 };

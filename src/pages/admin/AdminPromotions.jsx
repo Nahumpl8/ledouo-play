@@ -1,22 +1,367 @@
 import React, { useState, useEffect } from 'react';
-import { Container } from '@/components/common/Container';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import styled, { css, keyframes } from 'styled-components';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Gift, Send, Calendar, Settings, Plus, Trash2, Bell } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+// --- ESTILOS & TEMAS ---
+const theme = {
+  colors: {
+    primary: '#0f172a',
+    primaryForeground: '#ffffff',
+    destructive: '#ef4444',
+    destructiveForeground: '#ffffff',
+    muted: '#f1f5f9',
+    mutedForeground: '#64748b',
+    border: '#e2e8f0',
+    background: '#ffffff',
+    foreground: '#0f172a',
+    ring: '#94a3b8',
+  },
+  radius: '0.5rem',
+};
+
+// --- KEYFRAMES ---
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+// --- LAYOUT COMPONENTS ---
+
+const PageContainer = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: ${theme.colors.foreground};
+`;
+
+const HeaderSection = styled.div`
+  margin-bottom: 2rem;
+`;
+
+const Title = styled.h1`
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 0;
+  color: ${theme.colors.foreground};
+`;
+
+const Subtitle = styled.p`
+  color: ${theme.colors.mutedForeground};
+  margin-top: 0.5rem;
+  font-size: 1rem;
+`;
+
+const Grid = styled.div`
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+`;
+
+const FlexBetween = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+`;
+
+const FlexGap = styled.div`
+  display: flex;
+  gap: ${props => props.gap || '0.5rem'};
+  align-items: center;
+`;
+
+// --- UI COMPONENTS (Cards, Inputs, Buttons) ---
+
+const Card = styled.div`
+  border-radius: ${theme.radius};
+  border: 1px solid ${theme.colors.border};
+  background-color: ${theme.colors.background};
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+`;
+
+const CardHeader = styled.div`
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+`;
+
+const CardTitle = styled.h3`
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const CardDescription = styled.p`
+  font-size: 0.875rem;
+  color: ${theme.colors.mutedForeground};
+  margin: 0;
+`;
+
+const CardContent = styled.div`
+  padding: 1.5rem;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+`;
+
+const Label = styled.label`
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+`;
+
+const StyledInput = styled.input`
+  height: 2.5rem;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid ${theme.colors.border};
+  background-color: transparent;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 1px ${theme.colors.primary};
+  }
+`;
+
+const StyledTextarea = styled.textarea`
+  min-height: 80px;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid ${theme.colors.border};
+  background-color: transparent;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 1px ${theme.colors.primary};
+  }
+`;
+
+const StyledButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 2.5rem;
+  padding: 0 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+
+  /* Variantes */
+  ${props => {
+    if (props.variant === 'outline') return css`
+      background-color: transparent;
+      border-color: ${theme.colors.border};
+      color: ${theme.colors.foreground};
+      &:hover { background-color: ${theme.colors.muted}; }
+    `;
+    if (props.variant === 'destructive') return css`
+      background-color: ${theme.colors.destructive};
+      color: ${theme.colors.destructiveForeground};
+      &:hover { opacity: 0.9; }
+    `;
+    // Default
+    return css`
+      background-color: ${theme.colors.primary};
+      color: ${theme.colors.primaryForeground};
+      &:hover { opacity: 0.9; }
+    `;
+  }}
+  
+  ${props => props.size === 'sm' && css`
+    height: 2rem;
+    padding: 0 0.75rem;
+    font-size: 0.75rem;
+  `}
+
+  &:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+`;
+
+// --- TABS COMPONENTS ---
+
+const TabsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+`;
+
+const TabsList = styled.div`
+  display: inline-flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  background-color: ${theme.colors.muted};
+  padding: 0.25rem;
+  color: ${theme.colors.mutedForeground};
+  width: fit-content;
+`;
+
+const TabTrigger = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: 0.2rem;
+  padding: 0.25rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  color: inherit;
+  transition: all 0.2s;
+  
+  ${props => props.$active && css`
+    background-color: ${theme.colors.background};
+    color: ${theme.colors.foreground};
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  `}
+`;
+
+// --- SWITCH COMPONENT ---
+
+const SwitchWrapper = styled.label`
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+`;
+
+const SwitchInput = styled.input`
+  opacity: 0;
+  width: 0;
+  height: 0;
+`;
+
+const Slider = styled.span`
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: ${theme.colors.border};
+  transition: .4s;
+  border-radius: 24px;
+
+  &:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+
+  ${SwitchInput}:checked + & {
+    background-color: ${theme.colors.primary};
+  }
+
+  ${SwitchInput}:checked + &:before {
+    transform: translateX(20px);
+  }
+`;
+
+// --- OTHER STYLES ---
+
+const GrayBox = styled.div`
+  background-color: ${theme.colors.muted};
+  border-radius: ${theme.radius};
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const Spinner = styled.div`
+  border: 2px solid ${theme.colors.muted};
+  border-top: 2px solid ${theme.colors.primary};
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  animation: ${spin} 1s linear infinite;
+`;
+
+const PromoList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const PromoItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem;
+  border: 1px solid ${theme.colors.border};
+  border-radius: ${theme.radius};
+`;
+
+const PromoInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const PromoMeta = styled.div`
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: ${theme.colors.mutedForeground};
+  margin-top: 0.5rem;
+`;
+
+// --- MAIN COMPONENT ---
+
 export const AdminPromotions = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('birthday');
   
   // Birthday config
   const [birthdayConfig, setBirthdayConfig] = useState({
@@ -45,7 +390,6 @@ export const AdminPromotions = () => {
     try {
       setLoading(true);
       
-      // Load birthday config
       const { data: configData } = await supabase
         .from('birthday_config')
         .select('*')
@@ -56,7 +400,6 @@ export const AdminPromotions = () => {
         setBirthdayConfig(configData);
       }
       
-      // Load promotions
       const { data: promoData } = await supabase
         .from('wallet_promotions')
         .select('*')
@@ -195,73 +538,83 @@ export const AdminPromotions = () => {
 
   if (loading) {
     return (
-      <Container className="py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <PageContainer>
+        <div style={{ display: 'flex', justifyContent: 'center', height: '16rem', alignItems: 'center' }}>
+          <Spinner />
         </div>
-      </Container>
+      </PageContainer>
     );
   }
 
   return (
-    <Container className="py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Gestión de Promociones</h1>
-        <p className="text-muted-foreground mt-2">
+    <PageContainer>
+      <HeaderSection>
+        <Title>Gestión de Promociones</Title>
+        <Subtitle>
           Administra las notificaciones de Apple Wallet y promociones de cumpleaños
-        </p>
-      </div>
+        </Subtitle>
+      </HeaderSection>
 
-      <Tabs defaultValue="birthday" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="birthday" className="flex items-center gap-2">
-            <Gift className="h-4 w-4" />
+      <TabsContainer>
+        <TabsList>
+          <TabTrigger 
+            $active={activeTab === 'birthday'} 
+            onClick={() => setActiveTab('birthday')}
+          >
+            <Gift size={16} style={{ marginRight: '0.5rem' }} />
             Cumpleaños
-          </TabsTrigger>
-          <TabsTrigger value="promotions" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
+          </TabTrigger>
+          <TabTrigger 
+            $active={activeTab === 'promotions'} 
+            onClick={() => setActiveTab('promotions')}
+          >
+            <Bell size={16} style={{ marginRight: '0.5rem' }} />
             Promociones
-          </TabsTrigger>
+          </TabTrigger>
         </TabsList>
 
         {/* Tab: Cumpleaños */}
-        <TabsContent value="birthday" className="space-y-6">
+        {activeTab === 'birthday' && (
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <FlexBetween>
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
+                  <CardTitle>
+                    <Settings size={20} />
                     Configuración de Cumpleaños
                   </CardTitle>
                   <CardDescription>
                     Define los mensajes y beneficios para los cumpleañeros
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <FlexGap>
                   <Label htmlFor="birthday-active">Activo</Label>
-                  <Switch
-                    id="birthday-active"
-                    checked={birthdayConfig.is_active}
-                    onCheckedChange={(checked) => 
-                      setBirthdayConfig(prev => ({ ...prev, is_active: checked }))
-                    }
-                  />
-                </div>
-              </div>
+                  <SwitchWrapper>
+                    <SwitchInput
+                      id="birthday-active"
+                      type="checkbox"
+                      checked={birthdayConfig.is_active}
+                      onChange={(e) => 
+                        setBirthdayConfig(prev => ({ ...prev, is_active: e.target.checked }))
+                      }
+                    />
+                    <Slider />
+                  </SwitchWrapper>
+                </FlexGap>
+              </FlexBetween>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent>
               {/* Pre-cumpleaños */}
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+              <GrayBox>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <Calendar size={16} />
                   Notificación Pre-Cumpleaños
                 </h3>
                 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
+                <Grid>
+                  <FormGroup>
                     <Label>Días antes del cumpleaños</Label>
-                    <Input
+                    <StyledInput
                       type="number"
                       min="1"
                       max="30"
@@ -273,10 +626,10 @@ export const AdminPromotions = () => {
                         }))
                       }
                     />
-                  </div>
-                  <div className="space-y-2">
+                  </FormGroup>
+                  <FormGroup>
                     <Label>Descuento pre-cumpleaños (%)</Label>
-                    <Input
+                    <StyledInput
                       type="number"
                       min="0"
                       max="100"
@@ -288,12 +641,12 @@ export const AdminPromotions = () => {
                         }))
                       }
                     />
-                  </div>
-                </div>
+                  </FormGroup>
+                </Grid>
                 
-                <div className="space-y-2">
+                <FormGroup>
                   <Label>Mensaje pre-cumpleaños</Label>
-                  <Textarea
+                  <StyledTextarea
                     value={birthdayConfig.pre_birthday_message}
                     onChange={(e) => 
                       setBirthdayConfig(prev => ({ ...prev, pre_birthday_message: e.target.value }))
@@ -301,30 +654,30 @@ export const AdminPromotions = () => {
                     placeholder="🎂 ¡Tu semana especial se acerca!..."
                     rows={3}
                   />
-                </div>
-              </div>
+                </FormGroup>
+              </GrayBox>
 
               {/* Día del cumpleaños */}
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Gift className="h-4 w-4" />
+              <GrayBox>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <Gift size={16} />
                   Día del Cumpleaños
                 </h3>
                 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
+                <Grid>
+                  <FormGroup>
                     <Label>Regalo de cumpleaños</Label>
-                    <Input
+                    <StyledInput
                       value={birthdayConfig.birthday_gift}
                       onChange={(e) => 
                         setBirthdayConfig(prev => ({ ...prev, birthday_gift: e.target.value }))
                       }
                       placeholder="1 Galleta gratis"
                     />
-                  </div>
-                  <div className="space-y-2">
+                  </FormGroup>
+                  <FormGroup>
                     <Label>Descuento cumpleaños (%)</Label>
-                    <Input
+                    <StyledInput
                       type="number"
                       min="0"
                       max="100"
@@ -336,12 +689,12 @@ export const AdminPromotions = () => {
                         }))
                       }
                     />
-                  </div>
-                </div>
+                  </FormGroup>
+                </Grid>
                 
-                <div className="space-y-2">
+                <FormGroup>
                   <Label>Mensaje de cumpleaños</Label>
-                  <Textarea
+                  <StyledTextarea
                     value={birthdayConfig.birthday_message}
                     onChange={(e) => 
                       setBirthdayConfig(prev => ({ ...prev, birthday_message: e.target.value }))
@@ -349,144 +702,147 @@ export const AdminPromotions = () => {
                     placeholder="🎂 ¡Feliz Cumpleaños!..."
                     rows={3}
                   />
-                </div>
-              </div>
+                </FormGroup>
+              </GrayBox>
 
-              <div className="flex gap-4">
-                <Button onClick={saveBirthdayConfig} disabled={saving}>
+              <FlexGap gap="1rem">
+                <StyledButton onClick={saveBirthdayConfig} disabled={saving}>
                   {saving ? 'Guardando...' : 'Guardar Configuración'}
-                </Button>
-                <Button 
+                </StyledButton>
+                <StyledButton 
                   variant="outline" 
                   onClick={triggerBirthdayCheck}
                   disabled={sending}
                 >
                   {sending ? 'Verificando...' : 'Ejecutar Verificación Ahora'}
-                </Button>
-              </div>
+                </StyledButton>
+              </FlexGap>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
         {/* Tab: Promociones */}
-        <TabsContent value="promotions" className="space-y-6">
-          {/* Crear promoción */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Nueva Promoción
-              </CardTitle>
-              <CardDescription>
-                Crea una promoción para enviar a todos los usuarios con Apple Wallet
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Título</Label>
-                  <Input
-                    value={newPromotion.title}
+        {activeTab === 'promotions' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Crear promoción */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <Plus size={20} />
+                  Nueva Promoción
+                </CardTitle>
+                <CardDescription>
+                  Crea una promoción para enviar a todos los usuarios con Apple Wallet
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Grid>
+                  <FormGroup>
+                    <Label>Título</Label>
+                    <StyledInput
+                      value={newPromotion.title}
+                      onChange={(e) => 
+                        setNewPromotion(prev => ({ ...prev, title: e.target.value }))
+                      }
+                      placeholder="☕ Promoción Especial"
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <Label>Fecha de expiración (opcional)</Label>
+                    <StyledInput
+                      type="datetime-local"
+                      value={newPromotion.expires_at}
+                      onChange={(e) => 
+                        setNewPromotion(prev => ({ ...prev, expires_at: e.target.value }))
+                      }
+                    />
+                  </FormGroup>
+                </Grid>
+                
+                <FormGroup>
+                  <Label>Mensaje</Label>
+                  <StyledTextarea
+                    value={newPromotion.message}
                     onChange={(e) => 
-                      setNewPromotion(prev => ({ ...prev, title: e.target.value }))
+                      setNewPromotion(prev => ({ ...prev, message: e.target.value }))
                     }
-                    placeholder="☕ Promoción Especial"
+                    placeholder="Hoy 2x1 en todas las bebidas..."
+                    rows={3}
                   />
+                </FormGroup>
+                
+                <div>
+                  <StyledButton onClick={createPromotion} disabled={saving}>
+                    <Plus size={16} style={{ marginRight: '0.5rem' }} />
+                    Crear Promoción
+                  </StyledButton>
                 </div>
-                <div className="space-y-2">
-                  <Label>Fecha de expiración (opcional)</Label>
-                  <Input
-                    type="datetime-local"
-                    value={newPromotion.expires_at}
-                    onChange={(e) => 
-                      setNewPromotion(prev => ({ ...prev, expires_at: e.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Mensaje</Label>
-                <Textarea
-                  value={newPromotion.message}
-                  onChange={(e) => 
-                    setNewPromotion(prev => ({ ...prev, message: e.target.value }))
-                  }
-                  placeholder="Hoy 2x1 en todas las bebidas..."
-                  rows={3}
-                />
-              </div>
-              
-              <Button onClick={createPromotion} disabled={saving}>
-                <Plus className="h-4 w-4 mr-2" />
-                Crear Promoción
-              </Button>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Lista de promociones */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Promociones Activas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {promotions.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  No hay promociones creadas
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {promotions.map((promo) => (
-                    <div 
-                      key={promo.id} 
-                      className="flex items-start justify-between p-4 border rounded-lg"
-                    >
-                      <div className="space-y-1">
-                        <h4 className="font-semibold">{promo.title}</h4>
-                        <p className="text-sm text-muted-foreground">{promo.message}</p>
-                        <div className="flex gap-4 text-xs text-muted-foreground">
-                          <span>
-                            Creada: {format(new Date(promo.created_at), 'dd MMM yyyy', { locale: es })}
-                          </span>
-                          {promo.sent_at && (
-                            <span className="text-green-600">
-                              Enviada: {format(new Date(promo.sent_at), 'dd MMM HH:mm', { locale: es })}
-                            </span>
-                          )}
-                          {promo.expires_at && (
+            {/* Lista de promociones */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Promociones Activas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {promotions.length === 0 ? (
+                  <p style={{ textAlign: 'center', padding: '2rem', color: theme.colors.mutedForeground }}>
+                    No hay promociones creadas
+                  </p>
+                ) : (
+                  <PromoList>
+                    {promotions.map((promo) => (
+                      <PromoItem key={promo.id}>
+                        <PromoInfo>
+                          <h4 style={{ fontWeight: 600, margin: 0 }}>{promo.title}</h4>
+                          <p style={{ fontSize: '0.875rem', color: theme.colors.mutedForeground, margin: 0 }}>{promo.message}</p>
+                          <PromoMeta>
                             <span>
-                              Expira: {format(new Date(promo.expires_at), 'dd MMM yyyy', { locale: es })}
+                              Creada: {format(new Date(promo.created_at), 'dd MMM yyyy', { locale: es })}
                             </span>
+                            {promo.sent_at && (
+                              <span style={{ color: '#16a34a' }}>
+                                Enviada: {format(new Date(promo.sent_at), 'dd MMM HH:mm', { locale: es })}
+                              </span>
+                            )}
+                            {promo.expires_at && (
+                              <span>
+                                Expira: {format(new Date(promo.expires_at), 'dd MMM yyyy', { locale: es })}
+                              </span>
+                            )}
+                          </PromoMeta>
+                        </PromoInfo>
+                        <FlexGap gap="0.5rem">
+                          {!promo.sent_at && (
+                            <StyledButton 
+                              size="sm" 
+                              onClick={() => sendPromotion(promo.id)}
+                              disabled={sending}
+                            >
+                              <Send size={14} style={{ marginRight: '0.25rem' }} />
+                              Enviar
+                            </StyledButton>
                           )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {!promo.sent_at && (
-                          <Button 
+                          <StyledButton 
                             size="sm" 
-                            onClick={() => sendPromotion(promo.id)}
-                            disabled={sending}
+                            variant="destructive"
+                            onClick={() => deletePromotion(promo.id)}
                           >
-                            <Send className="h-4 w-4 mr-1" />
-                            Enviar
-                          </Button>
-                        )}
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => deletePromotion(promo.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </Container>
+                            <Trash2 size={14} />
+                          </StyledButton>
+                        </FlexGap>
+                      </PromoItem>
+                    ))}
+                  </PromoList>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </TabsContainer>
+    </PageContainer>
   );
 };
+
+export default AdminPromotions;
