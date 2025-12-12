@@ -182,18 +182,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
   // Obtener promoción activa
   const activePromotion = await getActivePromotion(cleanUserId);
   
-  // Construir mensaje de actualizaciones
-  let updatesValue = `📅 ${new Date().toLocaleDateString('es-MX', { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
-  })}\n\n`;
-  
-  if (activePromotion) {
-    updatesValue += `${activePromotion.message}`;
-  } else {
-    updatesValue += '¡Gracias por tu lealtad! Acumula sellos y gana recompensas.';
-  }
+  // La promoción activa se usa directamente en backFields
 
   // --- TRUCO ANTI-CACHÉ ---
   const ts = Date.now();
@@ -258,52 +247,54 @@ export async function generatePassBuffer(customerData, authToken = null) {
         }
       ],
       backFields: [
-        // ACTUALIZACIONES (dinámico - promociones/cumpleaños)
+        // 1. SECCIÓN DE ENLACES RÁPIDOS (Emojis simulando iconos)
         {
-          key: 'updates',
-          label: '📢 ÚLTIMAS NOTICIAS',
-          value: updatesValue
+          key: 'quick_links',
+          label: 'TUS ENLACES',
+          value: '📸 Síguenos en Instagram @leduomx\n📍 Encuentra tu sucursal\n📝 Ver Menú Digital',
+          textAlignment: 'PKTextAlignmentLeft'
         },
-        // PROGRESO
+
+        // 2. SECCIÓN DE NOTICIAS (Dinámica)
         {
-          key: 'progress',
-          label: '🎯 TU PROGRESO',
-          value: `Sellos: ${stamps}/8 ${stamps >= 8 ? '🎁 ¡Bebida gratis lista!' : ''}\nPuntos cashback: ${cashbackPoints}\nPuntos nivel: ${levelPoints}\nNivel: ${level}`
+          key: 'weekly_promo',
+          label: 'ÚLTIMAS ACTUALIZACIONES 🔔',
+          value: activePromotion 
+            ? activePromotion.message 
+            : '¡Bienvenido al Club Le Duo! 🥐🍵\nMantente atento a este espacio: aquí publicaremos promociones relámpago y regalos exclusivos cada semana.',
+          changeMessage: '🔔 Novedades Le Duo: %@'
         },
-        // ENLACES
+
+        // 3. SECCIÓN EDUCATIVA (Cómo funciona)
         {
-          key: 'links',
-          label: '🔗 SÍGUENOS',
-          value: '📸 Instagram: @leduomx\n🎵 Nuestra playlist en Spotify\n👥 Invita amigos y gana puntos',
-          attributedValue: '<a href="https://instagram.com/leduomx">@leduomx</a>'
+          key: 'how_it_works',
+          label: 'TU TARJETA LE DUO',
+          value: '🆕 Ahora tu lealtad se recompensa mejor.\n\n☕ Recibe 1 sello por cada bebida preparada.\n🎉 Al juntar 8 sellos, ¡tu siguiente bebida es GRATIS!\n🎂 Recibe un regalo especial en tu cumpleaños.\n\nEscanea tu código QR en caja cada vez que nos visites.',
+          textAlignment: 'PKTextAlignmentLeft'
         },
-        // CONTACTO
+
+        // 4. DATOS DEL CLIENTE (Personalización)
         {
-          key: 'contact',
-          label: '📍 ENCUÉNTRANOS',
-          value: 'Coahuila 111, Roma Nte., CDMX\n📞 7711295938\n🌐 www.leduo.mx\n✉️ hola@leduo.mx',
-          attributedValue: '<a href="https://maps.app.goo.gl/j1VUSDoehyfLLZUUA">Cómo llegar</a>'
+          key: 'account_info',
+          label: 'TITULAR DE LA CUENTA',
+          value: `${name}\nMiembro ID: ${cleanUserId}`,
+          textAlignment: 'PKTextAlignmentRight'
         },
-        // BENEFICIOS
+
+        // 5. CONTACTO Y LEGALES
         {
-          key: 'benefits',
-          label: '🎁 BENEFICIOS',
-          value: '• 8 sellos = 1 bebida gratis\n• Acumula puntos cashback\n• +150 puntos = LeDuo Legend\n• Ruleta de premios semanal\n• Ofertas exclusivas de cumpleaños'
+          key: 'contact_footer',
+          label: 'ENLACES DE INTERÉS',
+          value: '📞 Tel: 7711295938\n🌐 Web: www.leduo.mx\n📍 Coahuila 111, Roma Nte., CDMX\n\n© 2025 Le Duo Coffee Club',
+          textAlignment: 'PKTextAlignmentLeft'
         },
-        // TÉRMINOS
-        {
-          key: 'terms',
-          label: '📋 TÉRMINOS',
-          value: 'Puntos válidos por 1 año desde la última visita.\nRecompensas no acumulables con otras promociones.\nConsulta términos completos en leduo.mx/terminos'
-        },
-        // ÚLTIMA ACTUALIZACIÓN
+        
+        // 6. TIMESTAMP (Para verificar actualizaciones)
         {
           key: 'last_update',
-          label: '🔄 Actualizado',
-          value: new Date().toLocaleString('es-MX', { 
-            dateStyle: 'short', 
-            timeStyle: 'short' 
-          })
+          label: 'Última Actualización',
+          value: new Date().toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }),
+          textAlignment: 'PKTextAlignmentRight'
         }
       ]
     },
