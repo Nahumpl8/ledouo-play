@@ -252,7 +252,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
           key: 'quick_links',
           label: 'SIGUE LA CONVERSACIÓN',
           // Usamos \n para saltos de línea limpios
-          value: '📸 Instagram:\nhttps://instagram.com/leduomx\n\n🎵 TikTok:\nhttps://tiktok.com/@leduomx\n\n📝 Menú Digital:\nhttps://www.leduo.mx/menu',
+          value: '📸 Instagram:\nhttps://instagram.com/leduomx\n🎵 TikTok:\nhttps://tiktok.com/@leduomx\n📝 Menú Digital:\nhttps://www.leduo.mx/menu',
           textAlignment: 'PKTextAlignmentLeft'
         },
 
