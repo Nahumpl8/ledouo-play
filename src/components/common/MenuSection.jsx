@@ -86,7 +86,6 @@ const SmallItemName = styled.p`
 
 const ProductTitle = styled.h3`
   font-size: 2.5rem; 
-  margin: 0 0 1rem 0; 
   color: #1e3932;
   font-family: ${props => props.theme.fontPrimary};
   
@@ -98,7 +97,6 @@ const ProductTitle = styled.h3`
 const ProductDescription = styled.p`
   font-size: 1.1rem; 
   color: #555; 
-  margin: 0.5rem 0 1.5rem 0; 
   line-height: 1.6;
   
   @media (max-width: 768px) {
@@ -109,7 +107,6 @@ const ProductDescription = styled.p`
 const TemperatureToggle = styled.div`
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
   background: #f5f5f5;
   padding: 4px;
   border-radius: 50px;

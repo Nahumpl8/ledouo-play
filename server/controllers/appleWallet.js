@@ -250,7 +250,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 1. SECCIÓN DE ENLACES RÁPIDOS (Emojis simulando iconos)
         {
           key: 'quick_links',
-          label: 'SIGUE LA CONVERSACIÓN',
+          label: '📱 SIGUE LA CONVERSACIÓN',
           // Usamos \n para saltos de línea limpios
           value: '📸 Instagram:\nhttps://instagram.com/leduomx\n🎵 TikTok:\nhttps://tiktok.com/@leduomx\n📝 Menú Digital:\nhttps://www.leduo.mx/menu',
           textAlignment: 'PKTextAlignmentLeft'
@@ -259,7 +259,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 2. SECCIÓN DE NOTICIAS (Dinámica)
         {
           key: 'weekly_promo',
-          label: 'ÚLTIMAS ACTUALIZACIONES 🔔',
+          label: '🍵NOVEDADES LE DUO🔔',
           value: activePromotion 
             ? activePromotion.message 
             : '¡Bienvenido al Club Le Duo! 🥐🍵\nMantente atento a este espacio: aquí publicaremos promociones relámpago y regalos exclusivos cada semana.',
@@ -269,7 +269,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 3. SECCIÓN EDUCATIVA (Cómo funciona)
         {
           key: 'how_it_works',
-          label: 'TU TARJETA LE DUO',
+          label: '🙌TU TARJETA LE DUO',
           value: '🆕 Ahora tu lealtad se recompensa mejor.\n\n☕ Recibe 1 sello por cada bebida preparada.\n🎉 Al juntar 8 sellos, ¡tu siguiente bebida es GRATIS!\n🎂 Recibe un regalo especial en tu cumpleaños.\n\nEscanea tu código QR en caja cada vez que nos visites.',
           textAlignment: 'PKTextAlignmentLeft'
         },
@@ -277,7 +277,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 4. DATOS DEL CLIENTE (Personalización)
         {
           key: 'account_info',
-          label: 'TITULAR DE LA CUENTA',
+          label: '🫶TITULAR DE LA CUENTA',
           value: `${name}\nMiembro ID: ${cleanUserId.split('-').join('')}\nNivel: ${level}`,
           textAlignment: 'PKTextAlignmentRight'
         },
@@ -285,7 +285,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 5. CONTACTO Y LEGALES
         {
           key: 'contact_footer',
-          label: 'ENLACES DE INTERÉS',
+          label: '📞ENLACES DE INTERÉS',
           value: '📞 Tel: 7711295938\n🌐 Web: www.leduo.mx\n📍 Coahuila 111, Roma Nte., CDMX\n\n© 2025 Le Duo Coffee, Matcha & Bread 🍵',
           textAlignment: 'PKTextAlignmentLeft'
         },
@@ -293,7 +293,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 6. TIMESTAMP (Para verificar actualizaciones)
         {
           key: 'last_update',
-          label: 'Última Actualización',
+          label: '⏰Última Actualización',
           value: new Date().toLocaleString('es-MX', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }),
           textAlignment: 'PKTextAlignmentRight'
         }
