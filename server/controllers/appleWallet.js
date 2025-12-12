@@ -214,7 +214,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
     formatVersion: 1,
     passTypeIdentifier: 'pass.com.leduo.loyalty',
     teamIdentifier: 'L4P8PF94N6',
-    organizationName: 'Le Duo',
+    organizationName: 'Le Duo ☕️·🍵·🥐',
     description: 'Tarjeta de Lealtad Le Duo',
     serialNumber: serialNumber,
     
@@ -263,7 +263,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
           value: activePromotion 
             ? activePromotion.message 
             : '¡Bienvenido al Club Le Duo! 🥐🍵\nMantente atento a este espacio: aquí publicaremos promociones relámpago y regalos exclusivos cada semana.',
-          changeMessage: '🔔 Novedades Le Duo: %@'
+          changeMessage: '🍵Novedades Le Duo·%@'
         },
 
         // 3. SECCIÓN EDUCATIVA (Cómo funciona)
