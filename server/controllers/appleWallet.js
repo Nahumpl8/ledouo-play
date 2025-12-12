@@ -19,7 +19,7 @@ const WEB_SERVICE_URL = process.env.APPLE_WALLET_SERVER_URL || 'https://ledouo-p
 // Proxy URL para operaciones de base de datos
 const PROXY_URL = process.env.WALLET_PROXY_URL || `${SUPABASE_URL}/functions/v1/wallet-db-proxy`;
 const PROXY_SECRET = process.env.WALLET_PROXY_SECRET;
-const WALLET_TOKEN_SECRET = process.env.WALLET_TOKEN_SECRET || 'leduo-wallet-secret-2024';
+const WALLET_TOKEN_SECRET = process.env.WALLET_TOKEN_SECRET;
 
 // ============================================================
 // Helper: Genera un token determinístico basado en el userId
@@ -250,8 +250,9 @@ export async function generatePassBuffer(customerData, authToken = null) {
         // 1. SECCIÓN DE ENLACES RÁPIDOS (Emojis simulando iconos)
         {
           key: 'quick_links',
-          label: 'TUS ENLACES',
-          value: '📸 Síguenos en Instagram @leduomx\n📍 Encuentra tu sucursal\n📝 Ver Menú Digital',
+          label: 'SIGUE LA CONVERSACIÓN',
+          // Usamos \n para saltos de línea limpios
+          value: '📸 Instagram:\nhttps://instagram.com/leduomx\n\n🎵 TikTok:\nhttps://tiktok.com/@leduomx\n\n📝 Menú Digital:\nhttps://www.leduo.mx/menu',
           textAlignment: 'PKTextAlignmentLeft'
         },
 
@@ -277,7 +278,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         {
           key: 'account_info',
           label: 'TITULAR DE LA CUENTA',
-          value: `${name}\nMiembro ID: ${cleanUserId}`,
+          value: `${name}\nMiembro ID: ${cleanUserId.split('-').join('')}\nNivel: ${level}`,
           textAlignment: 'PKTextAlignmentRight'
         },
 
@@ -285,7 +286,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         {
           key: 'contact_footer',
           label: 'ENLACES DE INTERÉS',
-          value: '📞 Tel: 7711295938\n🌐 Web: www.leduo.mx\n📍 Coahuila 111, Roma Nte., CDMX\n\n© 2025 Le Duo Coffee Club',
+          value: '📞 Tel: 7711295938\n🌐 Web: www.leduo.mx\n📍 Coahuila 111, Roma Nte., CDMX\n\n© 2025 Le Duo Coffee, Matcha & Bread 🍵',
           textAlignment: 'PKTextAlignmentLeft'
         },
         
