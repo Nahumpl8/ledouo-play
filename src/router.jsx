@@ -10,6 +10,8 @@ import { ScrollToTop } from './components/layout/ScrollToTop';
 import { Landing } from './pages/Landing';
 import { Register } from './pages/Register';
 import { Login } from './pages/Login';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { AppHome } from './pages/AppHome';
 import { Roulette } from './pages/Roulette';
 import { Account } from './pages/Account';
@@ -40,6 +42,8 @@ export const Router = () => {
 
         {/* Auth routes */}
         <Route path="/app/login" element={<Login />} />
+        <Route path="/app/forgot-password" element={<ForgotPassword />} />
+        <Route path="/app/reset-password" element={<ResetPassword />} />
 
         {/* Protected routes */}
         <Route path="/app" element={
