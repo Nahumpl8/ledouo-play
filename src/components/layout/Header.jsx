@@ -318,20 +318,22 @@ export const Header = () => {
   // Build menu items based on role - RUTAS CORREGIDAS
   const getMenuItems = () => {
     const items = [];
-    
+
     // Common items for everyone
     items.push({ to: '/', icon: Home, label: 'Inicio' });
     items.push({ to: '/workshops', icon: Calendar, label: 'Eventos' });
-    
+
     if (isLoggedIn) {
       // Logged in users
-      items.push({ to: '/app/cuenta', icon: User, label: 'Mi Cuenta' });
+      items.push({ to: '/app', icon: User, label: 'Mi Cuenta' });
+      items.push({ to: '/app/cuenta', icon: User, label: 'Mis Datos' });
+
       items.push({ to: '/app/ruleta', icon: Zap, label: 'Ruleta' });
-      
+
       if (isStaff || isAdmin) {
         items.push({ to: '/app/scan', icon: Scan, label: 'Scan' });
       }
-      
+
       if (isAdmin) {
         items.push({ to: '/admin/events', icon: Plus, label: 'Crear Evento' });
         items.push({ to: '/admin/clients', icon: Users, label: 'Clientes' });
@@ -342,7 +344,7 @@ export const Header = () => {
       items.push({ to: '/app/login', icon: LogIn, label: 'Ingresar' });
       items.push({ to: '/register', icon: UserPlus, label: 'Crear Cuenta' });
     }
-    
+
     return items;
   };
 
@@ -393,7 +395,7 @@ export const Header = () => {
                 <span>{item.label}</span>
               </MenuItemButton>
             ))}
-            
+
             {isLoggedIn && (
               <MenuItemButtonElement onClick={handleLogout} title="Salir">
                 <LogOut size={26} />
