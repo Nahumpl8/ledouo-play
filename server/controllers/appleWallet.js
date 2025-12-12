@@ -263,7 +263,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
           value: activePromotion 
             ? activePromotion.message 
             : '¡Bienvenido al Club Le Duo! 🥐🍵\nMantente atento a este espacio: aquí publicaremos promociones relámpago y regalos exclusivos cada semana.',
-          changeMessage: '🍵Novedades Le Duo·%@'
+          changeMessage: 'Le Duo · %@'
         },
 
         // 3. SECCIÓN EDUCATIVA (Cómo funciona)
