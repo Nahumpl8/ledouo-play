@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.wallet-db-proxy]
 verify_jwt = false
+
+[functions.birthday-check]
+verify_jwt = false
