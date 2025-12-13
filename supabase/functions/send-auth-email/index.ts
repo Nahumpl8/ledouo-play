@@ -33,17 +33,15 @@ const generatePasswordResetEmail = (
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" style="width: 100%; max-width: 520px; border-collapse: collapse; background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);">
           
-          <!-- Header con Logo -->
           <tr>
             <td align="center" style="padding: 40px 40px 24px 40px; background: linear-gradient(135deg, #5C6B4A 0%, #4A5A3A 100%); border-radius: 16px 16px 0 0;">
-              <img src="https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images/logo-white.png" alt="Le Duo" style="height: 60px; width: auto;" />
+              <img src="https://i.ibb.co/fRrrygx/sello-Leduo.png" alt="Le Duo" style="height: 60px; width: auto;" />
               <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 600; color: #FFFFFF; letter-spacing: 0.5px;">
                 Recupera tu cuenta
               </h1>
             </td>
           </tr>
           
-          <!-- Contenido -->
           <tr>
             <td style="padding: 40px;">
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #3D3D3D;">
@@ -58,7 +56,6 @@ const generatePasswordResetEmail = (
                 Haz clic en el botón de abajo para crear una nueva contraseña:
               </p>
               
-              <!-- Botón CTA -->
               <table role="presentation" style="width: 100%; border-collapse: collapse;">
                 <tr>
                   <td align="center">
@@ -81,24 +78,25 @@ const generatePasswordResetEmail = (
             </td>
           </tr>
           
-          <!-- Footer -->
           <tr>
             <td style="padding: 24px 40px 32px 40px; background-color: #FAFAF8; border-radius: 0 0 16px 16px; text-align: center;">
               <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #5C6B4A;">
-                Le Duo Coffee
+                Le Duo Coffee, Matcha & Bread
               </p>
               <p style="margin: 0 0 12px 0; font-size: 13px; color: #888888;">
                 Colima 124, Roma Norte, CDMX
               </p>
               <p style="margin: 0; font-size: 13px; color: #888888;">
-                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">@leduo.mx</a>
+                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">admin@leduo.mx</a>
+              </p>
+              <p style="margin: 0; font-size: 13px; color: #888888;">
+                <a href="https://tiktok.com/@leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">@leduo.mx</a>
               </p>
             </td>
           </tr>
           
         </table>
         
-        <!-- Copyright -->
         <p style="margin: 24px 0 0 0; font-size: 12px; color: #AAAAAA;">
           © ${new Date().getFullYear()} Le Duo. Todos los derechos reservados.
         </p>
@@ -112,31 +110,27 @@ const generatePasswordResetEmail = (
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-auth-email function called");
-  console.log("Request method:", req.method);
-  
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const rawBody = await req.text();
-    console.log("Raw request body:", rawBody);
-    
+
     if (!rawBody || rawBody.trim() === "") {
-      console.error("Empty request body received");
       return new Response(
         JSON.stringify({ error: "Empty request body" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-    
-    const payload: RecoveryEmailRequest = JSON.parse(rawBody);
-    console.log("Parsed request:", { email: payload.email, type: payload.type });
 
-    if (!payload.email || !payload.type) {
-      console.error("Missing email or type:", payload);
+    const payload: RecoveryEmailRequest = JSON.parse(rawBody);
+    console.log("Processing recovery for:", payload.email);
+
+    if (!payload.email) {
       return new Response(
-        JSON.stringify({ error: "Missing email or type" }),
+        JSON.stringify({ error: "Missing email" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -144,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Initialize Supabase Admin client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -160,44 +154,40 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     const userName = profile?.name || "";
-    // Usar dominio de producción como fallback
-    const redirectTo = payload.redirectTo || "https://www.leduo.mx/app/reset-password";
-    
-    console.log("Frontend redirectTo:", payload.redirectTo);
-    console.log("Final redirectTo used:", redirectTo);
 
-    // Generate recovery link using Admin API
-    console.log("Generating recovery link for:", payload.email);
+    // URL de redirección: Usamos la que viene del front o el fallback a producción
+    const redirectTo = payload.redirectTo || "https://www.leduo.mx/app/reset-password";
+    console.log("Redirecting to:", redirectTo);
+
+    // --- CORRECCIÓN CLAVE AQUÍ ---
+    // Generar el link pasando 'redirectTo' en las opciones.
+    // Supabase se encarga de codificar todo correctamente.
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email: payload.email,
+      options: {
+        redirectTo: redirectTo
+      }
     });
 
     if (linkError) {
-      console.error("Error generating recovery link:", linkError);
+      console.error("Error generating link:", linkError);
       return new Response(
         JSON.stringify({ error: linkError.message }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log("Recovery link generated successfully");
-    const actionLink = linkData.properties.action_link;
-    console.log("Action link from Supabase:", actionLink);
-    
-    // Extraer el hash fragment (token) del action_link y construir URL correcta
-    const hashIndex = actionLink.indexOf('#');
-    const hashFragment = hashIndex !== -1 ? actionLink.substring(hashIndex) : '';
-    const resetLink = `${redirectTo}${hashFragment}`;
-    console.log("Final reset link:", resetLink);
-    console.log("Reset link:", resetLink);
+    // Usamos el action_link directamente. 
+    // Este link apunta a la API de Supabase, verifica el token, y luego redirige al usuario a tu frontend.
+    const resetLink = linkData.properties.action_link;
+    console.log("Generated Valid Link:", resetLink);
 
     // Generate email HTML
     const subject = "Recupera tu cuenta de Le Duo ☕";
     const html = generatePasswordResetEmail(userName, resetLink);
 
     // Send email via Resend
-    console.log("Sending email to:", payload.email);
     const emailResponse = await resend.emails.send({
       from: "Le Duo <no-reply@leduo.mx>",
       to: [payload.email],
@@ -205,7 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: html,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully");
 
     return new Response(
       JSON.stringify({ success: true, message: "Recovery email sent" }),
@@ -213,7 +203,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error("Error in send-auth-email function:", error);
+    console.error("Fatal error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
