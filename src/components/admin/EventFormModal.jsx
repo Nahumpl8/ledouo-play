@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X, Calendar, Clock } from 'lucide-react';
+import { X, Calendar, Clock, Upload, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -168,6 +168,75 @@ const GradientOption = styled.button`
   }
 `;
 
+const ImageUploadArea = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+`;
+
+const ImageUploader = styled.div`
+  border: 2px dashed ${props => props.$hasImage ? '#1e3932' : '#ddd'};
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: ${props => props.$hasImage ? 'rgba(30, 57, 50, 0.05)' : 'transparent'};
+  
+  &:hover {
+    border-color: #1e3932;
+    background: rgba(30, 57, 50, 0.05);
+  }
+  
+  input {
+    display: none;
+  }
+`;
+
+const ImagePreview = styled.div`
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 0.5rem;
+  position: relative;
+`;
+
+const RemoveImageBtn = styled.button`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    background: #e74c3c;
+  }
+`;
+
+const UploadPlaceholder = styled.div`
+  padding: 1.5rem 0;
+  color: #888;
+  
+  svg {
+    margin-bottom: 0.5rem;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+`;
+
 const SubmitButton = styled.button`
   width: 100%;
   padding: 1.1rem;
@@ -222,9 +291,54 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
     tags: event?.tags?.join(', ') || '',
     is_active: event?.is_active ?? true,
     event_type: event?.event_type || 'fixed',
-    duration_minutes: event?.duration_minutes || 60
+    duration_minutes: event?.duration_minutes || 60,
+    image_url: event?.image_url || '',
+    image_url_2: event?.image_url_2 || ''
   });
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (file, imageNumber) => {
+    if (!file) return;
+    
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('La imagen es muy grande (máx 5MB)');
+      return;
+    }
+    
+    setUploadingImage(true);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `event-${Date.now()}-${imageNumber}.${fileExt}`;
+      const filePath = `events/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('wallet-images')
+        .upload(filePath, file);
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('wallet-images')
+        .getPublicUrl(filePath);
+      
+      const fieldName = imageNumber === 1 ? 'image_url' : 'image_url_2';
+      setFormData(prev => ({ ...prev, [fieldName]: publicUrl }));
+      toast.success('Imagen subida correctamente');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Error al subir la imagen');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeImage = (imageNumber) => {
+    const fieldName = imageNumber === 1 ? 'image_url' : 'image_url_2';
+    setFormData(prev => ({ ...prev, [fieldName]: '' }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -249,7 +363,7 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
         title: formData.title,
         description: formData.description,
         long_description: formData.long_description,
-        date: formData.event_type === 'fixed' ? formData.date : new Date().toISOString().split('T')[0],
+        date: formData.event_type === 'fixed' ? formData.date : '2099-12-31',
         time: formData.event_type === 'fixed' ? formData.time : 'Horario abierto',
         location: formData.location,
         price: parseFloat(formData.price),
@@ -259,7 +373,9 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         is_active: formData.is_active,
         event_type: formData.event_type,
-        duration_minutes: parseInt(formData.duration_minutes)
+        duration_minutes: parseInt(formData.duration_minutes),
+        image_url: formData.image_url || null,
+        image_url_2: formData.image_url_2 || null
       };
 
       if (event) {
@@ -441,8 +557,77 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
                 />
               </FormGroup>
 
+              {/* Image Uploads */}
               <FormGroup>
-                <label>Color del evento</label>
+                <label>Fotos del evento (opcional)</label>
+                <HelpText style={{ marginTop: 0, marginBottom: '0.75rem' }}>
+                  Sube hasta 2 fotos. Si no subes ninguna, se usará el color seleccionado.
+                </HelpText>
+                <ImageUploadArea>
+                  <ImageUploader 
+                    $hasImage={!!formData.image_url}
+                    onClick={() => !uploadingImage && document.getElementById('image1').click()}
+                  >
+                    <input
+                      id="image1"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e.target.files[0], 1)}
+                    />
+                    {formData.image_url ? (
+                      <ImagePreview style={{ backgroundImage: `url(${formData.image_url})` }}>
+                        <RemoveImageBtn type="button" onClick={(e) => { e.stopPropagation(); removeImage(1); }}>
+                          <X size={14} />
+                        </RemoveImageBtn>
+                      </ImagePreview>
+                    ) : (
+                      <UploadPlaceholder>
+                        {uploadingImage ? (
+                          <p>Subiendo...</p>
+                        ) : (
+                          <>
+                            <Upload size={24} />
+                            <p>Foto principal</p>
+                          </>
+                        )}
+                      </UploadPlaceholder>
+                    )}
+                  </ImageUploader>
+                  
+                  <ImageUploader 
+                    $hasImage={!!formData.image_url_2}
+                    onClick={() => !uploadingImage && document.getElementById('image2').click()}
+                  >
+                    <input
+                      id="image2"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e.target.files[0], 2)}
+                    />
+                    {formData.image_url_2 ? (
+                      <ImagePreview style={{ backgroundImage: `url(${formData.image_url_2})` }}>
+                        <RemoveImageBtn type="button" onClick={(e) => { e.stopPropagation(); removeImage(2); }}>
+                          <X size={14} />
+                        </RemoveImageBtn>
+                      </ImagePreview>
+                    ) : (
+                      <UploadPlaceholder>
+                        {uploadingImage ? (
+                          <p>Subiendo...</p>
+                        ) : (
+                          <>
+                            <Image size={24} />
+                            <p>Foto secundaria</p>
+                          </>
+                        )}
+                      </UploadPlaceholder>
+                    )}
+                  </ImageUploader>
+                </ImageUploadArea>
+              </FormGroup>
+
+              <FormGroup>
+                <label>Color del evento (se usa si no hay foto)</label>
                 <GradientPicker>
                   {GRADIENT_OPTIONS.map((gradient, idx) => (
                     <GradientOption
@@ -468,7 +653,7 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
                 </label>
               </FormGroup>
 
-              <SubmitButton type="submit" disabled={loading}>
+              <SubmitButton type="submit" disabled={loading || uploadingImage}>
                 {loading ? 'Guardando...' : (event ? 'Guardar Cambios' : 'Crear Evento')}
               </SubmitButton>
             </FormGrid>

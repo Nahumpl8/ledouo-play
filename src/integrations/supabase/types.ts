@@ -208,6 +208,8 @@ export type Database = {
           event_type: string | null
           id: string
           image_gradient: string | null
+          image_url: string | null
+          image_url_2: string | null
           is_active: boolean | null
           location: string | null
           long_description: string | null
@@ -228,6 +230,8 @@ export type Database = {
           event_type?: string | null
           id?: string
           image_gradient?: string | null
+          image_url?: string | null
+          image_url_2?: string | null
           is_active?: boolean | null
           location?: string | null
           long_description?: string | null
@@ -248,6 +252,8 @@ export type Database = {
           event_type?: string | null
           id?: string
           image_gradient?: string | null
+          image_url?: string | null
+          image_url_2?: string | null
           is_active?: boolean | null
           location?: string | null
           long_description?: string | null

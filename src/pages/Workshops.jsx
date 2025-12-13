@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Clock, MapPin, ArrowRight, Users } from 'lucide-react';
+import { Clock, MapPin, ArrowRight, Users, Calendar, Filter, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,7 +39,6 @@ const Section = styled.section`
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   position: relative;
   overflow: hidden;
   background: #f8f9fa;
@@ -51,21 +50,16 @@ const Section = styled.section`
 
 const Container = styled.div`
   width: 100%;
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0; 
+  padding: 0 1.5rem;
   position: relative;
   z-index: 1;
-
-  @media (min-width: 1024px) {
-    padding: 0 20px;
-  }
 `;
 
 const HeaderWrapper = styled.div`
   text-align: center;
   margin-bottom: 2rem;
-  padding: 0 1.5rem;
   animation: ${fadeUp} 0.6s ease forwards;
 `;
 
@@ -95,22 +89,115 @@ const SectionDesc = styled.p`
   line-height: 1.6;
 `;
 
-const EventsContainer = styled.div`
+// Filters
+const FiltersWrapper = styled.div`
   display: flex;
-  gap: 1.5rem;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding: 1rem 24px 3rem 24px; 
-  -webkit-overflow-scrolling: touch;
-  width: 100%;
-  scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+  animation: ${fadeUp} 0.6s ease forwards;
+  animation-delay: 0.1s;
+  opacity: 0;
+`;
 
+const FilterButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 50px;
+  border: 2px solid ${props => props.$active ? '#1e3932' : '#e0e0e0'};
+  background: ${props => props.$active ? '#1e3932' : 'white'};
+  color: ${props => props.$active ? 'white' : '#333'};
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    border-color: #1e3932;
+    background: ${props => props.$active ? '#1e3932' : 'rgba(30, 57, 50, 0.05)'};
+  }
+`;
+
+const PriceDropdown = styled.div`
+  position: relative;
+`;
+
+const PriceButton = styled(FilterButton)`
+  min-width: 140px;
+  justify-content: space-between;
+`;
+
+const PriceMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  padding: 0.5rem;
+  min-width: 160px;
+  z-index: 100;
+  
+  button {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border: none;
+    background: ${props => props.$active ? 'rgba(30, 57, 50, 0.1)' : 'transparent'};
+    text-align: left;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 8px;
+    
+    &:hover {
+      background: rgba(30, 57, 50, 0.1);
+    }
+  }
+`;
+
+const ActiveFilters = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+`;
+
+const ClearButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.8rem;
+  border: none;
+  background: #f0f0f0;
+  color: #666;
+  font-size: 0.8rem;
+  border-radius: 20px;
+  cursor: pointer;
+  
+  &:hover {
+    background: #e0e0e0;
+  }
+`;
+
+// Grid
+const EventsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+  
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
   @media (min-width: 1024px) {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    overflow-x: visible;
-    padding: 1rem 0;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(4, 1fr);
   }
 `;
 
@@ -120,8 +207,6 @@ const EventCard = styled.div`
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
-  min-width: calc(100vw - 48px); 
-  scroll-snap-align: center;
   border-radius: 24px;
   overflow: hidden;
   display: flex;
@@ -131,28 +216,23 @@ const EventCard = styled.div`
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
 
-  @media (min-width: 600px) {
-    min-width: 320px;
-  }
-
-  @media (min-width: 1024px) {
-    min-width: auto;
-    &:hover {
-      transform: translateY(-8px);
-      background: rgba(255, 255, 255, 0.85);
-      box-shadow: 0 20px 50px -10px rgba(0,0,0,0.2);
-    }
+  &:hover {
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 20px 50px -10px rgba(0,0,0,0.2);
   }
 `;
 
 const CardImageArea = styled.div`
-  height: 180px;
+  height: 160px;
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 1.5rem;
+  padding: 1rem;
   background: ${props => props.$bgGradient};
+  background-size: cover;
+  background-position: center;
   
   &::after {
     content: '';
@@ -166,47 +246,42 @@ const CardImageArea = styled.div`
 const DateBadge = styled.div`
   background: rgba(255,255,255,0.95);
   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  padding: 0.6rem 0.9rem;
-  border-radius: 14px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
   text-align: center;
   color: #1f1f1f;
   z-index: 2;
 
-  span:first-child { display: block; font-size: 1.3rem; font-weight: 800; line-height: 1; }
-  span:last-child { display: block; font-size: 0.65rem; text-transform: uppercase; font-weight: 700; margin-top: 2px; letter-spacing: 0.5px; }
+  span:first-child { display: block; font-size: 1.2rem; font-weight: 800; line-height: 1; }
+  span:last-child { display: block; font-size: 0.6rem; text-transform: uppercase; font-weight: 700; margin-top: 2px; letter-spacing: 0.5px; }
 `;
 
-const TagsContainer = styled.div`
+const TypeBadge = styled.div`
+  background: ${props => props.$isExperience ? 'rgba(30, 57, 50, 0.9)' : 'rgba(0, 0, 0, 0.7)'};
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 4px;
   z-index: 2;
 `;
 
-const Tag = styled.span`
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(4px);
-  color: #fff;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border: 1px solid rgba(255,255,255,0.5);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-`;
-
 const CardBody = styled.div`
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 `;
 
 const EventTitle = styled.h3`
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  margin: 0 0 0.8rem 0;
+  margin: 0 0 0.6rem 0;
   line-height: 1.2;
   color: #1f1f1f;
 `;
@@ -214,31 +289,31 @@ const EventTitle = styled.h3`
 const MetaRow = styled.div`
   display: flex;
   gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
   color: #555;
   font-weight: 500;
 `;
 
 const MetaItem = styled.span`
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 4px;
   svg { color: #1e3932; }
 `;
 
 const EventDescription = styled.p`
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #666;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 `;
 
 const CardFooter = styled.div`
   border-top: 1px solid rgba(0,0,0,0.06);
-  padding-top: 1.2rem;
+  padding-top: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -246,13 +321,13 @@ const CardFooter = styled.div`
 `;
 
 const PriceBox = styled.div`
-  span:first-child { display: block; font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-  span:last-child { font-size: 1.3rem; font-weight: 800; color: #1e3932; }
+  span:first-child { display: block; font-size: 0.65rem; color: #999; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  span:last-child { font-size: 1.2rem; font-weight: 800; color: #1e3932; }
 `;
 
 const ReserveBtn = styled.button`
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: #1f1f1f;
   color: white;
@@ -273,11 +348,10 @@ const ReserveBtn = styled.button`
 const SpotsIndicator = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
+  gap: 0.25rem;
+  font-size: 0.75rem;
   color: ${props => props.$low ? '#e74c3c' : '#27ae60'};
   font-weight: 600;
-  margin-top: 0.5rem;
 `;
 
 const LoadingWrapper = styled.div`
@@ -302,132 +376,245 @@ const EmptyState = styled.div`
   }
 `;
 
+const PRICE_RANGES = [
+  { label: 'Todos', min: 0, max: Infinity },
+  { label: '$0 - $200', min: 0, max: 200 },
+  { label: '$200 - $500', min: 200, max: 500 },
+  { label: '$500+', min: 500, max: Infinity },
+];
+
 export const Workshops = () => {
-    const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
+  const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'fixed', 'open_schedule'
+  const [priceFilter, setPriceFilter] = useState(PRICE_RANGES[0]);
+  const [showPriceMenu, setShowPriceMenu] = useState(false);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchEvents = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('events')
-                    .select('*')
-                    .eq('is_active', true)
-                    .gte('date', new Date().toISOString().split('T')[0])
-                    .order('date', { ascending: true });
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('is_active', true)
+          .order('event_type', { ascending: true })
+          .order('date', { ascending: true });
 
-                if (error) throw error;
-                setEvents(data || []);
-            } catch (err) {
-                console.error('Error fetching events:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchEvents();
-    }, []);
-
-    const formatDate = (dateStr) => {
-        const date = new Date(dateStr);
-        const day = date.getDate();
-        const month = date.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase();
-        return { day, month };
+        if (error) throw error;
+        
+        // Filter: show open_schedule always, fixed only if date >= today
+        const filtered = (data || []).filter(event => {
+          if (event.event_type === 'open_schedule') return true;
+          return event.date >= today;
+        });
+        
+        setEvents(filtered);
+        setFilteredEvents(filtered);
+      } catch (err) {
+        console.error('Error fetching events:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleEventClick = (eventId) => {
-        navigate(`/workshops/${eventId}`);
-    };
+    fetchEvents();
+  }, []);
 
-    if (loading) {
-        return (
-            <Section>
-                <LoadingWrapper>
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </LoadingWrapper>
-            </Section>
-        );
+  useEffect(() => {
+    let result = [...events];
+    
+    // Type filter
+    if (typeFilter !== 'all') {
+      result = result.filter(e => e.event_type === typeFilter);
     }
+    
+    // Price filter
+    result = result.filter(e => e.price >= priceFilter.min && e.price < priceFilter.max);
+    
+    setFilteredEvents(result);
+  }, [events, typeFilter, priceFilter]);
 
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const day = date.getDate();
+    const month = date.toLocaleDateString('es-MX', { month: 'short' }).toUpperCase();
+    return { day, month };
+  };
+
+  const handleEventClick = (eventId) => {
+    navigate(`/workshops/${eventId}`);
+  };
+
+  const clearFilters = () => {
+    setTypeFilter('all');
+    setPriceFilter(PRICE_RANGES[0]);
+  };
+
+  const hasActiveFilters = typeFilter !== 'all' || priceFilter.label !== 'Todos';
+
+  if (loading) {
     return (
-        <Section>
-            <BackgroundBlobs>
-                <Blob style={{ top: '-10%', left: '-20%', width: '500px', height: '500px', background: '#e0c3fc' }} />
-                <Blob style={{ top: '30%', right: '-20%', width: '400px', height: '400px', background: '#8ec5fc', animationDelay: '-7s' }} />
-                <Blob style={{ bottom: '-10%', left: '10%', width: '350px', height: '350px', background: '#f5576c', animationDelay: '-15s' }} />
-            </BackgroundBlobs>
-
-            <Container>
-                <HeaderWrapper>
-                    <Subtitle>Eventos Le Duo</Subtitle>
-                    <SectionTitle>Próximos Talleres</SectionTitle>
-                    <SectionDesc>
-                        Experiencias únicas diseñadas para aprender, crear y conectar.
-                    </SectionDesc>
-                </HeaderWrapper>
-
-                {events.length === 0 ? (
-                    <EmptyState>
-                        <h3>No hay eventos próximos</h3>
-                        <p>¡Vuelve pronto para ver nuevas experiencias!</p>
-                    </EmptyState>
-                ) : (
-                    <EventsContainer>
-                        {events.map((event, index) => {
-                            const { day, month } = formatDate(event.date);
-                            const lowSpots = event.spots_available <= 5;
-                            
-                            return (
-                                <EventCard
-                                    key={event.id}
-                                    style={{ animationDelay: `${index * 100}ms` }}
-                                    onClick={() => handleEventClick(event.id)}
-                                >
-                                    <CardImageArea $bgGradient={event.image_gradient}>
-                                        <DateBadge>
-                                            <span>{day}</span>
-                                            <span>{month}</span>
-                                        </DateBadge>
-                                        <TagsContainer>
-                                            {event.tags?.map(tag => (
-                                                <Tag key={tag}>{tag}</Tag>
-                                            ))}
-                                        </TagsContainer>
-                                    </CardImageArea>
-
-                                    <CardBody>
-                                        <EventTitle>{event.title}</EventTitle>
-                                        <MetaRow>
-                                            <MetaItem><Clock size={16} /> {event.time}</MetaItem>
-                                            <MetaItem><MapPin size={16} /> {event.location}</MetaItem>
-                                        </MetaRow>
-                                        <EventDescription>{event.description}</EventDescription>
-                                        
-                                        <SpotsIndicator $low={lowSpots}>
-                                            <Users size={14} />
-                                            {event.spots_available > 0 
-                                                ? `${event.spots_available} lugares disponibles`
-                                                : 'Sin lugares disponibles'}
-                                        </SpotsIndicator>
-
-                                        <CardFooter>
-                                            <PriceBox>
-                                                <span>Por persona</span>
-                                                <span>${event.price}</span>
-                                            </PriceBox>
-                                            <ReserveBtn onClick={(e) => { e.stopPropagation(); handleEventClick(event.id); }}>
-                                                <ArrowRight size={22} />
-                                            </ReserveBtn>
-                                        </CardFooter>
-                                    </CardBody>
-                                </EventCard>
-                            );
-                        })}
-                        <div style={{ minWidth: '1px' }}></div>
-                    </EventsContainer>
-                )}
-            </Container>
-        </Section>
+      <Section>
+        <LoadingWrapper>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </LoadingWrapper>
+      </Section>
     );
+  }
+
+  return (
+    <Section>
+      <BackgroundBlobs>
+        <Blob style={{ top: '-10%', left: '-20%', width: '500px', height: '500px', background: '#e0c3fc' }} />
+        <Blob style={{ top: '30%', right: '-20%', width: '400px', height: '400px', background: '#8ec5fc', animationDelay: '-7s' }} />
+        <Blob style={{ bottom: '-10%', left: '10%', width: '350px', height: '350px', background: '#f5576c', animationDelay: '-15s' }} />
+      </BackgroundBlobs>
+
+      <Container>
+        <HeaderWrapper>
+          <Subtitle>Eventos Le Duo</Subtitle>
+          <SectionTitle>Talleres y Experiencias</SectionTitle>
+          <SectionDesc>
+            Experiencias únicas diseñadas para aprender, crear y conectar.
+          </SectionDesc>
+        </HeaderWrapper>
+
+        <FiltersWrapper>
+          <FilterButton 
+            $active={typeFilter === 'all'} 
+            onClick={() => setTypeFilter('all')}
+          >
+            Todos
+          </FilterButton>
+          <FilterButton 
+            $active={typeFilter === 'fixed'} 
+            onClick={() => setTypeFilter('fixed')}
+          >
+            <Calendar size={16} /> Eventos
+          </FilterButton>
+          <FilterButton 
+            $active={typeFilter === 'open_schedule'} 
+            onClick={() => setTypeFilter('open_schedule')}
+          >
+            <Clock size={16} /> Experiencias
+          </FilterButton>
+          
+          <PriceDropdown>
+            <PriceButton 
+              $active={priceFilter.label !== 'Todos'}
+              onClick={() => setShowPriceMenu(!showPriceMenu)}
+            >
+              <Filter size={16} />
+              {priceFilter.label}
+            </PriceButton>
+            {showPriceMenu && (
+              <PriceMenu>
+                {PRICE_RANGES.map((range) => (
+                  <button
+                    key={range.label}
+                    onClick={() => {
+                      setPriceFilter(range);
+                      setShowPriceMenu(false);
+                    }}
+                    style={{ background: priceFilter.label === range.label ? 'rgba(30, 57, 50, 0.1)' : 'transparent' }}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </PriceMenu>
+            )}
+          </PriceDropdown>
+          
+          {hasActiveFilters && (
+            <ActiveFilters>
+              <ClearButton onClick={clearFilters}>
+                <X size={14} /> Limpiar filtros
+              </ClearButton>
+            </ActiveFilters>
+          )}
+        </FiltersWrapper>
+
+        {filteredEvents.length === 0 ? (
+          <EmptyState>
+            <h3>No hay eventos que coincidan</h3>
+            <p>Intenta ajustar los filtros o vuelve pronto para ver nuevas experiencias.</p>
+          </EmptyState>
+        ) : (
+          <EventsGrid>
+            {filteredEvents.map((event, index) => {
+              const isExperience = event.event_type === 'open_schedule';
+              const { day, month } = formatDate(event.date);
+              const lowSpots = event.spots_available <= 5;
+              const cardBg = event.image_url || event.image_gradient;
+              
+              return (
+                <EventCard
+                  key={event.id}
+                  style={{ animationDelay: `${index * 80}ms` }}
+                  onClick={() => handleEventClick(event.id)}
+                >
+                  <CardImageArea 
+                    $bgGradient={event.image_url ? `url(${event.image_url})` : event.image_gradient}
+                    style={event.image_url ? { backgroundImage: `url(${event.image_url})` } : {}}
+                  >
+                    {isExperience ? (
+                      <TypeBadge $isExperience>
+                        <Clock size={12} /> Experiencia
+                      </TypeBadge>
+                    ) : (
+                      <DateBadge>
+                        <span>{day}</span>
+                        <span>{month}</span>
+                      </DateBadge>
+                    )}
+                    {!isExperience && (
+                      <TypeBadge>
+                        <Calendar size={12} /> Evento
+                      </TypeBadge>
+                    )}
+                  </CardImageArea>
+
+                  <CardBody>
+                    <EventTitle>{event.title}</EventTitle>
+                    <MetaRow>
+                      {isExperience ? (
+                        <MetaItem><Clock size={14} /> Horario flexible</MetaItem>
+                      ) : (
+                        <MetaItem><Clock size={14} /> {event.time}</MetaItem>
+                      )}
+                      <MetaItem><MapPin size={14} /> {event.location}</MetaItem>
+                    </MetaRow>
+                    <EventDescription>{event.description}</EventDescription>
+                    
+                    {!isExperience && (
+                      <SpotsIndicator $low={lowSpots}>
+                        <Users size={12} />
+                        {event.spots_available > 0 
+                          ? `${event.spots_available} lugares`
+                          : 'Agotado'}
+                      </SpotsIndicator>
+                    )}
+
+                    <CardFooter>
+                      <PriceBox>
+                        <span>Por persona</span>
+                        <span>${event.price}</span>
+                      </PriceBox>
+                      <ReserveBtn onClick={(e) => { e.stopPropagation(); handleEventClick(event.id); }}>
+                        <ArrowRight size={20} />
+                      </ReserveBtn>
+                    </CardFooter>
+                  </CardBody>
+                </EventCard>
+              );
+            })}
+          </EventsGrid>
+        )}
+      </Container>
+    </Section>
+  );
 };
