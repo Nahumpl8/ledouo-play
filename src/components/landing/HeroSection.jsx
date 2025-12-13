@@ -309,7 +309,7 @@ const CircleBackdrop = styled.div`
       box-shadow: 0 0 20px ${props => props.$accentColor};
     }
   }
-`; 
+`;
 
 const HeroImage = styled.div`
   position: relative;
@@ -496,15 +496,14 @@ export const HeroSection = () => {
             </div>
 
             <ButtonGroup>
-              <BtnPrimary
+              <BtnPrimary to="/register" $accentColor={theme.accent}
+                $primaryColor={theme.primary}>
+                Obten tu pase digital <ArrowRight size={20} />
+              </BtnPrimary>
+              <BtnSecondary
                 to="/menu"
-                $accentColor={theme.accent}
-                $primaryColor={theme.primary}
               >
                 Ver Menú Le Duo
-              </BtnPrimary>
-              <BtnSecondary to="/eventos-talleres">
-                Eventos & Talleres <ArrowRight size={20} />
               </BtnSecondary>
             </ButtonGroup>
 
@@ -558,7 +557,7 @@ export const HeroSection = () => {
 
       {/* Sección del Menú integrada abajo */}
       <MenuSection />
-      
+
     </>
   );
 };

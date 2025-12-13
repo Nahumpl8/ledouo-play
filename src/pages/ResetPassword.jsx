@@ -92,34 +92,80 @@ export const ResetPassword = () => {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // Verificamos si hay sesión. El link mágico de Supabase inicia sesión automáticamente.
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
+    let mounted = true;
 
-        if (!session) {
-          // Escuchamos cambios de estado por si acaso entra un segundo después.
-          const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'PASSWORD_RECOVERY' || session) {
-              setCheckingSession(false);
-            } else {
-              setError('Enlace inválido o expirado.');
-              setCheckingSession(false);
-            }
-          });
-
-          return () => authListener.subscription.unsubscribe();
-        } else {
+    const handleAuthCheck = async () => {
+      // 1. REVISAR SI HAY ERROR EXPLÍCITO EN URL
+      const hash = window.location.hash;
+      if (hash && hash.includes('error=')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const errorDescription = params.get('error_description') || 'Enlace inválido';
+        if (mounted) {
+          setError(errorDescription.replace(/\+/g, ' '));
           setCheckingSession(false);
         }
-      } catch (err) {
-        console.error(err);
-        setError('Error verificando la sesión.');
-        setCheckingSession(false);
+        return;
       }
+
+      // 2. INTENTO DE RECUPERACIÓN MANUAL (El truco para Strict Mode)
+      // A veces el cliente automático falla, así que buscamos el token nosotros mismos.
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken) {
+          try {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+
+            if (!sessionError && mounted) {
+              setCheckingSession(false);
+              return; // ¡Éxito manual!
+            }
+          } catch (e) {
+            console.error("Error manual setting session:", e);
+          }
+        }
+      }
+
+      // 3. REVISIÓN ESTÁNDAR DE SESIÓN
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && mounted) {
+        setCheckingSession(false);
+        return;
+      }
+
+      // 4. ESCUCHAR CAMBIOS (Para flujos más lentos)
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        // Aceptamos PASSWORD_RECOVERY o simplemente SIGNED_IN (a veces el evento varía)
+        if ((event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
+          if (mounted) {
+            setCheckingSession(false);
+            setError('');
+          }
+        }
+      });
+
+      // 5. TIMEOUT EXTENDIDO (4 segundos para móviles lentos)
+      setTimeout(async () => {
+        if (!mounted) return;
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession) {
+          setError('No pudimos verificar tu sesión. El enlace puede haber expirado.');
+          setCheckingSession(false);
+        }
+      }, 4000); // Aumentamos a 4 segundos
+
+      return () => {
+        mounted = false;
+        authListener.subscription.unsubscribe();
+      };
     };
 
-    checkSession();
+    handleAuthCheck();
   }, []);
 
   const handleChange = (e) => {
@@ -167,8 +213,19 @@ export const ResetPassword = () => {
   if (checkingSession) {
     return (
       <PageWrapper>
-        {/* Aquí puedes usar tu componente Spinner si lo tienes importado */}
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+        {/* Spinner visual simple */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+          <div style={{
+            border: '3px solid #e5e5e5',
+            borderTop: '3px solid #333',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <p style={{ color: '#666', fontSize: '0.9rem' }}>Verificando enlace...</p>
+        </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </PageWrapper>
     );
   }
@@ -205,7 +262,6 @@ export const ResetPassword = () => {
           {error && (
             <ErrorMessage>
               ⚠️ {error} <br />
-              {/* CORREGIDO: Ruta actualizada según tu Router */}
               <Link to="/app/forgot-password" style={{ fontSize: '0.8rem', marginTop: '5px', display: 'block' }}>
                 Solicitar nuevo enlace
               </Link>
@@ -242,7 +298,6 @@ export const ResetPassword = () => {
           </Form>
 
           <LinkText>
-            {/* CORREGIDO: Ruta actualizada según tu Router */}
             <Link to="/app/login">← Cancelar y volver</Link>
           </LinkText>
         </FormCard>

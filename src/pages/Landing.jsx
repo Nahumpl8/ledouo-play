@@ -247,8 +247,8 @@ const loyaltyFeatures = [
     description: 'Acumula sellos con cada compra. 8 sellos = 1 bebida gratis.'
   },
   {
-    title: 'Cashback en Puntos',
-    description: 'Gana puntos por cada peso que gastas para canjear por descuentos.'
+    title: 'Genera Puntos',
+    description: 'Gana puntos por cada peso que gastas para subir de nivel y recibir promociones especiales.'
   },
   {
     title: 'Sin Apps Adicionales',
