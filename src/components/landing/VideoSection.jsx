@@ -18,7 +18,7 @@ const pulse = keyframes`
 // --- Styled Components ---
 
 const SectionWrapper = styled.section`
-  padding: 5rem 0;
+  padding: 0;
   background: #f8f6f3; /* Color beige suave de fondo */
   position: relative;
   overflow: hidden;

@@ -11,6 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { addToGoogleWallet } from '../services/googleWallet';
 import { addToAppleWallet } from '../services/appleWallet';
 import { Crown, Trophy, Star } from 'lucide-react';
+import googleWalletIcon from '/public/googleWalletICon.png';
+import appleWalletIcon from '/public/appleWalletICon.png';
+
 
 const STORAGE_BASE = 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images';
 const STAMP_SPRITES = {
@@ -115,16 +118,6 @@ const StampInfo = styled.div`
   }
 `;
 
-const WalletButtonsRow = styled.div`
-  display: flex;
-  gap: ${props => props.theme.spacing.sm};
-  margin-bottom: ${props => props.theme.spacing.lg};
-  
-  button {
-    flex: 1;
-  }
-`;
-
 const SecondaryGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -160,8 +153,8 @@ const SecondaryCard = styled(Card)`
 
 const RouletteCard = styled(Card)`
   padding: ${props => props.theme.spacing.lg};
-  background: ${props => props.$isLegend 
-    ? 'linear-gradient(135deg, #1e3932 0%, #2d5a4e 100%)' 
+  background: ${props => props.$isLegend
+    ? 'linear-gradient(135deg, #1e3932 0%, #2d5a4e 100%)'
     : props.theme.colors.white};
   color: ${props => props.$isLegend ? 'white' : props.theme.colors.text};
   margin-bottom: ${props => props.theme.spacing.lg};
@@ -170,10 +163,10 @@ const RouletteCard = styled(Card)`
 const RouletteStatus = styled.div`
   text-align: center;
   padding: ${props => props.theme.spacing.md};
-  background: ${props => props.$canSpin 
-    ? 'linear-gradient(135deg, #10B981, #059669)' 
-    : props.$isLegend 
-      ? 'rgba(255,255,255,0.1)' 
+  background: ${props => props.$canSpin
+    ? 'linear-gradient(135deg, #10B981, #059669)'
+    : props.$isLegend
+      ? 'rgba(255,255,255,0.1)'
       : props.theme.colors.bgAlt};
   color: ${props => props.$canSpin || props.$isLegend ? 'white' : props.theme.colors.text};
   border-radius: ${props => props.theme.radius};
@@ -262,6 +255,83 @@ const QuickActionsCard = styled(Card)`
     gap: 12px;
     flex-wrap: wrap;
     justify-content: center;
+  }
+`;
+
+// --- Nuevos Estilos para los Botones Wallet ---
+
+const WalletButtonsRow = styled.div`
+  display: flex;
+  flex-direction: column; /* En celular se ven mejor uno bajo el otro */
+  gap: 24px;
+  margin-bottom: ${props => props.theme.spacing.lg};
+  width: 100%;
+  max-width: 400px; /* Que no se estiren demasiado en desktop */
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (min-width: 600px) {
+    flex-direction: row; /* En tablet/PC los ponemos lado a lado */
+  }
+`;
+
+const WalletBtn = styled.button`
+  background-color: #000000; /* Fondo negro oficial */
+  color: #ffffff;
+  border: 1px solid #333;
+  border-radius: 12px; /* Bordes redondeados modernos */
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  height: 56px; /* Altura estándar de badges */
+  position: relative;
+  overflow: hidden;
+
+  
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    background-color: #1a1a1a;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  /* Estructura del texto interno */
+  .content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.1;
+  }
+
+  .small-text {
+    font-size: 0.7rem;
+    font-weight: 400;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    @media (min-width: 890px) {
+      font-size: 0.6rem;
+      text-align: left;
+    }
+  }
+
+  .big-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif; /* Fuente nativa */
+    @media (min-width: 890px) {
+      font-size: 0.8rem;
+      text-align: left;
+    }
   }
 `;
 
@@ -391,7 +461,7 @@ export const AppHome = () => {
         detail: 'Sube de nivel para desbloquear la ruleta'
       };
     }
-    
+
     if (canSpinRoulette()) {
       return {
         icon: '🎰',
@@ -399,12 +469,12 @@ export const AppHome = () => {
         detail: 'Haz clic para ganar premios increíbles'
       };
     }
-    
+
     const lastSpin = new Date(state.roulette_last_spin_at);
     const nextSpin = new Date(lastSpin);
     nextSpin.setDate(nextSpin.getDate() + 7);
     const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
-    
+
     return {
       icon: '⏰',
       text: 'Ruleta en cooldown',
@@ -464,12 +534,12 @@ export const AppHome = () => {
               {isLegend ? <Crown size={16} /> : <Star size={16} />}
               {isLegend ? 'Leduo Leyend' : 'Cliente Le Duo'}
             </LevelBadge>
-            
+
             <StampImage
               src={getSpriteByStamps(stampsSafe)}
               alt={`Progreso de sellos: ${stampsSafe} de 8`}
             />
-            
+
             <StampInfo>
               <div className="count">{stampsSafe}/8</div>
               <div className="label">Sellos coleccionados</div>
@@ -477,24 +547,28 @@ export const AppHome = () => {
           </div>
         </MainCard>
 
-        {/* Botones de wallet */}
+        {/* Botones de wallet rediseñados */}
         <WalletButtonsRow>
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => openWalletModal('apple')}
-          >
-            📱 Apple Wallet
-          </Button>
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => openWalletModal('google')}
-          >
-            🤖 Google Wallet
-          </Button>
-        </WalletButtonsRow>
+          {/* Botón Apple Wallet */}
+          <WalletBtn onClick={() => openWalletModal('apple')}>
+            {/* Icono Apple SVG */}
+            <img src={appleWalletIcon} alt="Apple Wallet" width="32" height="32" />
+            <div className="content">
+              <span className="small-text">Añadir a</span>
+              <span className="big-text">Apple Wallet</span>
+            </div>
+          </WalletBtn>
 
+          {/* Botón Google Wallet */}
+          <WalletBtn onClick={() => openWalletModal('google')}>
+            {/* Icono Google Wallet SVG (Color original) */}
+            <img src={googleWalletIcon} alt="Google Wallet" width="24" height="24" />
+            <div className="content">
+              <span className="small-text">Añadir a</span>
+              <span className="big-text">Google Wallet</span>
+            </div>
+          </WalletBtn>
+        </WalletButtonsRow>
         {/* Cards secundarias */}
         <SecondaryGrid>
           <SecondaryCard>
@@ -502,13 +576,13 @@ export const AppHome = () => {
             <div className="value">{formatLastVisit(state.last_visit)}</div>
             <div className="label">Última visita</div>
           </SecondaryCard>
-          
+
           <SecondaryCard>
             <span className="icon">⭐</span>
             <div className="value">{levelPoints}</div>
             <div className="label">Puntos de nivel</div>
           </SecondaryCard>
-          
+
           <SecondaryCard style={{ gridColumn: 'span 2' }}>
             <span className="icon">🎫</span>
             <div style={{
@@ -642,7 +716,7 @@ export const AppHome = () => {
           </div>
 
           <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
-            💡 <strong>Tip:</strong> {selectedWallet === 'apple' 
+            💡 <strong>Tip:</strong> {selectedWallet === 'apple'
               ? 'Se descargará un archivo .pkpass que podrás abrir para añadir a tu Wallet'
               : 'Con la tarjeta en tu wallet, solo escanea tu código QR en caja'}
           </p>

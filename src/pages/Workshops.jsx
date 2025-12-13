@@ -139,7 +139,7 @@ const PriceMenu = styled.div`
   box-shadow: 0 10px 40px rgba(0,0,0,0.15);
   padding: 0.5rem;
   min-width: 160px;
-  z-index: 100;
+  z-index: 10000;
   
   button {
     width: 100%;
@@ -215,6 +215,7 @@ const EventCard = styled.div`
   animation: ${fadeUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
+  z-index: -1;
 
   &:hover {
     transform: translateY(-8px);

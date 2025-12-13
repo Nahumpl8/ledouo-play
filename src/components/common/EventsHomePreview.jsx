@@ -11,6 +11,31 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
+// 1. AGREGAMOS LA ANIMACIÓN FLOAT AQUÍ
+const float = keyframes`
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+`;
+
+// 2. AGREGAMOS LOS COMPONENTES DE FONDO AQUÍ
+const BackgroundBlobs = styled.div`
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+`;
+
+const Blob = styled.div`
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.5;
+  animation: ${float} 20s infinite ease-in-out;
+`;
+
 const SectionWrapper = styled.section`
   padding: 5rem 0;
   background-color: #f8f6f3;
@@ -24,7 +49,7 @@ const Container = styled.div`
   margin: 0 auto;
   padding: 0 24px;
   position: relative;
-  z-index: 1;
+  z-index: 1; /* Importante para que el contenido quede sobre los blobs */
 `;
 
 const SectionHeader = styled.div`
@@ -253,7 +278,7 @@ export const EventsHomePreview = () => {
     const fetchEvents = async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Fetch all active events
         const { data, error } = await supabase
           .from('events')
@@ -264,13 +289,13 @@ export const EventsHomePreview = () => {
           .limit(10);
 
         if (error) throw error;
-        
+
         // Filter: show open_schedule always, fixed only if date >= today
         const filteredEvents = (data || []).filter(event => {
           if (event.event_type === 'open_schedule') return true;
           return event.date >= today;
         });
-        
+
         setEvents(filteredEvents);
       } catch (error) {
         console.error('Error fetching events:', error);
@@ -313,9 +338,17 @@ export const EventsHomePreview = () => {
     return null;
   }
 
+  // Si no hay eventos, mostramos estado vacío pero con las blobs también
   if (events.length === 0) {
     return (
       <SectionWrapper>
+        {/* 3. AGREGAMOS LAS BLOBS AQUÍ */}
+        <BackgroundBlobs>
+          <Blob style={{ top: '-10%', left: '-20%', width: '500px', height: '500px', background: '#e0c3fc' }} />
+          <Blob style={{ top: '30%', right: '-20%', width: '400px', height: '400px', background: '#8ec5fc', animationDelay: '-7s' }} />
+          <Blob style={{ bottom: '-10%', left: '10%', width: '350px', height: '350px', background: '#f5576c', animationDelay: '-15s' }} />
+        </BackgroundBlobs>
+
         <Container>
           <SectionHeader>
             <h2>Experiencias Le Duo</h2>
@@ -334,6 +367,13 @@ export const EventsHomePreview = () => {
 
   return (
     <SectionWrapper>
+      {/* 4. AGREGAMOS LAS BLOBS AQUÍ TAMBIÉN (para cuando hay eventos) */}
+      <BackgroundBlobs>
+        <Blob style={{ top: '-10%', left: '-20%', width: '500px', height: '500px', background: '#e0c3fc' }} />
+        <Blob style={{ top: '30%', right: '-20%', width: '400px', height: '400px', background: '#8ec5fc', animationDelay: '-7s' }} />
+        <Blob style={{ bottom: '-10%', left: '10%', width: '350px', height: '350px', background: '#f5576c', animationDelay: '-15s' }} />
+      </BackgroundBlobs>
+
       <Container>
         <SectionHeader>
           <h2>Experiencias Le Duo</h2>
@@ -341,22 +381,23 @@ export const EventsHomePreview = () => {
         </SectionHeader>
 
         <ScrollContainer>
-          <ScrollButton 
-            className="left" 
+          <ScrollButton
+            className="left"
             onClick={() => scroll('left')}
             disabled={!canScrollLeft}
           >
             <ChevronLeft size={20} />
           </ScrollButton>
-          
+
           <ScrollWrapper ref={scrollRef}>
             {events.map((event, index) => {
               const isExperience = event.event_type === 'open_schedule';
               const { day, month } = formatEventDate(event.date);
-              const cardBg = event.image_url 
-                ? `url(${event.image_url})` 
+              // Usamos el color de fondo si no hay imagen, o un degradado por defecto
+              const cardBg = event.image_url
+                ? `url(${event.image_url})`
                 : event.image_gradient || 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)';
-              
+
               return (
                 <MiniCard key={event.id} style={{ animationDelay: `${index * 100}ms` }}>
                   <CardHeader $bg={cardBg} style={{ backgroundImage: event.image_url ? `url(${event.image_url})` : undefined, background: !event.image_url ? cardBg : undefined }}>
@@ -395,9 +436,9 @@ export const EventsHomePreview = () => {
               );
             })}
           </ScrollWrapper>
-          
-          <ScrollButton 
-            className="right" 
+
+          <ScrollButton
+            className="right"
             onClick={() => scroll('right')}
             disabled={!canScrollRight}
           >
