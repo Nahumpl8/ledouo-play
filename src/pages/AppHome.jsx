@@ -10,6 +10,7 @@ import { Modal } from '../components/common/Modal';
 import { supabase } from '@/integrations/supabase/client';
 import { addToGoogleWallet } from '../services/googleWallet';
 import { addToAppleWallet } from '../services/appleWallet';
+import { WalletCards } from 'lucide-react';
 
 // URLs de Supabase Storage para imágenes de sellos
 const STORAGE_BASE = 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images';
@@ -413,45 +414,9 @@ export const AppHome = () => {
             <div className="value">{stampsSafe}/8</div>
             <div className="label">Sellos coleccionados</div>
           </StatCard>
-
           <StatCard>
-            <span className="icon">📅</span>
-            <div className="value" style={{ fontSize: '1.2rem' }}>
-              {formatLastVisit(state.last_visit)}
-            </div>
-            <div className="label">Última visita</div>
-          </StatCard>
-
-          <StatCard>
-            <span className="icon">🔥</span>
-            <div className="value">{state.roulette_visits_since_last_spin || 0}</div>
-            <div className="label">Visitas desde último giro</div>
-          </StatCard>
-
-          <StatCard>
-            <span className="icon">🎫</span>
-            <div style={{ 
-              background: 'white', 
-              padding: '16px', 
-              borderRadius: '12px',
-              display: 'inline-block',
-              margin: '12px auto'
-            }}>
-              <QRCodeSVG 
-                value={`LEDUO-${customer?.id || ''}`}
-                size={120}
-                level="H"
-                includeMargin={false}
-              />
-            </div>
-            <div className="label">Tu código QR</div>
-          </StatCard>
-        </StatsGrid>
-
-        <ActionsGrid>
-          <ActionCard hover>
             <div className="header">
-              <span className="icon">📱</span>
+              <WalletCards style={{ textAlign:'center' }} />
               <h3>Añadir a Wallet</h3>
             </div>
             <p>
@@ -474,6 +439,43 @@ export const AppHome = () => {
                 🤖 Google Wallet
               </Button>
             </WalletButtons>
+          </StatCard>
+
+          <StatCard>
+            <span className="icon">📅</span>
+            <div className="value" style={{ fontSize: '1.2rem' }}>
+              {formatLastVisit(state.last_visit)}
+            </div>
+            <div className="label">Última visita</div>
+          </StatCard>
+
+
+          <StatCard>
+            <span className="icon">🎫</span>
+            <div style={{
+              background: 'white',
+              padding: '16px',
+              borderRadius: '12px',
+              display: 'inline-block',
+              margin: '12px auto'
+            }}>
+              <QRCodeSVG
+                value={`LEDUO-${customer?.id || ''}`}
+                size={120}
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            <div className="label">Tu código QR</div>
+          </StatCard>
+        </StatsGrid>
+
+        <ActionsGrid>
+
+          <ActionCard>
+            <span className="icon">🔥</span>
+            <div className="value">{state.roulette_visits_since_last_spin || 0}</div>
+            <div className="label">Visitas desde último giro</div>
           </ActionCard>
 
           <ActionCard hover>
