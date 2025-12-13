@@ -121,24 +121,46 @@ const generatePasswordResetEmail = (
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-auth-email function called");
+  console.log("Request method:", req.method);
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const payload: AuthEmailRequest = await req.json();
-    console.log("Received auth email request:", {
-      email: payload.user.email,
-      type: payload.email_data.email_action_type,
+    const rawBody = await req.text();
+    console.log("Raw request body:", rawBody);
+    
+    if (!rawBody || rawBody.trim() === "") {
+      console.error("Empty request body received");
+      return new Response(
+        JSON.stringify({ error: "Empty request body" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    const payload: AuthEmailRequest = JSON.parse(rawBody);
+    console.log("Parsed auth email request:", {
+      email: payload.user?.email,
+      type: payload.email_data?.email_action_type,
     });
+
+    if (!payload.user?.email || !payload.email_data) {
+      console.error("Invalid payload structure:", payload);
+      return new Response(
+        JSON.stringify({ error: "Invalid payload structure" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     const { user, email_data } = payload;
     const userName = user.user_metadata?.name || "";
     
-    // Construir el enlace de reset
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const resetLink = `${supabaseUrl}/auth/v1/verify?token=${email_data.token_hash}&type=${email_data.email_action_type}&redirect_to=${email_data.redirect_to}`;
+    // Construir el enlace de reset usando la URL del proyecto
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://eohpjvbbrvktqyacpcmn.supabase.co";
+    const resetLink = `${supabaseUrl}/auth/v1/verify?token=${email_data.token_hash}&type=${email_data.email_action_type}&redirect_to=${encodeURIComponent(email_data.redirect_to)}`;
+
+    console.log("Generated reset link:", resetLink);
 
     let subject = "";
     let html = "";
@@ -150,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
         break;
       case "signup":
         subject = "¡Bienvenido a Le Duo! ☕";
-        html = generatePasswordResetEmail(userName, resetLink); // Por ahora usa el mismo template
+        html = generatePasswordResetEmail(userName, resetLink);
         break;
       case "magiclink":
         subject = "Tu enlace de acceso a Le Duo ☕";
