@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -8,20 +9,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface AuthEmailRequest {
-  user: {
-    email: string;
-    user_metadata?: {
-      name?: string;
-    };
-  };
-  email_data: {
-    token: string;
-    token_hash: string;
-    redirect_to: string;
-    email_action_type: string;
-    site_url: string;
-  };
+interface RecoveryEmailRequest {
+  email: string;
+  type: "recovery" | "signup" | "magiclink";
+  redirectTo?: string;
 }
 
 const generatePasswordResetEmail = (
@@ -79,7 +70,7 @@ const generatePasswordResetEmail = (
               </table>
               
               <p style="margin: 32px 0 0 0; font-size: 14px; line-height: 1.6; color: #888888; text-align: center;">
-                Este enlace expira en 24 horas.
+                Este enlace expira en 1 hora.
               </p>
               
               <hr style="margin: 32px 0; border: none; border-top: 1px solid #E8E4DC;" />
@@ -139,73 +130,85 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    const payload: AuthEmailRequest = JSON.parse(rawBody);
-    console.log("Parsed auth email request:", {
-      email: payload.user?.email,
-      type: payload.email_data?.email_action_type,
-    });
+    const payload: RecoveryEmailRequest = JSON.parse(rawBody);
+    console.log("Parsed request:", { email: payload.email, type: payload.type });
 
-    if (!payload.user?.email || !payload.email_data) {
-      console.error("Invalid payload structure:", payload);
+    if (!payload.email || !payload.type) {
+      console.error("Missing email or type:", payload);
       return new Response(
-        JSON.stringify({ error: "Invalid payload structure" }),
+        JSON.stringify({ error: "Missing email or type" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const { user, email_data } = payload;
-    const userName = user.user_metadata?.name || "";
+    // Initialize Supabase Admin client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Construir el enlace de reset usando la URL del proyecto
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "https://eohpjvbbrvktqyacpcmn.supabase.co";
-    const resetLink = `${supabaseUrl}/auth/v1/verify?token=${email_data.token_hash}&type=${email_data.email_action_type}&redirect_to=${encodeURIComponent(email_data.redirect_to)}`;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
-    console.log("Generated reset link:", resetLink);
+    // Get user profile for personalization
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("name")
+      .eq("email", payload.email)
+      .single();
 
-    let subject = "";
-    let html = "";
+    const userName = profile?.name || "";
+    const redirectTo = payload.redirectTo || "https://leduo.lovable.app/app/reset-password";
 
-    switch (email_data.email_action_type) {
-      case "recovery":
-        subject = "Recupera tu cuenta de Le Duo ☕";
-        html = generatePasswordResetEmail(userName, resetLink);
-        break;
-      case "signup":
-        subject = "¡Bienvenido a Le Duo! ☕";
-        html = generatePasswordResetEmail(userName, resetLink);
-        break;
-      case "magiclink":
-        subject = "Tu enlace de acceso a Le Duo ☕";
-        html = generatePasswordResetEmail(userName, resetLink);
-        break;
-      default:
-        subject = "Mensaje de Le Duo ☕";
-        html = generatePasswordResetEmail(userName, resetLink);
+    // Generate recovery link using Admin API
+    console.log("Generating recovery link for:", payload.email);
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: "recovery",
+      email: payload.email,
+      options: {
+        redirectTo: redirectTo,
+      },
+    });
+
+    if (linkError) {
+      console.error("Error generating recovery link:", linkError);
+      return new Response(
+        JSON.stringify({ error: linkError.message }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    console.log("Sending email via Resend to:", user.email);
-    
+    console.log("Recovery link generated successfully");
+    const resetLink = linkData.properties.action_link;
+    console.log("Reset link:", resetLink);
+
+    // Generate email HTML
+    const subject = "Recupera tu cuenta de Le Duo ☕";
+    const html = generatePasswordResetEmail(userName, resetLink);
+
+    // Send email via Resend
+    console.log("Sending email to:", payload.email);
     const emailResponse = await resend.emails.send({
       from: "Le Duo <no-reply@leduo.mx>",
-      to: [user.email],
+      to: [payload.email],
       subject: subject,
       html: html,
     });
 
     console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({ success: true, message: "Recovery email sent" }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+
   } catch (error: any) {
     console.error("Error in send-auth-email function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

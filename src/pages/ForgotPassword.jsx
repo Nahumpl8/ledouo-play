@@ -76,14 +76,20 @@ export const ForgotPassword = () => {
     setError('');
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/app/reset-password`,
+      const { data, error: fnError } = await supabase.functions.invoke('send-auth-email', {
+        body: { 
+          email, 
+          type: 'recovery',
+          redirectTo: `${window.location.origin}/app/reset-password`
+        }
       });
 
-      if (resetError) throw resetError;
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
 
       setSuccess(true);
     } catch (err) {
+      console.error('Error sending recovery email:', err);
       setError(err.message || 'Error al enviar el correo. Intenta de nuevo.');
     } finally {
       setLoading(false);
