@@ -7,7 +7,6 @@ import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
-import { z } from 'zod';
 import { createApplePass } from './controllers/appleWallet.js';
 import { 
   registerDevice, 
@@ -82,32 +81,18 @@ function ensureEnv(res) {
 // ====================================
 // GOOGLE WALLET API
 // ====================================
-// Input validation schemas
-const walletSaveSchema = z.object({
-  objectIdSuffix: z.string().min(1).max(100).regex(/^[a-zA-Z0-9_\-:]+$/),
-  customerData: z.object({
-    id: z.string().max(100).optional(),
-    stamps: z.number().int().min(0).max(100).optional(),
-    cashbackPoints: z.number().int().min(0).max(100000).optional(),
-    levelPoints: z.number().int().min(0).max(100000).optional(),
-    name: z.string().max(100).optional()
-  }).optional().default({})
-});
-
 app.post('/api/wallet/save', (req, res) => {
   try {
     if (!ensureEnv(res)) return;
 
-    // Validate input
-    const parseResult = walletSaveSchema.safeParse(req.body);
-    if (!parseResult.success) {
+    const { objectIdSuffix, customerData = {} } = req.body || {};
+    if (!objectIdSuffix) {
       return res.status(400).json({
-        error: 'Datos de entrada inválidos',
-        details: parseResult.error.issues.map(i => i.message)
+        error: 'Falta objectIdSuffix',
+        received: req.body,
+        hint: 'El cliente debe mandar { objectIdSuffix, customerData }'
       });
     }
-
-    const { objectIdSuffix, customerData } = parseResult.data;
 
     let rawId = customerData.id || objectIdSuffix || '';
     const cleanUserId = rawId
@@ -115,8 +100,7 @@ app.post('/api/wallet/save', (req, res) => {
       .replace('LEDUO-', '')
       .replace('leduo-', '')
       .replace(':', '')
-      .trim()
-      .substring(0, 50); // Limit length
+      .trim();
 
     if (!cleanUserId) {
       return res.status(400).json({ error: 'No se pudo obtener un ID válido para el pase.' });
@@ -232,28 +216,12 @@ app.post('/api/wallet/v1/log', receiveLog);
 // ====================================
 // ENDPOINT PARA NOTIFICAR ACTUALIZACIONES
 // ====================================
-// Wallet notify input schema
-const notifySchema = z.object({
-  userId: z.string().uuid()
-});
-
 app.post('/api/wallet/notify-update', async (req, res) => {
-  // Verify authentication secret
-  const notifySecret = req.headers['x-wallet-notify-secret'];
-  const expectedSecret = process.env.WALLET_PROXY_SECRET;
+  const { userId } = req.body;
   
-  if (!notifySecret || notifySecret !== expectedSecret) {
-    console.warn('[Wallet Notify] Unauthorized request attempt');
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!userId) {
+    return res.status(400).json({ error: 'Falta userId' });
   }
-  
-  // Validate input
-  const parseResult = notifySchema.safeParse(req.body);
-  if (!parseResult.success) {
-    return res.status(400).json({ error: 'Invalid userId format' });
-  }
-  
-  const { userId } = parseResult.data;
   
   console.log(`[Wallet Notify] Notificando actualización para usuario: ${userId}`);
   

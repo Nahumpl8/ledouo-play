@@ -149,13 +149,9 @@ Deno.serve(async (req) => {
 
       // 7. Notificar al dispositivo Apple Wallet del usuario
       try {
-        const walletProxySecret = Deno.env.get('WALLET_PROXY_SECRET')
         await fetch(`${walletServerUrl}/api/wallet/notify-update`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-Wallet-Notify-Secret': walletProxySecret || ''
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: profile.id })
         })
       } catch (e) {
