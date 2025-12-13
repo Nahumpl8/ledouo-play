@@ -10,9 +10,8 @@ import { Modal } from '../components/common/Modal';
 import { supabase } from '@/integrations/supabase/client';
 import { addToGoogleWallet } from '../services/googleWallet';
 import { addToAppleWallet } from '../services/appleWallet';
-import { WalletCards } from 'lucide-react';
+import { Crown, Trophy, Star } from 'lucide-react';
 
-// URLs de Supabase Storage para imágenes de sellos
 const STORAGE_BASE = 'https://eohpjvbbrvktqyacpcmn.supabase.co/storage/v1/object/public/wallet-images';
 const STAMP_SPRITES = {
   0: `${STORAGE_BASE}/0-sellos.png`,
@@ -26,6 +25,8 @@ const STAMP_SPRITES = {
   8: `${STORAGE_BASE}/8-sellos.png`,
 };
 
+const LEGEND_THRESHOLD = 150;
+
 function getSpriteByStamps(stampsRaw) {
   const n = Math.max(0, Math.min(8, parseInt(stampsRaw || 0, 10)));
   return STAMP_SPRITES[n] || STAMP_SPRITES[0];
@@ -38,44 +39,30 @@ const AppWrapper = styled.div`
 
 const WelcomeSection = styled.div`
   text-align: center;
-  margin-bottom: ${props => props.theme.spacing.xl};
+  margin-bottom: ${props => props.theme.spacing.lg};
   
   h1 {
     font-family: ${props => props.theme.fontPrimary};
     color: ${props => props.theme.colors.primary};
-    margin-bottom: ${props => props.theme.spacing.sm};
+    margin-bottom: ${props => props.theme.spacing.xs};
+    font-size: 1.8rem;
   }
   
   p {
     color: ${props => props.theme.colors.secondary};
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 `;
 
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.xl};
-  
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  @media (min-width: ${props => props.theme.breakpoints.desktop}) {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-`;
-
-const StatCard = styled(Card)`
-  text-align: center;
+const MainCard = styled(Card)`
   padding: ${props => props.theme.spacing.lg};
-  background: ${props => props.gradient || props.theme.colors.white};
-  color: ${props => props.textColor || props.theme.colors.text};
+  margin-bottom: ${props => props.theme.spacing.lg};
+  background: linear-gradient(135deg, #919888, #B3B792);
+  color: white;
   position: relative;
   overflow: hidden;
   
-  &::before {
+  &::after {
     content: '';
     position: absolute;
     top: -50%;
@@ -83,98 +70,113 @@ const StatCard = styled(Card)`
     width: 200%;
     height: 200%;
     background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    opacity: 0;
-    transition: opacity 0.6s ease;
   }
+`;
+
+const LevelBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: ${props => props.$isLegend ? 'linear-gradient(135deg, #FFD700, #FFA500)' : 'rgba(255,255,255,0.2)'};
+  color: ${props => props.$isLegend ? '#1e3932' : 'white'};
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: ${props => props.theme.spacing.md};
+  box-shadow: ${props => props.$isLegend ? '0 4px 15px rgba(255, 215, 0, 0.4)' : 'none'};
+`;
+
+const StampImage = styled.img`
+  width: 100%;
+  max-width: 300px;
+  display: block;
+  margin: 12px auto;
+  border-radius: 12px;
+  background: white;
+  position: relative;
+  z-index: 1;
+`;
+
+const StampInfo = styled.div`
+  text-align: center;
+  position: relative;
+  z-index: 1;
   
-  &:hover::before {
-    opacity: 1;
-  }
-  
-  .icon {
-    font-size: 2.5rem;
-    margin-bottom: ${props => props.theme.spacing.sm};
-    display: block;
-    animation: pulse-soft 2s ease-in-out infinite;
-  }
-  
-  .value {
+  .count {
     font-size: 2rem;
-    font-weight: bold;
+    font-weight: 800;
     margin-bottom: 4px;
-    color: ${props => props.valueColor || 'inherit'};
-    transition: transform 0.3s ease;
-  }
-  
-  &:hover .value {
-    transform: scale(1.05);
   }
   
   .label {
     font-size: 0.9rem;
-    opacity: 0.8;
+    opacity: 0.9;
   }
 `;
 
-const ActionsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.xl};
-  ::after {
-    display: none;
-  } 
-  
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-`;
-
-const ActionCard = styled(Card)`
-  padding: ${props => props.theme.spacing.lg};
-  
-  .header {
-    display: flex;
-    align-items: center;
-    gap: ${props => props.theme.spacing.sm};
-    margin-bottom: ${props => props.theme.spacing.md};
-    
-    .icon {
-      font-size: 1.5rem;
-    }
-    
-    h3 {
-      color: ${props => props.theme.colors.primary};
-      margin: 0;
-    }
-  }
-  
-  p {
-    color: ${props => props.theme.colors.text};
-    margin-bottom: ${props => props.theme.spacing.md};
-    line-height: 1.5;
-  }
-`;
-
-const WalletButtons = styled.div`
+const WalletButtonsRow = styled.div`
   display: flex;
-  flex-direction: column;
   gap: ${props => props.theme.spacing.sm};
+  margin-bottom: ${props => props.theme.spacing.lg};
+  
+  button {
+    flex: 1;
+  }
+`;
+
+const SecondaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: ${props => props.theme.spacing.md};
+  margin-bottom: ${props => props.theme.spacing.lg};
   
   @media (min-width: ${props => props.theme.breakpoints.tablet}) {
-    flex-direction: row;
+    grid-template-columns: repeat(3, 1fr);
   }
+`;
+
+const SecondaryCard = styled(Card)`
+  text-align: center;
+  padding: ${props => props.theme.spacing.md};
+  
+  .icon {
+    font-size: 2rem;
+    margin-bottom: ${props => props.theme.spacing.sm};
+  }
+  
+  .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: ${props => props.theme.colors.primary};
+    margin-bottom: 4px;
+  }
+  
+  .label {
+    font-size: 0.8rem;
+    color: ${props => props.theme.colors.secondary};
+  }
+`;
+
+const RouletteCard = styled(Card)`
+  padding: ${props => props.theme.spacing.lg};
+  background: ${props => props.$isLegend 
+    ? 'linear-gradient(135deg, #1e3932 0%, #2d5a4e 100%)' 
+    : props.theme.colors.white};
+  color: ${props => props.$isLegend ? 'white' : props.theme.colors.text};
+  margin-bottom: ${props => props.theme.spacing.lg};
 `;
 
 const RouletteStatus = styled.div`
-  padding: ${props => props.theme.spacing.md};
-  background: ${props => props.canSpin ?
-    'linear-gradient(135deg, #10B981, #059669)' :
-    props.theme.colors.bgAlt
-  };
-  color: ${props => props.canSpin ? props.theme.colors.white : props.theme.colors.text};
-  border-radius: ${props => props.theme.radius};
   text-align: center;
+  padding: ${props => props.theme.spacing.md};
+  background: ${props => props.$canSpin 
+    ? 'linear-gradient(135deg, #10B981, #059669)' 
+    : props.$isLegend 
+      ? 'rgba(255,255,255,0.1)' 
+      : props.theme.colors.bgAlt};
+  color: ${props => props.$canSpin || props.$isLegend ? 'white' : props.theme.colors.text};
+  border-radius: ${props => props.theme.radius};
   margin-bottom: ${props => props.theme.spacing.md};
   
   .status-icon {
@@ -184,14 +186,82 @@ const RouletteStatus = styled.div`
   }
   
   .status-text {
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: 4px;
   }
-    
   
   .status-detail {
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
+`;
+
+const ProgressSection = styled.div`
+  margin-top: ${props => props.theme.spacing.md};
+  padding: ${props => props.theme.spacing.md};
+  background: ${props => props.theme.colors.bgAlt};
+  border-radius: ${props => props.theme.radius};
+  
+  h4 {
     font-size: 0.9rem;
-    opacity: 0.8;
+    margin: 0 0 ${props => props.theme.spacing.sm} 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: ${props => props.theme.colors.primary};
+  }
+  
+  .progress-bar {
+    height: 12px;
+    background: #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: ${props => props.theme.spacing.sm};
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+    border-radius: 6px;
+    transition: width 0.5s ease;
+  }
+  
+  .progress-text {
+    font-size: 0.85rem;
+    color: ${props => props.theme.colors.secondary};
+    text-align: center;
+  }
+  
+  .tips {
+    margin-top: ${props => props.theme.spacing.sm};
+    padding-top: ${props => props.theme.spacing.sm};
+    border-top: 1px solid #eee;
+    
+    p {
+      font-size: 0.8rem;
+      color: ${props => props.theme.colors.secondary};
+      margin: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+`;
+
+const QuickActionsCard = styled(Card)`
+  padding: 24px;
+  text-align: center;
+  
+  h3 {
+    margin-bottom: 16px;
+    color: ${props => props.theme.colors.primary};
+  }
+  
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 `;
 
@@ -235,7 +305,8 @@ export const AppHome = () => {
         cashback_points: 0,
         stamps: 0,
         last_visit: null,
-        roulette_visits_since_last_spin: 0
+        level_points: 0,
+        roulette_last_spin_at: null
       });
     } catch (error) {
       console.error('Error loading customer data:', error);
@@ -264,13 +335,11 @@ export const AppHome = () => {
       };
 
       if (selectedWallet === 'apple') {
-        // Apple Wallet - descarga el .pkpass
         await addToAppleWallet(walletData);
         setWalletMessage('¡Pase descargado! Ábrelo para añadirlo a tu Wallet.');
         return;
       }
 
-      // Google Wallet
       const result = await addToGoogleWallet(walletData);
 
       if (result?.url) {
@@ -281,7 +350,7 @@ export const AppHome = () => {
           try {
             const w = window.open(result.url, '_blank', 'noopener,noreferrer');
             if (!w) {
-              setWalletMessage('No se pudo abrir automáticamente. Haz click en el enlace para abrir Google Wallet:');
+              setWalletMessage('No se pudo abrir automáticamente. Haz click en el enlace:');
               setWalletLink(result.url);
             } else {
               setWalletMessage('Redirigiendo a Google Wallet…');
@@ -303,21 +372,26 @@ export const AppHome = () => {
     }
   };
 
+  const isLegend = (state?.level_points || 0) >= LEGEND_THRESHOLD;
 
-  // Helpers de ruleta con state seguro
   const canSpinRoulette = () => {
+    if (!isLegend) return false;
     if (!state?.roulette_last_spin_at) return true;
     const lastSpin = new Date(state.roulette_last_spin_at);
     const now = new Date();
     const daysSinceLastSpin = Math.floor((now - lastSpin) / (1000 * 60 * 60 * 24));
-    const mode = state.roulette_mode || 'weekly';
-    if (mode === 'weekly') {
-      return daysSinceLastSpin >= (state.roulette_cooldown_days || 7);
-    }
-    return (state.roulette_visits_since_last_spin || 0) >= (state.roulette_required_visits || 3);
+    return daysSinceLastSpin >= 7;
   };
 
   const getRouletteStatusText = () => {
+    if (!isLegend) {
+      return {
+        icon: '🌟',
+        text: 'Exclusivo para Leduo Leyend',
+        detail: 'Sube de nivel para desbloquear la ruleta'
+      };
+    }
+    
     if (canSpinRoulette()) {
       return {
         icon: '🎰',
@@ -325,28 +399,18 @@ export const AppHome = () => {
         detail: 'Haz clic para ganar premios increíbles'
       };
     }
-    const mode = state?.roulette_mode || 'weekly';
-    if (mode === 'weekly') {
-      const lastSpin = new Date(state.roulette_last_spin_at);
-      const nextSpin = new Date(lastSpin);
-      nextSpin.setDate(nextSpin.getDate() + (state.roulette_cooldown_days || 7));
-      const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
-      return {
-        icon: '⏰',
-        text: 'Ruleta en cooldown',
-        detail: `Podrás girar en ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`
-      };
-    }
-    const visitsNeeded = (state.roulette_required_visits || 3) - (state.roulette_visits_since_last_spin || 0);
+    
+    const lastSpin = new Date(state.roulette_last_spin_at);
+    const nextSpin = new Date(lastSpin);
+    nextSpin.setDate(nextSpin.getDate() + 7);
+    const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
+    
     return {
-      icon: '📍',
-      text: 'Acumula más visitas',
-      detail: `Te faltan ${visitsNeeded} visita${visitsNeeded !== 1 ? 's' : ''} para girar`
+      icon: '⏰',
+      text: 'Ruleta en cooldown',
+      detail: `Podrás girar en ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`
     };
   };
-
-  const rouletteStatus = state ? getRouletteStatusText() : { icon: '🎰', text: '', detail: '' };
-  const canSpin = state ? canSpinRoulette() : false;
 
   const formatLastVisit = (dateString) => {
     if (!dateString) return 'Nunca';
@@ -379,152 +443,148 @@ export const AppHome = () => {
   }
 
   const stampsSafe = Math.max(0, Math.min(8, state.stamps || 0));
+  const levelPoints = state.level_points || 0;
+  const progressPercent = Math.min((levelPoints / LEGEND_THRESHOLD) * 100, 100);
+  const pointsToLegend = Math.max(0, LEGEND_THRESHOLD - levelPoints);
+  const rouletteStatus = getRouletteStatusText();
+  const canSpin = canSpinRoulette();
 
   return (
     <AppWrapper>
       <Section>
         <WelcomeSection>
           <h1>¡Hola, {customer.name || 'Usuario'}! ☕</h1>
-          <p>Bienvenido de vuelta a tu portal LeDuo</p>
+          <p>Bienvenido de vuelta a LeDuo</p>
         </WelcomeSection>
 
-        <StatsGrid>
-          {/* Card de Sellos con sprite */}
-          <StatCard
-            gradient="linear-gradient(135deg, #919888, #B3B792)"
-            textColor="#FFFFFF"
-            valueColor="#FFFFFF"
-          >
-            <span className="icon">🎯</span>
-
-            {/* Sprite de sellos (0..8) */}
-            <img
+        {/* Tarjeta principal de sellos */}
+        <MainCard>
+          <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+            <LevelBadge $isLegend={isLegend}>
+              {isLegend ? <Crown size={16} /> : <Star size={16} />}
+              {isLegend ? 'Leduo Leyend' : 'Cliente Le Duo'}
+            </LevelBadge>
+            
+            <StampImage
               src={getSpriteByStamps(stampsSafe)}
               alt={`Progreso de sellos: ${stampsSafe} de 8`}
-              style={{
-                width: '100%',
-                maxWidth: 280,
-                display: 'block',
-                margin: '12px auto 6px',
-                borderRadius: 8,
-                background: '#fff'
-              }}
             />
+            
+            <StampInfo>
+              <div className="count">{stampsSafe}/8</div>
+              <div className="label">Sellos coleccionados</div>
+            </StampInfo>
+          </div>
+        </MainCard>
 
-            <div className="value">{stampsSafe}/8</div>
-            <div className="label">Sellos coleccionados</div>
-          </StatCard>
-          <StatCard>
-            <div className="header">
-              <WalletCards style={{ textAlign:'center' }} />
-              <h3>Añadir a Wallet</h3>
-            </div>
-            <p>
-              Guarda tu tarjeta LeDuo en tu wallet móvil para acceso rápido y
-              pagos sin contacto en nuestra cafetería.
-            </p>
-            <WalletButtons>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openWalletModal('apple')}
-              >
-                📱 Apple Wallet
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openWalletModal('google')}
-              >
-                🤖 Google Wallet
-              </Button>
-            </WalletButtons>
-          </StatCard>
+        {/* Botones de wallet */}
+        <WalletButtonsRow>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => openWalletModal('apple')}
+          >
+            📱 Apple Wallet
+          </Button>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => openWalletModal('google')}
+          >
+            🤖 Google Wallet
+          </Button>
+        </WalletButtonsRow>
 
-          <StatCard>
+        {/* Cards secundarias */}
+        <SecondaryGrid>
+          <SecondaryCard>
             <span className="icon">📅</span>
-            <div className="value" style={{ fontSize: '1.2rem' }}>
-              {formatLastVisit(state.last_visit)}
-            </div>
+            <div className="value">{formatLastVisit(state.last_visit)}</div>
             <div className="label">Última visita</div>
-          </StatCard>
-
-
-          <StatCard>
+          </SecondaryCard>
+          
+          <SecondaryCard>
+            <span className="icon">⭐</span>
+            <div className="value">{levelPoints}</div>
+            <div className="label">Puntos de nivel</div>
+          </SecondaryCard>
+          
+          <SecondaryCard style={{ gridColumn: 'span 2' }}>
             <span className="icon">🎫</span>
             <div style={{
               background: 'white',
-              padding: '16px',
+              padding: '12px',
               borderRadius: '12px',
               display: 'inline-block',
-              margin: '12px auto'
+              margin: '8px auto',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}>
               <QRCodeSVG
                 value={`LEDUO-${customer?.id || ''}`}
-                size={120}
+                size={100}
                 level="H"
                 includeMargin={false}
               />
             </div>
             <div className="label">Tu código QR</div>
-          </StatCard>
-        </StatsGrid>
+          </SecondaryCard>
+        </SecondaryGrid>
 
-        <ActionsGrid>
+        {/* Sección de Ruleta */}
+        <RouletteCard $isLegend={isLegend}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '1.5rem' }}>🎰</span>
+            <h3 style={{ margin: 0, color: isLegend ? 'white' : '#1e3932' }}>Ruleta LeDuo</h3>
+          </div>
 
-          <ActionCard>
-            <span className="icon">🔥</span>
-            <div className="value">{state.roulette_visits_since_last_spin || 0}</div>
-            <div className="label">Visitas desde último giro</div>
-          </ActionCard>
+          <RouletteStatus $canSpin={canSpin} $isLegend={isLegend}>
+            <span className="status-icon">{rouletteStatus.icon}</span>
+            <div className="status-text">{rouletteStatus.text}</div>
+            <div className="status-detail">{rouletteStatus.detail}</div>
+          </RouletteStatus>
 
-          <ActionCard hover>
-            <div className="header">
-              <span className="icon">🎰</span>
-              <h3>Ruleta LeDuo</h3>
-            </div>
-
-            <RouletteStatus canSpin={canSpin}>
-              <span className="status-icon">{rouletteStatus.icon}</span>
-              <div className="status-text">{rouletteStatus.text}</div>
-              <div className="status-detail">{rouletteStatus.detail}</div>
-            </RouletteStatus>
-
+          {isLegend ? (
             <Button
               as={Link}
               to="/app/ruleta"
               variant={canSpin ? "primary" : "outline"}
               size="lg"
-              disabled={!canSpin}
               style={{ width: '100%' }}
             >
-              {canSpin ? '🎰 Girar Ruleta' : '⏰ Ver Ruleta'}
+              {canSpin ? '🎰 ¡Girar Ruleta!' : '⏰ Volver pronto'}
             </Button>
-          </ActionCard>
-        </ActionsGrid>
+          ) : (
+            <ProgressSection>
+              <h4><Trophy size={16} /> Tu progreso a Leyend</h4>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <div className="progress-text">
+                <strong>{levelPoints}/{LEGEND_THRESHOLD}</strong> puntos • Te faltan <strong>{pointsToLegend}</strong> puntos
+              </div>
+              <div className="tips">
+                <p>💡 Cada compra te acerca a Leyend</p>
+                <p>🎁 Los Leyend pueden girar 1 vez/semana</p>
+              </div>
+            </ProgressSection>
+          )}
+        </RouletteCard>
 
-        {/* Quick Actions */}
-        <Card>
-          <div style={{ padding: '24px', textAlign: 'center' }}>
-            <h3 style={{ marginBottom: '16px', color: '#686145' }}>Acciones rápidas</h3>
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              flexWrap: 'wrap',
-              justifyContent: 'center'
-            }}>
-              <Button as={Link} to="/app/cuenta" variant="ghost" size="sm">
-                👤 Mi Cuenta
-              </Button>
-              <Button as="a" href="tel:+7711295938" variant="ghost" size="sm">
-                📞 Llamar a LeDuo
-              </Button>
-              <Button as="a" href="https://maps.app.goo.gl/j1VUSDoehyfLLZUUA" target="_blank" variant="ghost" size="sm">
-                📍 Cómo llegar
-              </Button>
-            </div>
+        {/* Acciones rápidas */}
+        <QuickActionsCard>
+          <h3>Acciones rápidas</h3>
+          <div className="actions">
+            <Button as={Link} to="/app/cuenta" variant="ghost" size="sm">
+              👤 Mi Cuenta
+            </Button>
+            <Button as="a" href="tel:+7711295938" variant="ghost" size="sm">
+              📞 Llamar a LeDuo
+            </Button>
+            <Button as="a" href="https://maps.app.goo.gl/j1VUSDoehyfLLZUUA" target="_blank" variant="ghost" size="sm">
+              📍 Cómo llegar
+            </Button>
           </div>
-        </Card>
+        </QuickActionsCard>
       </Section>
 
       {/* Wallet Modal */}
@@ -538,100 +598,54 @@ export const AppHome = () => {
             {selectedWallet === 'apple' ? '📱' : '🤖'}
           </div>
 
-          {selectedWallet === 'google' ? (
-            <>
-              <h3 style={{ marginBottom: '16px', color: '#686145' }}>
-                Tarjeta de Lealtad LeDuo
-              </h3>
-              <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
-                <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
-                <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
-                <p><strong>Sellos:</strong> {stampsSafe} de 8</p>
-              </div>
+          <h3 style={{ marginBottom: '16px', color: '#686145' }}>
+            Tarjeta de Lealtad LeDuo
+          </h3>
+          <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
+            <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
+            <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
+            <p><strong>Sellos:</strong> {stampsSafe} de 8</p>
+          </div>
 
-              {walletMessage && (
-                <div style={{
-                  marginBottom: '16px',
-                  padding: '12px',
-                  backgroundColor: walletMessage.includes('Error') ? '#ffe6e6' : '#e6ffe6',
-                  borderRadius: '6px',
-                  fontSize: '0.9rem'
-                }}>
-                  {walletMessage}
-                  {walletLink && (
-                    <div style={{ marginTop: 8 }}>
-                      <a href={walletLink} target="_blank" rel="noopener noreferrer">Abrir Google Wallet</a>
-                    </div>
-                  )}
+          {walletMessage && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '12px',
+              backgroundColor: walletMessage.includes('Error') ? '#ffe6e6' : '#e6ffe6',
+              borderRadius: '6px',
+              fontSize: '0.9rem'
+            }}>
+              {walletMessage}
+              {walletLink && (
+                <div style={{ marginTop: 8 }}>
+                  <a href={walletLink} target="_blank" rel="noopener noreferrer">Abrir Google Wallet</a>
                 </div>
               )}
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Button
-                  onClick={handleAddToWallet}
-                  variant="primary"
-                  disabled={walletLoading}
-                >
-                  {walletLoading ? '⏳ Añadiendo...' : '📱 Añadir a Google Wallet'}
-                </Button>
-                <Button
-                  onClick={() => setWalletModalOpen(false)}
-                  variant="outline"
-                  disabled={walletLoading}
-                >
-                  Cancelar
-                </Button>
-              </div>
-
-              <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
-                💡 <strong>Tip:</strong> Con la tarjeta en tu wallet, solo escanea tu código QR en caja
-              </p>
-            </>
-          ) : (
-            <>
-              <h3 style={{ marginBottom: '16px', color: '#686145' }}>
-                Tarjeta de Lealtad LeDuo
-              </h3>
-              <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '8px', textAlign: 'left' }}>
-                <p><strong>Nombre:</strong> {customer.name || 'Cliente'}</p>
-                <p><strong>Puntos:</strong> {state.cashback_points || 0} puntos</p>
-                <p><strong>Sellos:</strong> {stampsSafe} de 8</p>
-              </div>
-
-              {walletMessage && (
-                <div style={{
-                  marginBottom: '16px',
-                  padding: '12px',
-                  backgroundColor: walletMessage.includes('Error') ? '#ffe6e6' : '#e6ffe6',
-                  borderRadius: '6px',
-                  fontSize: '0.9rem'
-                }}>
-                  {walletMessage}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Button
-                  onClick={handleAddToWallet}
-                  variant="primary"
-                  disabled={walletLoading}
-                >
-                  {walletLoading ? '⏳ Generando...' : '📱 Añadir a Apple Wallet'}
-                </Button>
-                <Button
-                  onClick={() => setWalletModalOpen(false)}
-                  variant="outline"
-                  disabled={walletLoading}
-                >
-                  Cancelar
-                </Button>
-              </div>
-
-              <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
-                💡 <strong>Tip:</strong> Se descargará un archivo .pkpass que podrás abrir para añadir a tu Wallet
-              </p>
-            </>
+            </div>
           )}
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              onClick={handleAddToWallet}
+              variant="primary"
+              disabled={walletLoading}
+            >
+              {walletLoading ? '⏳ Añadiendo...' : `📱 Añadir a ${selectedWallet === 'apple' ? 'Apple' : 'Google'} Wallet`}
+            </Button>
+            <Button
+              onClick={() => setWalletModalOpen(false)}
+              variant="outline"
+              disabled={walletLoading}
+            >
+              Cancelar
+            </Button>
+          </div>
+
+          <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '16px' }}>
+            💡 <strong>Tip:</strong> {selectedWallet === 'apple' 
+              ? 'Se descargará un archivo .pkpass que podrás abrir para añadir a tu Wallet'
+              : 'Con la tarjeta en tu wallet, solo escanea tu código QR en caja'}
+          </p>
         </div>
       </Modal>
     </AppWrapper>
