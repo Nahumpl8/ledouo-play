@@ -160,16 +160,17 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     const userName = profile?.name || "";
-    const redirectTo = payload.redirectTo || "https://leduo.lovable.app/app/reset-password";
+    // Usar dominio de producción como fallback
+    const redirectTo = payload.redirectTo || "https://www.leduo.mx/app/reset-password";
+    
+    console.log("Frontend redirectTo:", payload.redirectTo);
+    console.log("Final redirectTo used:", redirectTo);
 
     // Generate recovery link using Admin API
     console.log("Generating recovery link for:", payload.email);
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email: payload.email,
-      options: {
-        redirectTo: redirectTo,
-      },
     });
 
     if (linkError) {
@@ -181,7 +182,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Recovery link generated successfully");
-    const resetLink = linkData.properties.action_link;
+    const actionLink = linkData.properties.action_link;
+    console.log("Action link from Supabase:", actionLink);
+    
+    // Extraer el hash fragment (token) del action_link y construir URL correcta
+    const hashIndex = actionLink.indexOf('#');
+    const hashFragment = hashIndex !== -1 ? actionLink.substring(hashIndex) : '';
+    const resetLink = `${redirectTo}${hashFragment}`;
+    console.log("Final reset link:", resetLink);
     console.log("Reset link:", resetLink);
 
     // Generate email HTML
