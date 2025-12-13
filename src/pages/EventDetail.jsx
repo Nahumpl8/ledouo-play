@@ -14,10 +14,19 @@ const PageWrapper = styled.div`
 const HeroSection = styled.div`
   height: 300px;
   background: ${props => props.$gradient};
+  background-size: cover;
+  background-position: center;
   position: relative;
   display: flex;
   align-items: flex-end;
   padding: 2rem;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+  }
   
   @media (min-width: 768px) {
     height: 400px;
@@ -245,7 +254,7 @@ export const EventDetail = () => {
 
   return (
     <PageWrapper>
-      <HeroSection $gradient={event.image_gradient}>
+      <HeroSection $gradient={event.image_url ? `url(${event.image_url})` : event.image_gradient} style={event.image_url ? { backgroundImage: `url(${event.image_url})` } : {}}>
         <BackButton onClick={() => navigate('/workshops')}>
           <ArrowLeft size={20} />
         </BackButton>

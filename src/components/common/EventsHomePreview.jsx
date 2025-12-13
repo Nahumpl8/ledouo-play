@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 // --- STYLED COMPONENTS ---
@@ -15,6 +15,7 @@ const SectionWrapper = styled.section`
   padding: 5rem 0;
   background-color: #f8f6f3;
   position: relative;
+  overflow: hidden;
 `;
 
 const Container = styled.div`
@@ -28,7 +29,7 @@ const Container = styled.div`
 
 const SectionHeader = styled.div`
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   animation: ${fadeIn} 0.6s ease-out;
 
   h2 {
@@ -46,11 +47,58 @@ const SectionHeader = styled.div`
   }
 `;
 
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-bottom: 3rem;
+const ScrollContainer = styled.div`
+  position: relative;
+`;
+
+const ScrollWrapper = styled.div`
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 1rem 0 2rem 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+`;
+
+const ScrollButton = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #1e3932;
+    color: white;
+    border-color: #1e3932;
+  }
+  
+  &:disabled {
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  &.left { left: -22px; }
+  &.right { right: -22px; }
+  
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const MiniCard = styled.div`
@@ -62,20 +110,30 @@ const MiniCard = styled.div`
   border: 1px solid rgba(0,0,0,0.05);
   animation: ${fadeIn} 0.6s ease-out forwards;
   opacity: 0;
+  flex-shrink: 0;
+  width: 300px;
+  scroll-snap-align: start;
 
   &:hover {
     transform: translateY(-8px);
     box-shadow: 0 20px 40px rgba(0,0,0,0.12);
   }
+  
+  @media (max-width: 640px) {
+    width: 280px;
+  }
 `;
 
 const CardHeader = styled.div`
-  height: 120px;
+  height: 140px;
   background: ${props => props.$bg};
+  background-size: cover;
+  background-position: center;
   position: relative;
   display: flex;
-  align-items: flex-end;
-  padding: 1.5rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem;
 `;
 
 const DateBadge = styled.div`
@@ -84,9 +142,6 @@ const DateBadge = styled.div`
   border-radius: 12px;
   text-align: center;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
 
   span {
     display: block;
@@ -97,28 +152,49 @@ const DateBadge = styled.div`
   .month { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
 `;
 
+const TypeBadge = styled.div`
+  background: ${props => props.$isExperience ? 'rgba(30, 57, 50, 0.9)' : 'rgba(0, 0, 0, 0.7)'};
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
 const CardBody = styled.div`
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.6rem;
 `;
 
 const CardTitle = styled.h3`
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
   margin: 0;
   color: #1e3932;
+  line-height: 1.3;
 `;
 
 const MetaInfo = styled.div`
   display: flex;
   gap: 1rem;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #666;
   font-weight: 500;
   
-  div { display: flex; align-items: center; gap: 6px; }
+  div { display: flex; align-items: center; gap: 5px; }
+`;
+
+const PriceTag = styled.div`
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1e3932;
 `;
 
 const ActionButtonWrapper = styled.div`
@@ -169,20 +245,33 @@ const formatEventDate = (dateString) => {
 export const EventsHomePreview = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Fetch all active events
         const { data, error } = await supabase
           .from('events')
           .select('*')
           .eq('is_active', true)
-          .gte('date', new Date().toISOString().split('T')[0])
+          .order('event_type', { ascending: true })
           .order('date', { ascending: true })
-          .limit(3);
+          .limit(10);
 
         if (error) throw error;
-        setEvents(data || []);
+        
+        // Filter: show open_schedule always, fixed only if date >= today
+        const filteredEvents = (data || []).filter(event => {
+          if (event.event_type === 'open_schedule') return true;
+          return event.date >= today;
+        });
+        
+        setEvents(filteredEvents);
       } catch (error) {
         console.error('Error fetching events:', error);
       } finally {
@@ -192,6 +281,33 @@ export const EventsHomePreview = () => {
 
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+    const checkScroll = () => {
+      if (scrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+        setCanScrollLeft(scrollLeft > 0);
+        setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+      }
+    };
+
+    checkScroll();
+    const ref = scrollRef.current;
+    if (ref) {
+      ref.addEventListener('scroll', checkScroll);
+      return () => ref.removeEventListener('scroll', checkScroll);
+    }
+  }, [events]);
+
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const scrollAmount = 320;
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   if (loading) {
     return null;
@@ -224,29 +340,70 @@ export const EventsHomePreview = () => {
           <p>Conecta, aprende y disfruta. Talleres diseñados para amantes del café y el arte.</p>
         </SectionHeader>
 
-        <Grid>
-          {events.map((event, index) => {
-            const { day, month } = formatEventDate(event.date);
-            return (
-              <MiniCard key={event.id} style={{ animationDelay: `${index * 150}ms` }}>
-                <CardHeader $bg={event.image_gradient || 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'}>
-                  <DateBadge>
-                    <span className="day">{day}</span>
-                    <span className="month">{month}</span>
-                  </DateBadge>
-                </CardHeader>
+        <ScrollContainer>
+          <ScrollButton 
+            className="left" 
+            onClick={() => scroll('left')}
+            disabled={!canScrollLeft}
+          >
+            <ChevronLeft size={20} />
+          </ScrollButton>
+          
+          <ScrollWrapper ref={scrollRef}>
+            {events.map((event, index) => {
+              const isExperience = event.event_type === 'open_schedule';
+              const { day, month } = formatEventDate(event.date);
+              const cardBg = event.image_url 
+                ? `url(${event.image_url})` 
+                : event.image_gradient || 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)';
+              
+              return (
+                <MiniCard key={event.id} style={{ animationDelay: `${index * 100}ms` }}>
+                  <CardHeader $bg={cardBg} style={{ backgroundImage: event.image_url ? `url(${event.image_url})` : undefined, background: !event.image_url ? cardBg : undefined }}>
+                    {isExperience ? (
+                      <TypeBadge $isExperience>
+                        <Clock size={12} /> Experiencia
+                      </TypeBadge>
+                    ) : (
+                      <DateBadge>
+                        <span className="day">{day}</span>
+                        <span className="month">{month}</span>
+                      </DateBadge>
+                    )}
+                    {!isExperience && (
+                      <TypeBadge>
+                        <Calendar size={12} /> Evento
+                      </TypeBadge>
+                    )}
+                  </CardHeader>
 
-                <CardBody>
-                  <CardTitle>{event.title}</CardTitle>
-                  <MetaInfo>
-                    <div><Clock size={16} /> {event.time}</div>
-                    <div><Calendar size={16} /> {day} {month}</div>
-                  </MetaInfo>
-                </CardBody>
-              </MiniCard>
-            );
-          })}
-        </Grid>
+                  <CardBody>
+                    <CardTitle>{event.title}</CardTitle>
+                    <MetaInfo>
+                      {isExperience ? (
+                        <div><Clock size={14} /> Horario flexible</div>
+                      ) : (
+                        <>
+                          <div><Clock size={14} /> {event.time}</div>
+                          <div><Calendar size={14} /> {day} {month}</div>
+                        </>
+                      )}
+                    </MetaInfo>
+                    <PriceTag>${event.price} MXN</PriceTag>
+                  </CardBody>
+                </MiniCard>
+              );
+            })}
+          </ScrollWrapper>
+          
+          <ScrollButton 
+            className="right" 
+            onClick={() => scroll('right')}
+            disabled={!canScrollRight}
+          >
+            <ChevronRight size={20} />
+          </ScrollButton>
+        </ScrollContainer>
 
         <ActionButtonWrapper>
           <ViewAllBtn to="/workshops">
