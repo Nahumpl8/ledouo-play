@@ -26,6 +26,7 @@ import { AdminEvents } from './pages/admin/AdminEvents';
 import { EventReservations } from './pages/admin/EventReservations';
 import { AdminClients } from './pages/admin/AdminClients';
 import { AdminPromotions } from './pages/admin/AdminPromotions';
+import AdminRoles from './pages/admin/AdminRoles';
 
 export const Router = () => {
   return (
@@ -86,6 +87,11 @@ export const Router = () => {
         <Route path="/admin/promotions" element={
           <RequireAdminEvents>
             <AdminPromotions />
+          </RequireAdminEvents>
+        } />
+        <Route path="/admin/roles" element={
+          <RequireAdminEvents>
+            <AdminRoles />
           </RequireAdminEvents>
         } />
 
