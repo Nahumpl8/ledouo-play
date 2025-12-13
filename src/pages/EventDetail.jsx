@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { Calendar, Clock, MapPin, Users, ArrowLeft, Ticket } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ReservationModal } from '@/components/events/ReservationModal';
+import { ExperienceReservationModal } from '@/components/events/ExperienceReservationModal';
 import { toast } from 'sonner';
 
 const PageWrapper = styled.div`
@@ -78,6 +79,17 @@ const Tag = styled.span`
   letter-spacing: 0.5px;
 `;
 
+const TypeBadge = styled.span`
+  background: ${props => props.$type === 'open_schedule' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(59, 130, 246, 0.9)'};
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+`;
+
 const EventTitle = styled.h1`
   font-size: clamp(1.8rem, 5vw, 3rem);
   font-weight: 800;
@@ -102,7 +114,7 @@ const InfoGrid = styled.div`
   margin-bottom: 2rem;
   
   @media (min-width: 600px) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(${props => props.$columns || 4}, 1fr);
   }
 `;
 
@@ -158,6 +170,30 @@ const DescriptionSection = styled.div`
     line-height: 1.8;
     margin: 0;
     white-space: pre-wrap;
+  }
+`;
+
+const ExperienceInfo = styled.div`
+  background: linear-gradient(135deg, #f0f7f5 0%, #e8f5f0 100%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 2px solid #1e3932;
+  
+  h3 {
+    color: #1e3932;
+    font-size: 1rem;
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  p {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+    line-height: 1.6;
   }
 `;
 
@@ -252,6 +288,8 @@ export const EventDetail = () => {
     });
   };
 
+  const isOpenSchedule = event.event_type === 'open_schedule';
+
   return (
     <PageWrapper>
       <HeroSection $gradient={event.image_url ? `url(${event.image_url})` : event.image_gradient} style={event.image_url ? { backgroundImage: `url(${event.image_url})` } : {}}>
@@ -259,43 +297,69 @@ export const EventDetail = () => {
           <ArrowLeft size={20} />
         </BackButton>
         <HeroContent>
-          {event.tags?.length > 0 && (
-            <TagsRow>
-              {event.tags.map(tag => (
-                <Tag key={tag}>{tag}</Tag>
-              ))}
-            </TagsRow>
-          )}
+          <TagsRow>
+            <TypeBadge $type={event.event_type}>
+              {isOpenSchedule ? '🕐 Experiencia' : '📅 Evento'}
+            </TypeBadge>
+            {event.tags?.map(tag => (
+              <Tag key={tag}>{tag}</Tag>
+            ))}
+          </TagsRow>
           <EventTitle>{event.title}</EventTitle>
         </HeroContent>
       </HeroSection>
 
       <ContentSection>
-        <InfoGrid>
-          <InfoCard>
-            <div className="icon"><Calendar size={20} /></div>
-            <div className="label">Fecha</div>
-            <div className="value">{formatDate(event.date)}</div>
-          </InfoCard>
-          <InfoCard>
-            <div className="icon"><Clock size={20} /></div>
-            <div className="label">Hora</div>
-            <div className="value">{event.time}</div>
-          </InfoCard>
-          <InfoCard>
-            <div className="icon"><MapPin size={20} /></div>
-            <div className="label">Lugar</div>
-            <div className="value">{event.location}</div>
-          </InfoCard>
-          <InfoCard>
-            <div className="icon"><Users size={20} /></div>
-            <div className="label">Disponibles</div>
-            <div className="value">{event.spots_available}/{event.capacity}</div>
-          </InfoCard>
-        </InfoGrid>
+        {isOpenSchedule ? (
+          <>
+            <ExperienceInfo>
+              <h3>🕐 Experiencia con horario flexible</h3>
+              <p>
+                Esta experiencia te permite elegir la fecha y hora que mejor se adapte a tu agenda. 
+                Al hacer clic en "Reservar", podrás ver los horarios disponibles y seleccionar el que prefieras.
+              </p>
+            </ExperienceInfo>
+            
+            <InfoGrid $columns={2}>
+              <InfoCard>
+                <div className="icon"><MapPin size={20} /></div>
+                <div className="label">Lugar</div>
+                <div className="value">{event.location}</div>
+              </InfoCard>
+              <InfoCard>
+                <div className="icon"><Clock size={20} /></div>
+                <div className="label">Duración</div>
+                <div className="value">{event.duration_minutes || 60} min</div>
+              </InfoCard>
+            </InfoGrid>
+          </>
+        ) : (
+          <InfoGrid>
+            <InfoCard>
+              <div className="icon"><Calendar size={20} /></div>
+              <div className="label">Fecha</div>
+              <div className="value">{formatDate(event.date)}</div>
+            </InfoCard>
+            <InfoCard>
+              <div className="icon"><Clock size={20} /></div>
+              <div className="label">Hora</div>
+              <div className="value">{event.time}</div>
+            </InfoCard>
+            <InfoCard>
+              <div className="icon"><MapPin size={20} /></div>
+              <div className="label">Lugar</div>
+              <div className="value">{event.location}</div>
+            </InfoCard>
+            <InfoCard>
+              <div className="icon"><Users size={20} /></div>
+              <div className="label">Disponibles</div>
+              <div className="value">{event.spots_available}/{event.capacity}</div>
+            </InfoCard>
+          </InfoGrid>
+        )}
 
         <DescriptionSection>
-          <h2>Acerca del evento</h2>
+          <h2>Acerca {isOpenSchedule ? 'de la experiencia' : 'del evento'}</h2>
           <p>{event.long_description || event.description}</p>
         </DescriptionSection>
 
@@ -317,23 +381,36 @@ export const EventDetail = () => {
 
         <ReserveButton 
           onClick={() => setShowReservationModal(true)}
-          disabled={event.spots_available <= 0}
+          disabled={!isOpenSchedule && event.spots_available <= 0}
         >
           <Ticket size={22} />
-          {event.spots_available > 0 ? 'Reservar Ahora' : 'Sin lugares disponibles'}
+          {isOpenSchedule 
+            ? 'Elegir fecha y hora' 
+            : event.spots_available > 0 
+              ? 'Reservar Ahora' 
+              : 'Sin lugares disponibles'}
         </ReserveButton>
       </ContentSection>
 
       {showReservationModal && (
-        <ReservationModal 
-          event={event}
-          onClose={() => setShowReservationModal(false)}
-          onSuccess={() => {
-            setShowReservationModal(false);
-            // Refresh event data
-            window.location.reload();
-          }}
-        />
+        isOpenSchedule ? (
+          <ExperienceReservationModal 
+            event={event}
+            onClose={() => setShowReservationModal(false)}
+            onSuccess={() => {
+              setShowReservationModal(false);
+            }}
+          />
+        ) : (
+          <ReservationModal 
+            event={event}
+            onClose={() => setShowReservationModal(false)}
+            onSuccess={() => {
+              setShowReservationModal(false);
+              window.location.reload();
+            }}
+          />
+        )
       )}
     </PageWrapper>
   );

@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
-import { stateStorage } from '../lib/storage';
-import { mockAPI } from '../services/api';
-import { Clock, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Lock, Crown, Trophy, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
+
+const LEGEND_THRESHOLD = 150;
 
 const RouletteWrapper = styled.div`
   min-height: 80vh;
@@ -17,6 +20,22 @@ const RouletteContainer = styled.div`
   text-align: center;
   max-width: 600px;
   margin: 0 auto;
+`;
+
+const BackButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: ${props => props.theme.colors.primary};
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: ${props => props.theme.spacing.md};
+  
+  &:hover {
+    opacity: 0.8;
+  }
 `;
 
 const Title = styled.h1`
@@ -33,7 +52,7 @@ const RouletteCard = styled(Card)`
   overflow: hidden;
 `;
 
-const ComingSoonOverlay = styled.div`
+const LockedOverlay = styled.div`
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -50,41 +69,98 @@ const ComingSoonOverlay = styled.div`
   padding: ${props => props.theme.spacing.xl};
 `;
 
-const ComingSoonBadge = styled.div`
+const LockBadge = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #1e3932 0%, #2d5a4e 100%);
-  color: white;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #1e3932;
   border-radius: 50px;
   font-weight: 700;
   font-size: 1rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
   margin-bottom: ${props => props.theme.spacing.md};
-  box-shadow: 0 8px 30px rgba(30, 57, 50, 0.3);
-  animation: pulse 2s ease-in-out infinite;
-  
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-  }
+  box-shadow: 0 8px 30px rgba(255, 215, 0, 0.3);
 `;
 
-const ComingSoonTitle = styled.h2`
+const LockTitle = styled.h2`
   font-family: ${props => props.theme.fontPrimary};
   color: ${props => props.theme.colors.primary};
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   margin-bottom: ${props => props.theme.spacing.sm};
 `;
 
-const ComingSoonText = styled.p`
+const LockText = styled.p`
   color: ${props => props.theme.colors.text};
   font-size: 1rem;
   max-width: 320px;
   line-height: 1.6;
-  opacity: 0.8;
+  margin-bottom: ${props => props.theme.spacing.md};
+`;
+
+const ProgressCard = styled.div`
+  background: #f8f9fa;
+  border-radius: 16px;
+  padding: ${props => props.theme.spacing.lg};
+  width: 100%;
+  max-width: 350px;
+  
+  h4 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: ${props => props.theme.colors.primary};
+    margin: 0 0 ${props => props.theme.spacing.md} 0;
+  }
+  
+  .progress-bar {
+    height: 16px;
+    background: #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: ${props => props.theme.spacing.sm};
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FFD700, #FFA500);
+    border-radius: 8px;
+    transition: width 0.5s ease;
+  }
+  
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: ${props => props.theme.colors.secondary};
+    margin-bottom: ${props => props.theme.spacing.md};
+    
+    strong {
+      color: ${props => props.theme.colors.primary};
+    }
+  }
+  
+  .tips {
+    text-align: left;
+    border-top: 1px solid #eee;
+    padding-top: ${props => props.theme.spacing.sm};
+    
+    h5 {
+      font-size: 0.85rem;
+      color: ${props => props.theme.colors.primary};
+      margin: 0 0 8px 0;
+    }
+    
+    p {
+      font-size: 0.8rem;
+      color: ${props => props.theme.colors.secondary};
+      margin: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
 `;
 
 const WheelContainer = styled.div`
@@ -92,8 +168,8 @@ const WheelContainer = styled.div`
   width: 300px;
   height: 300px;
   margin: 0 auto ${props => props.theme.spacing.lg} auto;
-  opacity: 0.4;
-  filter: grayscale(50%);
+  opacity: ${props => props.$locked ? 0.4 : 1};
+  filter: ${props => props.$locked ? 'grayscale(50%)' : 'none'};
 
   @media (max-width: ${props => props.theme.breakpoints.tablet}) {
     width: 280px;
@@ -114,7 +190,7 @@ const Wheel = styled.div`
   border: 8px solid ${props => props.theme.colors.primary};
   box-shadow: ${props => props.theme.shadow};
   transition: transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
-  transform: rotate(${props => props.rotation}deg);
+  transform: rotate(${props => props.$rotation}deg);
 `;
 
 const Segment = styled.div`
@@ -122,14 +198,14 @@ const Segment = styled.div`
   width: 50%;
   height: 50%;
   transform-origin: 100% 100%;
-  transform: rotate(${props => props.angle}deg);
+  transform: rotate(${props => props.$angle}deg);
   
   &::before {
     content: '';
     position: absolute;
     width: 100%;
     height: 100%;
-    background: ${props => props.color};
+    background: ${props => props.$color};
     clip-path: polygon(0 0, 100% 0, 0 100%);
   }
   
@@ -167,8 +243,10 @@ const Pointer = styled.div`
 
 const StatusCard = styled.div`
   padding: ${props => props.theme.spacing.md};
-  background: ${props => props.theme.colors.bgAlt};
-  color: ${props => props.theme.colors.text};
+  background: ${props => props.$canSpin 
+    ? 'linear-gradient(135deg, #10B981, #059669)' 
+    : props.theme.colors.bgAlt};
+  color: ${props => props.$canSpin ? props.theme.colors.white : props.theme.colors.text};
   border-radius: ${props => props.theme.radius};
   margin-bottom: ${props => props.theme.spacing.lg};
   
@@ -191,7 +269,7 @@ const StatusCard = styled.div`
 
 const PrizesGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: ${props => props.theme.spacing.md};
   margin-top: ${props => props.theme.spacing.lg};
 `;
@@ -200,7 +278,7 @@ const PrizeCard = styled.div`
   padding: ${props => props.theme.spacing.sm};
   background: ${props => props.theme.colors.white};
   border-radius: ${props => props.theme.radius};
-  border: 2px solid ${props => props.color};
+  border: 2px solid ${props => props.$color};
   text-align: center;
   
   .prize-icon {
@@ -212,51 +290,91 @@ const PrizeCard = styled.div`
   .prize-label {
     font-size: 0.8rem;
     font-weight: 500;
-    color: ${props => props.color};
+    color: ${props => props.$color};
   }
 `;
 
+const LegendBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #1e3932;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: ${props => props.theme.spacing.md};
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+`;
+
 const segments = [
-  { color: '#FF6B6B', label: '50 puntos', icon: '💰' },
-  { color: '#4ECDC4', label: '1 sello', icon: '🎯' },
-  { color: '#45B7D1', label: '100 puntos', icon: '💎' },
-  { color: '#96CEB4', label: 'Café gratis', icon: '☕' },
-  { color: '#FECA57', label: '25 puntos', icon: '⭐' },
-  { color: '#FF9FF3', label: '20% desc.', icon: '🎁' }
+  { color: '#FF6B6B', label: '50 puntos', icon: '💰', type: 'points', value: 50 },
+  { color: '#4ECDC4', label: '1 sello', icon: '🎯', type: 'stamp', value: 1 },
+  { color: '#45B7D1', label: '100 puntos', icon: '💎', type: 'points', value: 100 },
+  { color: '#96CEB4', label: 'Café gratis', icon: '☕', type: 'coffee', value: 1 },
+  { color: '#FECA57', label: '25 puntos', icon: '⭐', type: 'points', value: 25 },
+  { color: '#FF9FF3', label: '20% desc.', icon: '🎁', type: 'discount', value: 20 }
 ];
 
-// Feature flag - set to false to enable roulette
-const ROULETTE_COMING_SOON = true;
-
 export const Roulette = () => {
+  const navigate = useNavigate();
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  
-  const state = stateStorage.get();
+  const [state, setState] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const canSpinRoulette = () => {
-    if (ROULETTE_COMING_SOON) return false;
-    if (!state.roulette.lastSpinAt) return true;
-    
-    const lastSpin = new Date(state.roulette.lastSpinAt);
-    const now = new Date();
-    const daysSinceLastSpin = Math.floor((now - lastSpin) / (1000 * 60 * 60 * 24));
-    
-    if (state.roulette.mode === 'weekly') {
-      return daysSinceLastSpin >= state.roulette.cooldownDays;
-    } else {
-      return state.roulette.visitsSinceLastSpin >= state.roulette.requiredVisits;
+  useEffect(() => {
+    loadUserState();
+  }, []);
+
+  const loadUserState = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      const { data: customerState } = await supabase
+        .from('customer_state')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      setState(customerState || { level_points: 0, roulette_last_spin_at: null });
+    } catch (error) {
+      console.error('Error loading state:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const isLegend = (state?.level_points || 0) >= LEGEND_THRESHOLD;
+  const levelPoints = state?.level_points || 0;
+  const progressPercent = Math.min((levelPoints / LEGEND_THRESHOLD) * 100, 100);
+  const pointsToLegend = Math.max(0, LEGEND_THRESHOLD - levelPoints);
+
+  const canSpinRoulette = () => {
+    if (!isLegend) return false;
+    if (!state?.roulette_last_spin_at) return true;
+    
+    const lastSpin = new Date(state.roulette_last_spin_at);
+    const now = new Date();
+    const daysSinceLastSpin = Math.floor((now - lastSpin) / (1000 * 60 * 60 * 24));
+    
+    return daysSinceLastSpin >= 7;
+  };
+
   const getStatusText = () => {
-    if (ROULETTE_COMING_SOON) {
+    if (!isLegend) {
       return {
-        icon: '🚧',
-        text: 'Próximamente',
-        detail: 'Estamos preparando algo increíble para ti'
+        icon: '🔒',
+        text: 'Ruleta bloqueada',
+        detail: 'Solo para clientes Leduo Leyend'
       };
     }
     
@@ -268,25 +386,16 @@ export const Roulette = () => {
       };
     }
     
-    if (state.roulette.mode === 'weekly') {
-      const lastSpin = new Date(state.roulette.lastSpinAt);
-      const nextSpin = new Date(lastSpin);
-      nextSpin.setDate(nextSpin.getDate() + state.roulette.cooldownDays);
-      const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
-      
-      return {
-        icon: '⏰',
-        text: 'Ruleta en cooldown',
-        detail: `Podrás girar nuevamente en ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`
-      };
-    } else {
-      const visitsNeeded = state.roulette.requiredVisits - state.roulette.visitsSinceLastSpin;
-      return {
-        icon: '📍',
-        text: 'Acumula más visitas',
-        detail: `Te faltan ${visitsNeeded} visita${visitsNeeded !== 1 ? 's' : ''} para poder girar`
-      };
-    }
+    const lastSpin = new Date(state.roulette_last_spin_at);
+    const nextSpin = new Date(lastSpin);
+    nextSpin.setDate(nextSpin.getDate() + 7);
+    const daysUntilNext = Math.ceil((nextSpin - new Date()) / (1000 * 60 * 60 * 24));
+    
+    return {
+      icon: '⏰',
+      text: 'Ruleta en cooldown',
+      detail: `Podrás girar nuevamente en ${daysUntilNext} día${daysUntilNext !== 1 ? 's' : ''}`
+    };
   };
 
   const handleSpin = async () => {
@@ -295,40 +404,78 @@ export const Roulette = () => {
     setSpinning(true);
     
     try {
-      const response = await mockAPI.spinRoulette();
-      const { reward, spinAngle } = response.data;
+      // Random result
+      const resultIndex = Math.floor(Math.random() * segments.length);
+      const reward = segments[resultIndex];
+      
+      // Calculate spin angle (multiple rotations + landing on result)
+      const segmentAngle = 360 / segments.length;
+      const targetAngle = 360 - (resultIndex * segmentAngle) - (segmentAngle / 2);
+      const spinAngle = 1800 + targetAngle; // 5 full rotations + target
       
       const finalRotation = rotation + spinAngle;
       setRotation(finalRotation);
       
-      setTimeout(() => {
+      setTimeout(async () => {
         setLastResult(reward);
         setResultModalOpen(true);
         setSpinning(false);
         
-        const currentState = stateStorage.get();
-        const updates = {
-          roulette: {
-            ...currentState.roulette,
-            lastSpinAt: new Date().toISOString(),
-            visitsSinceLastSpin: 0
+        // Update database
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const updates = {
+            roulette_last_spin_at: new Date().toISOString(),
+            roulette_visits_since_last_spin: 0
+          };
+          
+          // Add reward based on type
+          if (reward.type === 'points') {
+            updates.cashback_points = (state.cashback_points || 0) + reward.value;
+          } else if (reward.type === 'stamp') {
+            updates.stamps = Math.min((state.stamps || 0) + reward.value, 8);
           }
-        };
-        
-        if (reward.type === 'points') {
-          updates.cashbackPoints = currentState.cashbackPoints + reward.value;
-        } else if (reward.type === 'stamp') {
-          updates.stamps = Math.min(currentState.stamps + reward.value, 10);
+          
+          await supabase
+            .from('customer_state')
+            .update(updates)
+            .eq('user_id', user.id);
+          
+          // Also save reward to rewards table
+          await supabase
+            .from('rewards')
+            .insert({
+              user_id: user.id,
+              type: reward.type,
+              value: String(reward.value),
+              description: reward.label,
+              source: 'roulette',
+              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+            });
+          
+          // Refresh state
+          loadUserState();
         }
-        
-        stateStorage.update(updates);
       }, 3000);
       
     } catch (error) {
       setSpinning(false);
       console.error('Error spinning roulette:', error);
+      toast.error('Error al girar la ruleta');
     }
   };
+
+  if (loading) {
+    return (
+      <RouletteWrapper>
+        <Section>
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <p>Cargando...</p>
+          </div>
+        </Section>
+      </RouletteWrapper>
+    );
+  }
 
   const canSpin = canSpinRoulette();
   const status = getStatusText();
@@ -337,41 +484,78 @@ export const Roulette = () => {
     <RouletteWrapper>
       <Section>
         <RouletteContainer>
+          <BackButton onClick={() => navigate('/app')}>
+            <ArrowLeft size={20} />
+            Volver
+          </BackButton>
+
           <Title>🎰 Ruleta LeDuo</Title>
           
+          {isLegend && (
+            <LegendBadge>
+              <Crown size={16} />
+              Leduo Leyend
+            </LegendBadge>
+          )}
+          
           <RouletteCard>
-            {/* Coming Soon Overlay */}
-            {ROULETTE_COMING_SOON && (
-              <ComingSoonOverlay>
-                <ComingSoonBadge>
-                  <Clock size={20} />
-                  Próximamente
-                </ComingSoonBadge>
-                <ComingSoonTitle>
-                  <Sparkles size={24} style={{ display: 'inline', marginRight: 8 }} />
-                  ¡Algo increíble viene!
-                </ComingSoonTitle>
-                <ComingSoonText>
-                  Estamos preparando la ruleta de premios para que puedas ganar recompensas exclusivas. 
-                  ¡Mantente atento!
-                </ComingSoonText>
-              </ComingSoonOverlay>
+            {/* Locked Overlay for non-Legend users */}
+            {!isLegend && (
+              <LockedOverlay>
+                <LockBadge>
+                  <Lock size={20} />
+                  Exclusivo Leyend
+                </LockBadge>
+                <LockTitle>
+                  🌟 ¡Conviértete en Leduo Leyend!
+                </LockTitle>
+                <LockText>
+                  La ruleta está disponible exclusivamente para nuestros clientes más fieles.
+                </LockText>
+                
+                <ProgressCard>
+                  <h4><Trophy size={18} /> Tu progreso</h4>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <div className="stats">
+                    <span><strong>{levelPoints}</strong> / {LEGEND_THRESHOLD} pts</span>
+                    <span>Faltan <strong>{pointsToLegend}</strong> pts</span>
+                  </div>
+                  <div className="tips">
+                    <h5>¿Cómo subir de nivel?</h5>
+                    <p>💰 Cada $10 de compra = 1 punto</p>
+                    <p>🎯 Completa sellos para bonus</p>
+                    <p>⭐ Los Leyend giran 1 vez/semana</p>
+                  </div>
+                </ProgressCard>
+                
+                <Button 
+                  variant="primary" 
+                  onClick={() => navigate('/app')}
+                  style={{ marginTop: '16px' }}
+                >
+                  Ver mi progreso
+                </Button>
+              </LockedOverlay>
             )}
             
-            <StatusCard canSpin={canSpin}>
-              <span className="status-icon">{status.icon}</span>
-              <div className="status-text">{status.text}</div>
-              <div className="status-detail">{status.detail}</div>
-            </StatusCard>
+            {isLegend && (
+              <StatusCard $canSpin={canSpin}>
+                <span className="status-icon">{status.icon}</span>
+                <div className="status-text">{status.text}</div>
+                <div className="status-detail">{status.detail}</div>
+              </StatusCard>
+            )}
 
-            <WheelContainer>
+            <WheelContainer $locked={!isLegend}>
               <Pointer />
-              <Wheel rotation={rotation}>
+              <Wheel $rotation={rotation}>
                 {segments.map((segment, index) => (
                   <Segment
                     key={index}
-                    angle={index * 60}
-                    color={segment.color}
+                    $angle={index * 60}
+                    $color={segment.color}
                   >
                     <div className="segment-text">
                       {segment.icon} {segment.label}
@@ -381,14 +565,17 @@ export const Roulette = () => {
               </Wheel>
             </WheelContainer>
 
-            <Button
-              onClick={handleSpin}
-              disabled={!canSpin || spinning}
-              size="lg"
-              variant="outline"
-            >
-              {ROULETTE_COMING_SOON ? '🚧 Próximamente' : spinning ? '🎰 Girando...' : canSpin ? '🎰 ¡Girar Ruleta!' : '⏰ No disponible'}
-            </Button>
+            {isLegend && (
+              <Button
+                onClick={handleSpin}
+                disabled={!canSpin || spinning}
+                size="lg"
+                variant={canSpin ? "primary" : "outline"}
+                style={{ width: '100%' }}
+              >
+                {spinning ? '🎰 Girando...' : canSpin ? '🎰 ¡Girar Ruleta!' : '⏰ Volver pronto'}
+              </Button>
+            )}
           </RouletteCard>
 
           <Card>
@@ -397,7 +584,7 @@ export const Roulette = () => {
             </h3>
             <PrizesGrid>
               {segments.map((segment, index) => (
-                <PrizeCard key={index} color={segment.color}>
+                <PrizeCard key={index} $color={segment.color}>
                   <span className="prize-icon">{segment.icon}</span>
                   <div className="prize-label">{segment.label}</div>
                 </PrizeCard>
@@ -416,8 +603,7 @@ export const Roulette = () => {
         {lastResult && (
           <div style={{textAlign: 'center'}}>
             <div style={{fontSize: '4rem', marginBottom: '16px'}}>
-              {lastResult.type === 'points' ? '💰' : 
-               lastResult.type === 'stamp' ? '🎯' : '🎁'}
+              {lastResult.icon}
             </div>
             <h3 style={{marginBottom: '16px', color: '#686145'}}>
               ¡Ganaste!
