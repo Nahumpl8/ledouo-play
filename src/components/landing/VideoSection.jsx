@@ -28,7 +28,7 @@ const Container = styled.div`
   max-width: 1100px;
   width: 100%;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,6 +100,7 @@ const StatItem = styled.div`
 const ActionButtons = styled.div`
   display: flex;
   gap: 1rem;
+  align-items: center;
   
   @media (max-width: 968px) {
     justify-content: center;
@@ -112,11 +113,13 @@ const PrimaryButton = styled.a`
   gap: 8px;
   background: #1f1f1f;
   color: white;
-  padding: 12px 24px;
+  padding: 24px 12px;
   border-radius: 50px;
   font-weight: 600;
+  height: 48px;
   text-decoration: none;
   transition: all 0.3s ease;
+  line-height: 1;
   
   &:hover {
     transform: translateY(-2px);
@@ -205,65 +208,71 @@ const BlobBackground = styled.div`
 `;
 
 export const VideoSection = () => {
-    return (
-        <SectionWrapper>
-            <Container>
-                {/* Contenido Texto */}
-                <TextContent>
-                    <h2>
-                        Vive la experiencia
-                        <span>Le Duo</span>
-                    </h2>
-                    <p>
-                        No somos solo una cafetería, somos tu segundo hogar.
-                        Ven a probar nuestro café de especialidad o nuestro Matcha ceremonial, disfruta de un ambiente
-                        relajado y déjate consentir por nuestro equipo.
-                        <br /><br />
-                        📍 En el corazón de la Roma Norte.
-                    </p>
+  return (
+    <SectionWrapper>
+      <Container>
+        {/* Contenido Texto */}
+        <TextContent>
+          <h2>
+            Vive la experiencia
+            <span>Le Duo</span>
+          </h2>
+          <p>
+            No somos solo una cafetería, somos tu segundo hogar.
+            Ven a probar nuestro café de especialidad o nuestro Matcha ceremonial, disfruta de un ambiente
+            relajado y déjate consentir por nuestro equipo.
+            <br /><br />
+            📍 En el corazón de la Roma Norte.
+          </p>
 
-                    <StatsRow>
-                        <StatItem>
-                            <strong>5/5</strong>
-                            <span>Google Reviews</span>
-                        </StatItem>
-                        <StatItem>
-                            <strong>+2k</strong>
-                            <span>Coffee Lovers</span>
-                        </StatItem>
-                        <StatItem>
-                            <strong>100%</strong>
-                            <span>Pet Friendly</span>
-                        </StatItem>
-                    </StatsRow>
+          <StatsRow>
+            <StatItem>
+              <strong>5/5</strong>
+              <span>Google Reviews</span>
+            </StatItem>
+            <StatItem>
+              <strong>+2k</strong>
+              <span>Coffee Lovers</span>
+            </StatItem>
+            <StatItem>
+              <strong>100%</strong>
+              <span>Pet Friendly</span>
+            </StatItem>
+          </StatsRow>
 
-                    <ActionButtons>
-                        <PrimaryButton href="https://maps.google.com/?q=Le+Duo+Roma+Norte" target="_blank">
-                            <MapPin size={18} />
-                            Cómo llegar
-                        </PrimaryButton>
-                        <SecondaryButton href="https://instagram.com/leduomx" target="_blank">
-                            <Instagram size={18} />
-                            Síguenos
-                        </SecondaryButton>
-                    </ActionButtons>
-                </TextContent>
+          <ActionButtons>
+            <PrimaryButton href="https://maps.google.com/?q=Le+Duo+Roma+Norte" target="_blank">
+              <MapPin size={18} />
+              Cómo llegar
+            </PrimaryButton>
+            <div className="followButtons" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <SecondaryButton href="https://instagram.com/leduomx" target="_blank">
+                <Instagram size={18} />
+                Instagram
+              </SecondaryButton>
+              <SecondaryButton href="https://tiktok.com/@leduomx" target="_blank">
+                <Play size={18} />
+                TikTok
+              </SecondaryButton>
+            </div>
+          </ActionButtons>
+        </TextContent>
 
-                {/* Contenido Video */}
-                <div style={{ position: 'relative' }}>
-                    <BlobBackground />
-                    <PhoneFrame>
-                        {/* Usamos la URL de embed de YouTube. 
+        {/* Contenido Video */}
+        <div style={{ position: 'relative' }}>
+          <BlobBackground />
+          <PhoneFrame>
+            {/* Usamos la URL de embed de YouTube. 
               Importante: ?autoplay=0&controls=0&loop=1&playlist=fMckMXYLWuw 
               para que se vea limpio.
             */}
-                        <iframe
-                            src="https://www.youtube.com/embed/fMckMXYLWuw?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&loop=1&playlist=fMckMXYLWuw"
-                        ></iframe>
-                    </PhoneFrame>
-                </div>
+            <iframe
+              src="https://www.youtube.com/embed/fMckMXYLWuw?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&loop=1&playlist=fMckMXYLWuw"
+            ></iframe>
+          </PhoneFrame>
+        </div>
 
-            </Container>
-        </SectionWrapper>
-    );
+      </Container>
+    </SectionWrapper>
+  );
 };

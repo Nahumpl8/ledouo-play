@@ -243,6 +243,7 @@ const BtnPrimary = styled(Btn)`
     transform: translateY(-4px);
     background: white;
     box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    color: black;
   }
 
   @media (max-width: 968px) { font-size: 1rem; }
@@ -465,6 +466,20 @@ export const HeroSection = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Estado para controlar si el usuario está autenticado
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('authToken'));
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'authToken') {
+        setIsLoggedIn(!!e.newValue);
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const slide = SLIDES[currentSlideIndex];
   const { theme, content } = slide;
 
@@ -496,10 +511,28 @@ export const HeroSection = () => {
             </div>
 
             <ButtonGroup>
-              <BtnPrimary to="/register" $accentColor={theme.accent}
-                $primaryColor={theme.primary}>
-                Obten tu pase digital <ArrowRight size={20} />
-              </BtnPrimary>
+              {/* si el usuario está loggeado mostrar el boton de /Workshops si no /resgister */}
+              {
+                isLoggedIn ? (
+                  <BtnPrimary
+                    to="/workshops"
+                    $accentColor={theme.accent}
+                    $primaryColor={theme.text}
+                  >
+                    <span>Ver Talleres</span>
+                    <ArrowRight size={16} />
+                  </BtnPrimary>
+                ) : (
+                  <BtnPrimary
+                    to="/register"
+                    $accentColor={theme.accent}
+                    $primaryColor={theme.text}
+                  >
+                    <span>Regístrate Ahora</span>
+                    <ArrowRight size={16} />
+                  </BtnPrimary>
+                )
+              }
               <BtnSecondary
                 to="/menu"
               >

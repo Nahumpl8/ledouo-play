@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Container } from '../common/Container';
 // import logo from '../../assets/images/logo-leduo.png';
 const logo = '/lovable-uploads/logoWhite.jpg';
+import { Instagram, Play, Facebook } from 'lucide-react';
 
 const FooterWrapper = styled.footer`
   background: ${props => props.theme.colors.accent};
@@ -114,6 +115,23 @@ const SocialLinks = styled.div`
   }
 `;
 
+const SecondaryButton = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${props => props.theme.colors.white}20;
+  border-radius: 10px;
+  color: ${props => props.theme.colors.white};
+  font-size: 18px;
+  transition: all 0.3s ease;
+  padding: 12px;
+  
+  &:hover {
+    background: ${props => props.theme.colors.secondary};
+    transform: translateY(-2px);
+  }
+`;
+
 export const Footer = () => {
   return (
     <FooterWrapper>
@@ -126,7 +144,7 @@ export const Footer = () => {
                 <h2>LeDuo</h2>
                 <p>Coffee & Bread</p>
                 <p style={{ textTransform: 'none', letterSpacing: 'normal' }}>
-                  Café artesanal en el corazón de la Roma. 
+                  Café artesanal en el corazón de la Roma.
                   Únete a nuestro programa de lealtad y disfruta de beneficios exclusivos.
                 </p>
               </LogoText>
@@ -142,7 +160,7 @@ export const Footer = () => {
             </p>
             <p>
               📞 +52 771 129 59 38<br />
-              ✉️ hola@leduo.mx
+              ✉️ admin@leduo.mx
             </p>
           </FooterSection>
 
@@ -152,13 +170,19 @@ export const Footer = () => {
               <li>Martes - Sábado: 8:00 - 20:00</li>
               <li>Domingos: 8:00 - 16:00</li>
             </ul>
-            
-            <h3 style={{marginTop: '24px'}}>Síguenos</h3>
-            <SocialLinks>
-              <a href="#" aria-label="Instagram" >📷</a>
-              <a href="#" aria-label="Facebook">📘</a>
-              <a href="#" aria-label="Twitter">🐦</a>
-            </SocialLinks>
+
+            <h3 style={{ marginTop: '24px' }}>Síguenos</h3>
+              <div className="followButtons" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <SecondaryButton href="https://instagram.com/leduomx" target="_blank">
+                  <Instagram size={18} />
+                  Instagram
+                </SecondaryButton>
+                <SecondaryButton href="https://tiktok.com/@leduomx" target="_blank">
+                  <Play size={18} />
+                  TikTok
+                </SecondaryButton>
+              </div>
+
           </FooterSection>
         </FooterContent>
 
