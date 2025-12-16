@@ -109,7 +109,8 @@ const generatePasswordResetEmail = (
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("send-auth-email function called");
+  console.log("=== send-auth-email function called ===");
+  console.log("Timestamp:", new Date().toISOString());
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -117,8 +118,10 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const rawBody = await req.text();
+    console.log("Raw body received:", rawBody ? "has content" : "empty");
 
     if (!rawBody || rawBody.trim() === "") {
+      console.error("ERROR: Empty request body");
       return new Response(
         JSON.stringify({ error: "Empty request body" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -126,9 +129,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const payload: RecoveryEmailRequest = JSON.parse(rawBody);
-    console.log("Processing recovery for:", payload.email);
+    console.log("Parsed payload:", {
+      email: payload.email,
+      type: payload.type,
+      redirectTo: payload.redirectTo
+    });
 
     if (!payload.email) {
+      console.error("ERROR: Missing email in payload");
       return new Response(
         JSON.stringify({ error: "Missing email" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -138,6 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Initialize Supabase Admin client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    console.log("Supabase URL:", supabaseUrl);
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -147,21 +156,26 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Get user profile for personalization
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("name")
       .eq("email", payload.email)
       .single();
 
+    if (profileError) {
+      console.log("Profile lookup warning:", profileError.message);
+    }
     const userName = profile?.name || "";
+    console.log("User name found:", userName || "(none)");
 
     // URL de redirección: Usamos la que viene del front o el fallback a producción
     const redirectTo = payload.redirectTo || "https://www.leduo.mx/app/reset-password";
-    console.log("Redirecting to:", redirectTo);
+    console.log("=== REDIRECT URL ===");
+    console.log("Received redirectTo:", payload.redirectTo);
+    console.log("Using redirectTo:", redirectTo);
 
-    // --- CORRECCIÓN CLAVE AQUÍ ---
-    // Generar el link pasando 'redirectTo' en las opciones.
-    // Supabase se encarga de codificar todo correctamente.
+    // Generar el link pasando 'redirectTo' en las opciones
+    console.log("Generating recovery link...");
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email: payload.email,
@@ -171,23 +185,28 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (linkError) {
-      console.error("Error generating link:", linkError);
+      console.error("ERROR generating link:", linkError);
       return new Response(
         JSON.stringify({ error: linkError.message }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Usamos el action_link directamente. 
-    // Este link apunta a la API de Supabase, verifica el token, y luego redirige al usuario a tu frontend.
     const resetLink = linkData.properties.action_link;
-    console.log("Generated Valid Link:", resetLink);
+    console.log("=== GENERATED LINK ===");
+    console.log("Action link:", resetLink);
+    console.log("Link contains redirect_to:", resetLink.includes("redirect_to"));
 
     // Generate email HTML
     const subject = "Recupera tu cuenta de Le Duo ☕";
     const html = generatePasswordResetEmail(userName, resetLink);
 
     // Send email via Resend
+    console.log("Sending email via Resend...");
+    console.log("From: Le Duo <no-reply@leduo.mx>");
+    console.log("To:", payload.email);
+    console.log("Subject:", subject);
+    
     const emailResponse = await resend.emails.send({
       from: "Le Duo <no-reply@leduo.mx>",
       to: [payload.email],
@@ -195,15 +214,19 @@ const handler = async (req: Request): Promise<Response> => {
       html: html,
     });
 
-    console.log("Email sent successfully");
+    console.log("=== EMAIL SENT ===");
+    console.log("Resend response:", JSON.stringify(emailResponse));
 
     return new Response(
-      JSON.stringify({ success: true, message: "Recovery email sent" }),
+      JSON.stringify({ success: true, message: "Recovery email sent", emailId: emailResponse?.id }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
   } catch (error: any) {
-    console.error("Fatal error:", error);
+    console.error("=== FATAL ERROR ===");
+    console.error("Error type:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
