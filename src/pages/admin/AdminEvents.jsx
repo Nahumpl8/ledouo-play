@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Plus, Edit2, Eye, Trash2, Users, Calendar } from 'lucide-react';
+import { Plus, Edit2, Eye, Trash2, Users, Calendar, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -282,7 +282,10 @@ export const AdminEvents = () => {
               <EventCard key={event.id}>
                 <EventGradient $gradient={event.image_gradient} />
                 <EventInfo>
-                  <h3>{event.title}</h3>
+                  <h3>
+                    {event.event_type === 'open_schedule' ? '🕐 ' : '📅 '}
+                    {event.title}
+                  </h3>
                   <div className="meta">
                     <span><Calendar size={14} /> {formatDate(event.date)} • {event.time}</span>
                     <span><Users size={14} /> {event.spots_available}/{event.capacity}</span>
@@ -292,9 +295,23 @@ export const AdminEvents = () => {
                     <span className={event.is_active ? 'active' : 'inactive'}>
                       {event.is_active ? 'Activo' : 'Inactivo'}
                     </span>
+                    {event.event_type === 'open_schedule' && (
+                      <span style={{ marginLeft: '0.5rem', background: '#e3f2fd', color: '#1565c0' }}>
+                        Experiencia
+                      </span>
+                    )}
                   </div>
                 </EventInfo>
                 <EventActions>
+                  {event.event_type === 'open_schedule' && (
+                    <ActionButton 
+                      title="Gestionar horarios"
+                      onClick={() => navigate(`/admin/events/${event.id}/slots`)}
+                      style={{ background: '#e3f2fd', color: '#1565c0' }}
+                    >
+                      <Clock size={18} />
+                    </ActionButton>
+                  )}
                   <ActionButton 
                     title="Ver reservaciones"
                     onClick={() => navigate(`/admin/events/${event.id}/reservations`)}
