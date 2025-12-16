@@ -284,7 +284,7 @@ export const EventFormModal = ({ event, onClose, onSuccess }) => {
     long_description: event?.long_description || '',
     date: event?.date || '',
     time: event?.time || '',
-    location: event?.location || 'Centro',
+    location: event?.location || 'Coahuila 111, Roma Norte, CDMX',
     price: event?.price || '',
     capacity: event?.capacity || 20,
     image_gradient: event?.image_gradient || GRADIENT_OPTIONS[0],
