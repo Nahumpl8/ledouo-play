@@ -263,7 +263,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
           value: activePromotion 
             ? activePromotion.message 
             : '¡Bienvenido al Club Le Duo! 🥐🍵\nMantente atento a este espacio: aquí publicaremos promociones relámpago y regalos exclusivos cada semana.',
-          changeMessage: 'Le Duo: %@'
+          changeMessage: '%@'
         },
 
         // 3. SECCIÓN EDUCATIVA (Cómo funciona)
@@ -286,7 +286,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         {
           key: 'contact_footer',
           label: '📞 ENLACES DE INTERÉS',
-          value: '📞 Tel: 7711295938\n🌐 Web: www.leduo.mx\n📍 Coahuila 111, Roma Nte., CDMX\n\n© 2025 Le Duo Coffee, Matcha & Bread 🍵',
+          value: '📞 Tel: 7711295938\n🌐 Web: www.leduo.mx\n📍 Coahuila 111, Roma Nte., CDMX\n© 2025 Le Duo Coffee, Matcha & Bread 🍵\n\nwww.fidelify.mx',
           textAlignment: 'PKTextAlignmentLeft'
         },
         

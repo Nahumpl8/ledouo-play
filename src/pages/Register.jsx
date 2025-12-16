@@ -4,7 +4,8 @@ import styled from 'styled-components';
 import { Section } from '../components/common/Section';
 import { Card } from '../components/common/Card';
 import { Input } from '../components/common/Input';
-import { Select } from '../components/common/Select';
+// Asegúrate de importar Select si lo tienes, si no, usa un select nativo o el Input
+import { Select } from '../components/common/Select'; 
 import { Button } from '../components/common/Button';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,56 +40,33 @@ const Form = styled.form`
   gap: ${props => props.theme.spacing.md};
 `;
 
-const Divider = styled.div`
-  display: flex;
-  align-items: center;
-  margin: ${props => props.theme.spacing.md} 0;
+// --- Nuevo componente para alinear la fecha ---
+const DateGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr; // Día pequeño, Mes grande, Año mediano
+  gap: 12px;
   
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: ${props => props.theme.colors.border || '#e5e5e5'};
-  }
-  
-  span {
-    padding: 0 ${props => props.theme.spacing.md};
-    color: ${props => props.theme.colors.secondary};
-    font-size: 14px;
+  @media (max-width: 400px) {
+    grid-template-columns: 1fr; // En pantallas muy pequeñas, uno debajo del otro
+    gap: 8px;
   }
 `;
 
-const GoogleButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 24px;
-  background: white;
-  border: 1px solid ${props => props.theme.colors.border || '#e5e5e5'};
-  border-radius: 8px;
-  font-size: 16px;
+const Label = styled.label`
+  display: block;
+  font-size: 14px;
   font-weight: 500;
-  color: #333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: #f8f9fa;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  
-  svg {
-    width: 20px;
-    height: 20px;
-  }
+  color: ${props => props.theme.colors.text};
+  margin-bottom: -8px; // Para acercarlo un poco a los inputs
+`;
+
+const ErrorMessage = styled.div`
+  color: #ef4444;
+  background: #fee2e2;
+  padding: ${props => props.theme.spacing.sm};
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
 `;
 
 const SuccessMessage = styled.div`
@@ -101,85 +79,49 @@ const SuccessMessage = styled.div`
     display: block;
   }
   
-  h2 {
-    color: ${props => props.theme.colors.primary};
-    margin-bottom: ${props => props.theme.spacing.sm};
-  }
-  
-  p {
-    color: ${props => props.theme.colors.text};
-    line-height: 1.6;
-    margin-bottom: ${props => props.theme.spacing.md};
-  }
-  
-  .instructions {
-    background: ${props => props.theme.colors.bgAlt};
-    padding: ${props => props.theme.spacing.md};
-    border-radius: ${props => props.theme.radius};
-    margin: ${props => props.theme.spacing.md} 0;
-    
-    h3 {
-      color: ${props => props.theme.colors.primary};
-      font-size: 1rem;
-      margin-bottom: ${props => props.theme.spacing.sm};
-    }
-    
-    ol {
-      text-align: left;
-      padding-left: 20px;
-      
-      li {
-        margin-bottom: 8px;
-        line-height: 1.5;
-      }
-    }
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: #ef4444;
-  background: #fee2e2;
-  padding: ${props => props.theme.spacing.sm};
-  border-radius: 8px;
-  font-size: 14px;
-  text-align: center;
+  h2 { color: ${props => props.theme.colors.primary}; margin-bottom: 8px; }
+  p { color: ${props => props.theme.colors.text}; line-height: 1.6; }
 `;
 
 export const Register = () => {
   const { code } = useParams();
   const navigate = useNavigate();
+  
+  // Estado separado para la fecha para facilitar el manejo
+  const [dobParts, setDobParts] = useState({
+    day: '',
+    month: '',
+    year: ''
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    sex: '',
-    dob: '',
     password: '',
     confirmPassword: ''
   });
+
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const handleGoogleSignUp = async () => {
-    setGoogleLoading(true);
-    setError('');
-    
-    try {
-      const { error: googleError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/app`
-        }
-      });
-      
-      if (googleError) throw googleError;
-    } catch (err) {
-      setError(err.message || 'Error al registrarse con Google');
-      setGoogleLoading(false);
-    }
-  };
+  // Generamos arrays para los selects
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const months = [
+    { value: '01', label: 'Enero' },
+    { value: '02', label: 'Febrero' },
+    { value: '03', label: 'Marzo' },
+    { value: '04', label: 'Abril' },
+    { value: '05', label: 'Mayo' },
+    { value: '06', label: 'Junio' },
+    { value: '07', label: 'Julio' },
+    { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' }
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -187,12 +129,11 @@ export const Register = () => {
     setError('');
 
     try {
-      // Validate form
-      if (!formData.name || !formData.email || !formData.phone || !formData.sex) {
-        throw new Error('Todos los campos son obligatorios');
+      // 1. Validaciones básicas
+      if (!formData.name || !formData.email || !formData.phone) {
+        throw new Error('Nombre, email y teléfono son obligatorios');
       }
 
-      // Validate password
       if (!formData.password || formData.password.length < 6) {
         throw new Error('La contraseña debe tener al menos 6 caracteres');
       }
@@ -200,7 +141,20 @@ export const Register = () => {
         throw new Error('Las contraseñas no coinciden');
       }
 
-      // Register with Supabase Auth
+      // 2. Construcción y validación de la fecha
+      let finalDob = null;
+      if (dobParts.day && dobParts.month && dobParts.year) {
+        // Validar año lógico
+        const yearNum = parseInt(dobParts.year);
+        const currentYear = new Date().getFullYear();
+        if (yearNum < 1920 || yearNum > currentYear) {
+          throw new Error('Por favor ingresa un año válido');
+        }
+        // Formato ISO: YYYY-MM-DD
+        finalDob = `${dobParts.year}-${dobParts.month}-${dobParts.day.toString().padStart(2, '0')}`;
+      }
+
+      // 3. Registro en Supabase
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -209,8 +163,8 @@ export const Register = () => {
           data: {
             name: formData.name,
             phone: formData.phone,
-            sex: formData.sex,
-            dob: formData.dob,
+            dob: finalDob, // Enviamos la fecha combinada
+            // Eliminé 'sex' de aquí
             registration_code: code || 'DIRECT'
           }
         }
@@ -219,8 +173,6 @@ export const Register = () => {
       if (signUpError) throw signUpError;
 
       setSuccess(true);
-      
-      // Auto redirect after 3 seconds
       setTimeout(() => {
         navigate('/app');
       }, 3000);
@@ -238,6 +190,13 @@ export const Register = () => {
     }));
   };
 
+  const handleDateChange = (field, value) => {
+    setDobParts(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   if (success) {
     return (
       <RegisterWrapper>
@@ -246,26 +205,8 @@ export const Register = () => {
             <SuccessMessage>
               <span className="success-icon">🎉</span>
               <h2>¡Registro exitoso!</h2>
-              <p>
-                Bienvenido a LeDuo, <strong>{formData.name}</strong>. 
-                Tu cuenta ha sido creada con éxito.
-              </p>
-              
-              <div className="instructions">
-                <h3>Para empezar a acumular tus puntos:</h3>
-                <ol>
-                  <li>Realiza tu primera compra</li>
-                  <li>¡Comienza a acumular puntos y sellos!</li>
-                </ol>
-              </div>
-              
-              <p style={{fontSize: '0.9rem', color: '#666'}}>
-                Código de registro: <strong>{code}</strong>
-              </p>
-              
-              <Button as={Link} to="/" size="lg">
-                Volver al inicio
-              </Button>
+              <p>Bienvenido a LeDuo, <strong>{formData.name}</strong>.</p>
+              <Button as={Link} to="/" size="lg">Volver al inicio</Button>
             </SuccessMessage>
           </RegisterCard>
         </Section>
@@ -278,9 +219,7 @@ export const Register = () => {
       <Section>
         <RegisterCard size="lg">
           <Title>Únete a LeDuo</Title>
-          <Subtitle>
-            Completa tu registro para comenzar a disfrutar de beneficios exclusivos
-          </Subtitle>
+          <Subtitle>Completa tu registro para comenzar</Subtitle>
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -289,7 +228,7 @@ export const Register = () => {
               type="text"
               name="name"
               label="Nombre completo"
-              placeholder="Tu nombre"
+              placeholder="Ej. Juan Pérez"
               value={formData.name}
               onChange={handleChange}
               required
@@ -309,34 +248,54 @@ export const Register = () => {
               type="tel"
               name="phone"
               label="Número de celular"
-              placeholder="+52 55 1234 5678"
+              placeholder="551234..."
               value={formData.phone}
               onChange={handleChange}
               required
             />
             
-            <Select
-              name="sex"
-              label="Sexo"
-              value={formData.sex}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Selecciona una opción</option>
-              <option value="masculino">Masculino</option>
-              <option value="femenino">Femenino</option>
-              <option value="otro">Otro</option>
-              <option value="prefiero-no-decir">Prefiero no decir</option>
-            </Select>
+            {/* SECCIÓN DE FECHA DIVIDIDA */}
+            <div>
+              <Label>Fecha de nacimiento (opcional)</Label>
+              <div style={{ marginTop: '8px' }}>
+                <DateGrid>
+                  {/* DÍA */}
+                  <Select 
+                    value={dobParts.day}
+                    onChange={(e) => handleDateChange('day', e.target.value)}
+                    placeholder="Día"
+                  >
+                    <option value="">Día</option>
+                    {days.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </Select>
 
-            <Input
-              type="date"
-              name="dob"
-              label="Fecha de nacimiento (opcional)"
-              value={formData.dob}
-              onChange={handleChange}
-              max={new Date().toISOString().split('T')[0]}
-            />
+                  {/* MES */}
+                  <Select 
+                    value={dobParts.month}
+                    onChange={(e) => handleDateChange('month', e.target.value)}
+                    placeholder="Mes"
+                  >
+                    <option value="">Mes</option>
+                    {months.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </Select>
+
+                  {/* AÑO - Input numérico simple */}
+                  <Input
+                    type="number"
+                    placeholder="Año"
+                    value={dobParts.year}
+                    onChange={(e) => handleDateChange('year', e.target.value)}
+                    min="1920"
+                    max={new Date().getFullYear()}
+                    style={{ margin: 0 }} // Reset de margen si Input lo tiene
+                  />
+                </DateGrid>
+              </div>
+            </div>
 
             <Input
               type="password"
@@ -360,16 +319,11 @@ export const Register = () => {
             />
 
             <Button type="submit" size="lg" disabled={loading}>
-              {loading ? 'Registrando...' : 'Crear cuenta'}
+              {loading ? 'Creando cuenta...' : 'Crear cuenta'}
             </Button>
           </Form>
 
-          <p style={{
-            textAlign: 'center', 
-            marginTop: '24px', 
-            fontSize: '0.9rem', 
-            color: '#666'
-          }}>
+          <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: '#666' }}>
             Al registrarte aceptas nuestros términos y condiciones
           </p>
           

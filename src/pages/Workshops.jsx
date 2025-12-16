@@ -215,7 +215,6 @@ const EventCard = styled.div`
   animation: ${fadeUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
-  z-index: -1;
 
   &:hover {
     transform: translateY(-8px);
