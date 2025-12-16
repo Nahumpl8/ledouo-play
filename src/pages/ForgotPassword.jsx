@@ -76,11 +76,14 @@ export const ForgotPassword = () => {
     setError('');
 
     try {
+      // SIEMPRE usar URL de producción para que los emails funcionen correctamente
+      const productionUrl = 'https://www.leduo.mx';
+      
       const { data, error: fnError } = await supabase.functions.invoke('send-auth-email', {
         body: { 
           email, 
           type: 'recovery',
-          redirectTo: `${window.location.origin}/app/reset-password`
+          redirectTo: `${productionUrl}/app/reset-password`
         }
       });
 

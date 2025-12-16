@@ -290,9 +290,40 @@ export const ReservationModal = ({ event, onClose, onSuccess }) => {
         .update({ spots_available: event.spots_available - 1 })
         .eq('id', event.id);
 
+      // Formatear fecha para el email
+      const eventDate = new Date(event.date + 'T12:00:00');
+      const formattedDate = eventDate.toLocaleDateString('es-MX', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      // Enviar email de confirmación
+      try {
+        await supabase.functions.invoke('send-reservation-email', {
+          body: {
+            type: 'event',
+            guestName: formData.name,
+            guestEmail: formData.email,
+            guestPhone: formData.phone,
+            eventTitle: event.title,
+            eventDate: formattedDate,
+            eventTime: event.time,
+            eventLocation: event.location || 'Le Duo Centro',
+            paymentMethod: formData.paymentMethod,
+            totalAmount: event.price
+          }
+        });
+        console.log('Email de confirmación enviado');
+      } catch (emailErr) {
+        console.error('Error enviando email:', emailErr);
+        // No fallar la reservación si el email falla
+      }
+
       toast.success('¡Reservación confirmada!', {
         description: formData.paymentMethod === 'transfer' 
-          ? 'Te enviaremos los datos de transferencia por correo'
+          ? 'Te enviamos los datos de transferencia a tu correo'
           : 'Realiza tu pago en la cafetería antes del evento'
       });
       

@@ -487,8 +487,29 @@ export const ExperienceReservationModal = ({ event, onClose, onSuccess }) => {
         .update({ spots_available: selectedSlot.spots_available - 1 })
         .eq('id', selectedSlot.id);
 
+      // Enviar email de confirmación
+      try {
+        await supabase.functions.invoke('send-reservation-email', {
+          body: {
+            type: 'experience',
+            guestName: formData.name,
+            guestEmail: formData.email,
+            guestPhone: formData.phone,
+            eventTitle: event.title,
+            eventDate: formatDateFull(selectedDate),
+            eventTime: formatTime(selectedSlot.start_time),
+            endTime: formatTime(selectedSlot.end_time),
+            eventLocation: 'Le Duo Centro'
+          }
+        });
+        console.log('Email de confirmación enviado');
+      } catch (emailErr) {
+        console.error('Error enviando email:', emailErr);
+        // No fallar la reservación si el email falla
+      }
+
       toast.success('¡Reservación confirmada!', {
-        description: `Tu experiencia está programada para el ${formatDateFull(selectedDate)} a las ${formatTime(selectedSlot.start_time)}`
+        description: `Tu experiencia está programada para el ${formatDateFull(selectedDate)} a las ${formatTime(selectedSlot.start_time)}. Te enviamos un correo de confirmación.`
       });
       
       onSuccess();
