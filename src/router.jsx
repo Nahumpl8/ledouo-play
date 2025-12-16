@@ -27,6 +27,7 @@ import { EventReservations } from './pages/admin/EventReservations';
 import { AdminClients } from './pages/admin/AdminClients';
 import { AdminPromotions } from './pages/admin/AdminPromotions';
 import AdminRoles from './pages/admin/AdminRoles';
+import { AdminEventSlots } from './pages/admin/AdminEventSlots';
 
 export const Router = () => {
   return (
@@ -92,6 +93,11 @@ export const Router = () => {
         <Route path="/admin/roles" element={
           <RequireAdminEvents>
             <AdminRoles />
+          </RequireAdminEvents>
+        } />
+        <Route path="/admin/events/:eventId/slots" element={
+          <RequireAdminEvents>
+            <AdminEventSlots />
           </RequireAdminEvents>
         } />
 
