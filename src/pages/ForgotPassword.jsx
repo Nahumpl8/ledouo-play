@@ -106,9 +106,26 @@ export const ForgotPassword = () => {
           <FormCard size="lg">
             <Title>Revisa tu correo</Title>
             <SuccessMessage>
-              📧 Hemos enviado un enlace de recuperación a <strong>{email}</strong>. 
-              Por favor revisa tu bandeja de entrada (y spam) para restablecer tu contraseña.
+              📧 Hemos enviado un enlace de recuperación a <strong>{email}</strong>.
             </SuccessMessage>
+            <div style={{ 
+              background: '#FEF3C7', 
+              border: '1px solid #F59E0B', 
+              borderRadius: '8px', 
+              padding: '12px', 
+              marginTop: '16px',
+              textAlign: 'left',
+              fontSize: '13px',
+              color: '#92400E'
+            }}>
+              <p style={{ margin: '0 0 8px 0', fontWeight: '600' }}>📌 Importante:</p>
+              <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                <li>Revisa tu <strong>spam o promociones</strong> si no lo ves</li>
+                <li>El correo puede tardar <strong>hasta 5 minutos</strong></li>
+                <li>El enlace es válido por <strong>1 hora</strong></li>
+                <li>Si solicitas otro enlace, <strong>el anterior se invalidará</strong></li>
+              </ul>
+            </div>
             <LinkText>
               <Link to="/app/login">← Volver al inicio de sesión</Link>
             </LinkText>
