@@ -78,7 +78,7 @@ const generateEventReservationEmail = (data: ReservationEmailRequest): string =>
           
           <tr>
             <td align="center" style="padding: 40px 40px 24px 40px; background: linear-gradient(135deg, #5C6B4A 0%, #4A5A3A 100%); border-radius: 16px 16px 0 0;">
-              <img src="https://i.ibb.co/fRrrygx/sello-Leduo.png" alt="Le Duo" style="height: 60px; width: auto;" />
+              <img src="https://www.leduo.mx/lovable-uploads/logoWhite.jpg" alt="Le Duo" style="height: 60px; width: auto; border-radius: 8px;" />
               <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 600; color: #FFFFFF; letter-spacing: 0.5px;">
                 ¡Reservación Confirmada! 🎉
               </h1>
@@ -183,7 +183,7 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
           
           <tr>
             <td align="center" style="padding: 40px 40px 24px 40px; background: linear-gradient(135deg, #1e3932 0%, #2d5a4e 100%); border-radius: 16px 16px 0 0;">
-              <img src="https://i.ibb.co/fRrrygx/sello-Leduo.png" alt="Le Duo" style="height: 60px; width: auto;" />
+              <img src="https://www.leduo.mx/lovable-uploads/logoWhite.jpg" alt="Le Duo" style="height: 60px; width: auto; border-radius: 8px;" />
               <h1 style="margin: 20px 0 0 0; font-size: 24px; font-weight: 600; color: #FFFFFF; letter-spacing: 0.5px;">
                 ¡Experiencia Reservada! 🎨
               </h1>

@@ -261,8 +261,25 @@ export const ResetPassword = () => {
 
           {error && (
             <ErrorMessage>
-              ⚠️ {error} <br />
-              <Link to="/app/forgot-password" style={{ fontSize: '0.8rem', marginTop: '5px', display: 'block' }}>
+              <strong>⚠️ Enlace inválido o expirado</strong>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#666' }}>
+                {error.includes('expired') || error.includes('expirado') 
+                  ? 'Este enlace ha caducado (válido por 1 hora).'
+                  : 'El enlace ya fue utilizado o es incorrecto.'}
+              </p>
+              <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: '#666' }}>
+                💡 <strong>Tip:</strong> Si solicitaste varios correos, usa solo el más reciente.
+              </p>
+              <Link to="/app/forgot-password" style={{ 
+                display: 'inline-block', 
+                marginTop: '12px', 
+                padding: '8px 16px',
+                background: '#5C6B4A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                textDecoration: 'none'
+              }}>
                 Solicitar nuevo enlace
               </Link>
             </ErrorMessage>
