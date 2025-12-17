@@ -148,7 +148,8 @@ const generateEventReservationEmail = (data: ReservationEmailRequest): string =>
                 Colima 124, Roma Norte, CDMX
               </p>
               <p style="margin: 0; font-size: 13px; color: #888888;">
-                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">@leduo.mx</a>
+                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Instagram: @leduo.mx</a>
+                <a href="https://tiktok.com/@leduomx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Tiktok: @leduomx</a>
               </p>
             </td>
           </tr>
@@ -201,7 +202,7 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
               </p>
               
               <!-- Detalles de la experiencia -->
-              <table role="presentation" style="width: 100%; margin-bottom: 24px; background: linear-gradient(135deg, #f0f7f5 0%, #e8f4f0 100%); border-radius: 16px; overflow: hidden;">
+              <table role="presentation" style="width: 100%; margin-bottom: 24px; background: linear-gradient(135deg, #003b2aff 0%, #005f3fff 100%); border-radius: 16px; overflow: hidden;">
                 <tr>
                   <td style="padding: 24px;">
                     <div style="text-align: center; margin-bottom: 16px;">
@@ -211,19 +212,19 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
                       <tr>
                         <td style="padding: 12px 0; border-bottom: 1px solid rgba(30,57,50,0.1);">
                           <span style="font-size: 14px; color: #666;">📅 Fecha</span>
-                          <span style="float: right; font-size: 15px; font-weight: 600; color: #1e3932;">${data.eventDate}</span>
+                          <span style="float: right; font-size: 15px; font-weight: 600; color: #92b796ff;">${data.eventDate}</span>
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 12px 0; border-bottom: 1px solid rgba(30,57,50,0.1);">
                           <span style="font-size: 14px; color: #666;">🕐 Horario</span>
-                          <span style="float: right; font-size: 15px; font-weight: 600; color: #1e3932;">${data.eventTime}${data.endTime ? ` - ${data.endTime}` : ''}</span>
+                          <span style="float: right; font-size: 15px; font-weight: 600; color: #92b796ff;">${data.eventTime}${data.endTime ? ` - ${data.endTime}` : ''}</span>
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 12px 0;">
                           <span style="font-size: 14px; color: #666;">📍 Lugar</span>
-                          <span style="float: right; font-size: 15px; font-weight: 600; color: #1e3932;">Le Duo Centro</span>
+                          <span style="float: right; font-size: 15px; font-weight: 600; color: #92b796ff;">Le Duo Roma Norte, CDMX</span>
                         </td>
                       </tr>
                     </table>
@@ -262,10 +263,11 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
                 Le Duo Coffee, Matcha & Bread
               </p>
               <p style="margin: 0 0 12px 0; font-size: 13px; color: #888888;">
-                Colima 124, Roma Norte, CDMX
+                Coahuila 111, Roma Norte, CDMX
               </p>
               <p style="margin: 0; font-size: 13px; color: #888888;">
-                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">@leduo.mx</a>
+                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Instagram: @leduo.mx</a>
+                <a href="https://tiktok.com/@leduomx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Tiktok: @leduomx</a>
               </p>
             </td>
           </tr>
