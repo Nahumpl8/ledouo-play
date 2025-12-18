@@ -1,8 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+// 👇 AQUÍ PUSIMOS EL CORREO QUE PEDISTE
+const ADMIN_EMAIL = "clauudlvalle@gmail.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,8 +26,66 @@ interface ReservationEmailRequest {
   endTime?: string;
 }
 
+// --- 1. NUEVA PLANTILLA SOLO PARA CLAUDIA (Datos técnicos para el staff) ---
+const generateAdminNotificationEmail = (data: ReservationEmailRequest): string => {
+  const isTransfer = data.paymentMethod === 'transfer';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: sans-serif; color: #333; }
+        .container { padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 600px; }
+        .header { background: #1e3932; color: white; padding: 15px; border-radius: 8px 8px 0 0; }
+        .row { margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .label { font-weight: bold; color: #666; font-size: 12px; text-transform: uppercase; }
+        .value { font-size: 16px; margin-top: 4px; }
+        .alert { color: #B8860B; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2 style="margin:0;">🔔 Nueva Reservación Recibida</h2>
+        </div>
+        
+        <div style="padding: 20px;">
+          <div class="row">
+            <div class="label">Evento / Taller</div>
+            <div class="value">${data.eventTitle}</div>
+            <div class="value" style="font-size: 14px; color: #666;">
+              📅 ${data.eventDate} - ⏰ ${data.eventTime}
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="label">Datos del Cliente</div>
+            <div class="value">👤 <strong>${data.guestName}</strong></div>
+            <div class="value">📧 <a href="mailto:${data.guestEmail}">${data.guestEmail}</a></div>
+            <div class="value">📱 <a href="tel:${data.guestPhone}">${data.guestPhone}</a></div>
+          </div>
+
+          <div class="row">
+            <div class="label">Detalles de Pago</div>
+            <div class="value">
+              💰 Total a cobrar: <strong>$${data.totalAmount || 0} MXN</strong>
+            </div>
+            <div class="value">
+              💳 Método: ${isTransfer ? 'Transferencia (Esperando comprobante)' : 'Efectivo / Otro'}
+            </div>
+            ${isTransfer ? '<p class="alert">⚠️ OJO: Revisa que envíen el comprobante.</p>' : ''}
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+// --- 2. PLANTILLA PARA EL CLIENTE (EVENTO) ---
 const generateEventReservationEmail = (data: ReservationEmailRequest): string => {
-  const paymentInfo = data.paymentMethod === 'transfer' 
+  const paymentInfo = data.paymentMethod === 'transfer'
     ? `
       <tr>
         <td style="padding: 24px; background: #FFF9E6; border-radius: 12px; margin-bottom: 24px;">
@@ -95,7 +156,6 @@ const generateEventReservationEmail = (data: ReservationEmailRequest): string =>
                 Tu reservación para <strong>${data.eventTitle}</strong> ha sido confirmada.
               </p>
               
-              <!-- Detalles del evento -->
               <table role="presentation" style="width: 100%; margin-bottom: 24px; background: #f8f9fa; border-radius: 12px; overflow: hidden;">
                 <tr>
                   <td style="padding: 20px;">
@@ -149,16 +209,11 @@ const generateEventReservationEmail = (data: ReservationEmailRequest): string =>
               </p>
               <p style="margin: 0; font-size: 13px; color: #888888;">
                 <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Instagram: @leduo.mx</a>
-                <a href="https://tiktok.com/@leduomx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Tiktok: @leduomx</a>
               </p>
             </td>
           </tr>
           
         </table>
-        
-        <p style="margin: 24px 0 0 0; font-size: 12px; color: #AAAAAA;">
-          © ${new Date().getFullYear()} Le Duo. Todos los derechos reservados.
-        </p>
       </td>
     </tr>
   </table>
@@ -167,6 +222,7 @@ const generateEventReservationEmail = (data: ReservationEmailRequest): string =>
   `;
 };
 
+// --- 3. PLANTILLA PARA EL CLIENTE (EXPERIENCIA) ---
 const generateExperienceReservationEmail = (data: ReservationEmailRequest): string => {
   return `
 <!DOCTYPE html>
@@ -201,7 +257,6 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
                 Tu lugar para <strong>${data.eventTitle}</strong> está confirmado.
               </p>
               
-              <!-- Detalles de la experiencia -->
               <table role="presentation" style="width: 100%; margin-bottom: 24px; background: linear-gradient(135deg, #003b2aff 0%, #005f3fff 100%); border-radius: 16px; overflow: hidden;">
                 <tr>
                   <td style="padding: 24px;">
@@ -232,7 +287,6 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
                 </tr>
               </table>
               
-              <!-- Info importante -->
               <table role="presentation" style="width: 100%; margin-bottom: 24px;">
                 <tr>
                   <td style="padding: 20px; background: #FFF9E6; border-radius: 12px;">
@@ -252,7 +306,7 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
               <hr style="margin: 32px 0; border: none; border-top: 1px solid #E8E4DC;" />
               
               <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #888888;">
-                Si tienes alguna duda o necesitas reprogramar, contáctanos en admin@leduo.mx
+                Si tienes alguna duda, contáctanos en admin@leduo.mx
               </p>
             </td>
           </tr>
@@ -265,18 +319,9 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
               <p style="margin: 0 0 12px 0; font-size: 13px; color: #888888;">
                 Coahuila 111, Roma Norte, CDMX
               </p>
-              <p style="margin: 0; font-size: 13px; color: #888888;">
-                <a href="https://instagram.com/leduo.mx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Instagram: @leduo.mx</a>
-                <a href="https://tiktok.com/@leduomx" target="_blank" style="color: #5C6B4A; text-decoration: none;">Tiktok: @leduomx</a>
-              </p>
             </td>
           </tr>
-          
         </table>
-        
-        <p style="margin: 24px 0 0 0; font-size: 12px; color: #AAAAAA;">
-          © ${new Date().getFullYear()} Le Duo. Todos los derechos reservados.
-        </p>
       </td>
     </tr>
   </table>
@@ -285,9 +330,9 @@ const generateExperienceReservationEmail = (data: ReservationEmailRequest): stri
   `;
 };
 
+// --- HANDLER PRINCIPAL ---
 const handler = async (req: Request): Promise<Response> => {
   console.log("=== send-reservation-email function called ===");
-  console.log("Timestamp:", new Date().toISOString());
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -295,54 +340,59 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const payload: ReservationEmailRequest = await req.json();
-    console.log("Received payload:", {
-      type: payload.type,
-      guestEmail: payload.guestEmail,
-      eventTitle: payload.eventTitle
-    });
 
     if (!payload.guestEmail || !payload.guestName || !payload.eventTitle) {
-      console.error("ERROR: Missing required fields");
       return new Response(
-        JSON.stringify({ error: "Missing required fields: guestEmail, guestName, eventTitle" }),
+        JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Generate appropriate email template
+    // 1. Preparar correo para el CLIENTE
     const isExperience = payload.type === "experience";
-    const html = isExperience 
+    const clientHtml = isExperience
       ? generateExperienceReservationEmail(payload)
       : generateEventReservationEmail(payload);
 
-    const subject = isExperience
+    const clientSubject = isExperience
       ? `🎨 Confirmación: ${payload.eventTitle} - Le Duo`
       : `🎉 Reservación Confirmada: ${payload.eventTitle} - Le Duo`;
 
-    console.log("Sending email...");
-    console.log("To:", payload.guestEmail);
-    console.log("Subject:", subject);
-    console.log("Type:", payload.type);
+    // 2. Preparar correo para CLAUDIA (Admin)
+    const adminHtml = generateAdminNotificationEmail(payload);
+    const adminSubject = `🔔 Nueva Reserva: ${payload.eventTitle} (${payload.guestName})`;
 
-    const emailResponse = await resend.emails.send({
-      from: "Le Duo <no-reply@leduo.mx>",
-      to: [payload.guestEmail],
-      subject: subject,
-      html: html,
-    });
+    console.log("Sending emails to Client and Admin...");
 
-    console.log("=== EMAIL SENT ===");
-    console.log("Resend response:", JSON.stringify(emailResponse));
+    // 3. Enviar ambos correos en paralelo
+    const results = await Promise.all([
+      // Email al Cliente
+      resend.emails.send({
+        from: "Le Duo <no-reply@leduo.mx>",
+        to: [payload.guestEmail],
+        subject: clientSubject,
+        html: clientHtml,
+      }),
+      // Email a Claudia
+      resend.emails.send({
+        from: "Le Duo <no-reply@leduo.mx>",
+        to: [ADMIN_EMAIL],
+        subject: adminSubject,
+        html: adminHtml,
+      })
+    ]);
+
+    console.log("=== EMAILS SENT ===");
+    console.log("Results:", JSON.stringify(results));
 
     return new Response(
-      JSON.stringify({ success: true, message: "Reservation email sent", emailId: emailResponse?.id }),
+      JSON.stringify({ success: true, message: "Emails sent successfully" }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
   } catch (error: any) {
     console.error("=== FATAL ERROR ===");
     console.error("Error:", error.message);
-    console.error("Stack:", error.stack);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
