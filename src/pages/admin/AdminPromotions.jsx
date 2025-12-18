@@ -523,20 +523,29 @@ export const AdminPromotions = () => {
     try {
       setSending(true);
       
-      const response = await fetch('/api/wallet/admin/send-promotion', {
+      // Enviar a Apple Wallet (servidor externo)
+      const appleResponse = await fetch('/api/wallet/admin/send-promotion', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ promotionId })
       });
       
-      const result = await response.json();
+      const appleResult = await appleResponse.json();
       
-      if (result.success) {
-        toast.success(`Promoción enviada: ${result.notified} dispositivos`);
-        loadData();
-      } else {
-        throw new Error(result.error);
+      // Enviar a Google Wallet (edge function)
+      const { data: googleResult, error: googleError } = await supabase.functions.invoke('send-google-promotion', {
+        body: { promotionId }
+      });
+      
+      if (googleError) {
+        console.error('Error enviando a Google Wallet:', googleError);
       }
+
+      const appleNotified = appleResult.success ? appleResult.notified : 0;
+      const googleNotified = googleResult?.notified || 0;
+      
+      toast.success(`Promoción enviada: ${appleNotified} Apple + ${googleNotified} Google Wallet`);
+      loadData();
     } catch (error) {
       console.error('Error sending promotion:', error);
       toast.error('Error enviando promoción');
@@ -600,7 +609,7 @@ export const AdminPromotions = () => {
       <HeaderSection>
         <Title>Gestión de Promociones</Title>
         <Subtitle>
-          Administra las notificaciones de Apple Wallet y promociones de cumpleaños
+          Administra las notificaciones de Apple Wallet, Google Wallet y promociones de cumpleaños
         </Subtitle>
       </HeaderSection>
 

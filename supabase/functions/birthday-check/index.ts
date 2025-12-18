@@ -154,8 +154,30 @@ Deno.serve(async (req) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: profile.id })
         })
+        console.log(`[Birthday Check] Apple Wallet notificado para: ${profile.name}`)
       } catch (e) {
-        console.error(`[Birthday Check] Error notificando dispositivo:`, e)
+        console.error(`[Birthday Check] Error notificando Apple Wallet:`, e)
+      }
+
+      // 8. Notificar al dispositivo Google Wallet del usuario
+      try {
+        const googleWalletFunctionUrl = `${supabaseUrl}/functions/v1/google-wallet-update`
+        await fetch(googleWalletFunctionUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`
+          },
+          body: JSON.stringify({ 
+            userId: profile.id,
+            promotionTitle: isBirthday ? '🎂 ¡Feliz Cumpleaños!' : '🎂 ¡Tu semana especial se acerca!',
+            promotionMessage: message,
+            isBirthday: isBirthday
+          })
+        })
+        console.log(`[Birthday Check] Google Wallet notificado para: ${profile.name}`)
+      } catch (e) {
+        console.error(`[Birthday Check] Error notificando Google Wallet:`, e)
       }
 
       processed++

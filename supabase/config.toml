@@ -9,6 +9,12 @@ verify_jwt = false
 [functions.google-wallet-save]
 verify_jwt = false
 
+[functions.google-wallet-update]
+verify_jwt = false
+
+[functions.send-google-promotion]
+verify_jwt = false
+
 [functions.wallet-db-proxy]
 verify_jwt = false
 
