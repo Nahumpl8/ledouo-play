@@ -294,7 +294,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
         {
           key: 'account_info',
           label: '🫶 TITULAR DE LA CUENTA',
-          value: `${name}\nMiembro ID: ${cleanUserId.split('-').join('')}\nNivel: ${level}`,
+          value: `${name}\nNivel: ${level}`,
           textAlignment: 'PKTextAlignmentRight'
         },
 
