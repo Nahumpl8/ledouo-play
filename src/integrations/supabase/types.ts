@@ -26,6 +26,7 @@ export type Database = {
           pre_birthday_discount: number
           pre_birthday_message: string
           updated_at: string | null
+          wallet_location_text: string | null
         }
         Insert: {
           birthday_discount?: number
@@ -38,6 +39,7 @@ export type Database = {
           pre_birthday_discount?: number
           pre_birthday_message?: string
           updated_at?: string | null
+          wallet_location_text?: string | null
         }
         Update: {
           birthday_discount?: number
@@ -50,6 +52,7 @@ export type Database = {
           pre_birthday_discount?: number
           pre_birthday_message?: string
           updated_at?: string | null
+          wallet_location_text?: string | null
         }
         Relationships: []
       }

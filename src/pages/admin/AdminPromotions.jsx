@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled, { css, keyframes } from 'styled-components';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Gift, Send, Calendar, Settings, Plus, Trash2, Bell, Users } from 'lucide-react'; // Agregué icono Users
+import { Gift, Send, Calendar, Settings, Plus, Trash2, Bell, Users, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -413,7 +413,8 @@ export const AdminPromotions = () => {
     pre_birthday_discount: 15,
     birthday_message: '',
     birthday_gift: '1 Galleta gratis',
-    birthday_discount: 15
+    birthday_discount: 15,
+    wallet_location_text: ''
   });
   
   // Promotions State
@@ -476,6 +477,26 @@ export const AdminPromotions = () => {
       
       if (error) throw error;
       toast.success('Configuración guardada');
+    } catch (error) {
+      console.error('Error saving config:', error);
+      toast.error('Error guardando configuración');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveLocationText = async () => {
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from('birthday_config')
+        .update({
+          wallet_location_text: birthdayConfig.wallet_location_text
+        })
+        .eq('id', birthdayConfig.id);
+      
+      if (error) throw error;
+      toast.success('Texto de ubicación guardado');
     } catch (error) {
       console.error('Error saving config:', error);
       toast.error('Error guardando configuración');
@@ -628,6 +649,13 @@ export const AdminPromotions = () => {
           >
             <Bell size={16} style={{ marginRight: '0.5rem' }} />
             Promociones
+          </TabTrigger>
+          <TabTrigger 
+            $active={activeTab === 'location'} 
+            onClick={() => setActiveTab('location')}
+          >
+            <MapPin size={16} style={{ marginRight: '0.5rem' }} />
+            Ubicación
           </TabTrigger>
         </TabsList>
 
@@ -891,6 +919,80 @@ export const AdminPromotions = () => {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Tab: Ubicación */}
+        {activeTab === 'location' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <MapPin size={20} />
+                Notificación por Ubicación
+              </CardTitle>
+              <CardDescription>
+                Mensaje que aparece en la pantalla de bloqueo del iPhone cuando el usuario está cerca de Le Duo
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GrayBox>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  📍 Coordenadas de Le Duo
+                </h3>
+                <p style={{ fontSize: '0.875rem', color: theme.colors.mutedForeground, margin: 0 }}>
+                  Lat: 19.41608, Long: -99.16274 (Coahuila 111, Roma Norte, CDMX)
+                </p>
+              </GrayBox>
+              
+              <FormGroup>
+                <Label>Mensaje de notificación</Label>
+                <StyledTextarea
+                  value={birthdayConfig.wallet_location_text || ''}
+                  onChange={(e) => setBirthdayConfig(prev => ({ ...prev, wallet_location_text: e.target.value }))}
+                  placeholder="🍵 ¿Antojo de Matcha o Café? ¡Estás cerca de Le Duo! Ven y disfruta ✨"
+                  rows={3}
+                />
+                <p style={{ fontSize: '0.75rem', color: theme.colors.mutedForeground, marginTop: '0.25rem' }}>
+                  Este mensaje aparece cuando el usuario con Apple Wallet está a ~100m de Le Duo
+                </p>
+              </FormGroup>
+
+              <GrayBox>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, margin: 0 }}>📱 Vista previa (iPhone Lock Screen)</h4>
+                <div style={{ 
+                  background: 'linear-gradient(to bottom, #1a1a1a, #2a2a2a)', 
+                  borderRadius: '12px', 
+                  padding: '1rem',
+                  color: 'white',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ 
+                      width: '40px', 
+                      height: '40px', 
+                      borderRadius: '10px', 
+                      background: 'rgb(212, 197, 185)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.25rem'
+                    }}>
+                      ☕
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: '0.875rem', margin: 0 }}>Tarjeta de Lealtad</p>
+                      <p style={{ fontSize: '0.75rem', opacity: 0.8, margin: '0.25rem 0 0 0' }}>
+                        {birthdayConfig.wallet_location_text || '🍵 ¿Antojo de Matcha o Café? ¡Estás cerca de Le Duo! Ven y disfruta ✨'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </GrayBox>
+
+              <StyledButton onClick={saveLocationText} disabled={saving}>
+                {saving ? 'Guardando...' : 'Guardar Texto'}
+              </StyledButton>
+            </CardContent>
+          </Card>
         )}
       </TabsContainer>
     </PageContainer>

@@ -457,6 +457,25 @@ Deno.serve(async (req) => {
       }
 
       // ─────────────────────────────────────────────────────────────────
+      // ACTION: get-location-text
+      // Gets the wallet location notification text
+      // ─────────────────────────────────────────────────────────────────
+      case "get-location-text": {
+        const { data: config, error } = await supabase
+          .from("birthday_config")
+          .select("wallet_location_text")
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.error("[wallet-db-proxy] get-location-text error:", error);
+          return jsonResponse({ text: null });
+        }
+
+        return jsonResponse({ text: config?.wallet_location_text || null });
+      }
+
+      // ─────────────────────────────────────────────────────────────────
       // ACTION: update-birthday-config
       // Updates the birthday configuration
       // ─────────────────────────────────────────────────────────────────
