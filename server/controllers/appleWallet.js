@@ -148,6 +148,19 @@ async function getActivePromotion(userId) {
 }
 
 /**
+ * Obtiene el texto de ubicación desde la base de datos
+ */
+async function getLocationText() {
+  try {
+    const result = await callProxy('get-location-text', {});
+    return result?.text || '🍵 ¿Antojo de Matcha o Café? ¡Estás cerca de Le Duo! Ven y disfruta ✨';
+  } catch (error) {
+    console.error('[Apple Pass] Error obteniendo texto de ubicación:', error.message);
+    return '🍵 ¿Antojo de Matcha o Café? ¡Estás cerca de Le Duo! Ven y disfruta ✨';
+  }
+}
+
+/**
  * Genera el buffer del pase Apple Wallet
  */
 export async function generatePassBuffer(customerData, authToken = null) {
@@ -179,8 +192,11 @@ export async function generatePassBuffer(customerData, authToken = null) {
 
   console.log(`[Apple Pass] Generando pase para: ${cleanUserId} (Sellos: ${stamps})`);
 
-  // Obtener promoción activa
-  const activePromotion = await getActivePromotion(cleanUserId);
+  // Obtener promoción activa y texto de ubicación
+  const [activePromotion, locationText] = await Promise.all([
+    getActivePromotion(cleanUserId),
+    getLocationText()
+  ]);
   
   // La promoción activa se usa directamente en backFields
 
@@ -304,7 +320,16 @@ export async function generatePassBuffer(customerData, authToken = null) {
       format: 'PKBarcodeFormatQR',
       messageEncoding: 'iso-8859-1',
       altText: cleanUserId.substring(0, 8).toUpperCase()
-    }]
+    }],
+    
+    // Geolocalización - Notificación cuando el usuario está cerca de Le Duo
+    locations: [
+      {
+        latitude: 19.41608,
+        longitude: -99.16274,
+        relevantText: locationText
+      }
+    ]
   };
 
   // 3. BUFFERS
