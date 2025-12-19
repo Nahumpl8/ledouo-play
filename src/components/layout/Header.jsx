@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Container } from '../common/Container';
 import { Button } from '../common/Button';
 import { supabase } from '@/integrations/supabase/client';
-import { Home, User, Zap, Calendar, LogOut, Scan, Plus, Users, LogIn, UserPlus, Bell, Shield } from 'lucide-react';
+import { 
+  Home, User, Zap, Calendar, LogOut, Scan, Plus, Users, 
+  LogIn, UserPlus, Bell, Shield, Menu, X, ChevronDown 
+} from 'lucide-react';
 
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
 
@@ -80,13 +83,16 @@ const Nav = styled.nav`
 `;
 
 const MobileMenuButton = styled.button`
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 14px;
+  font-weight: 500;
   color: ${props => props.theme.colors.primary};
   cursor: pointer;
-  padding: 8px;
+  padding: 8px 12px;
   border-radius: 8px;
   transition: background 0.2s ease;
   
@@ -94,7 +100,12 @@ const MobileMenuButton = styled.button`
     background: rgba(0, 0, 0, 0.05);
   }
   
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+  
+  @media (min-width: ${props => props.theme.breakpoints.desktop}) {
     display: none;
   }
 `;
@@ -129,7 +140,7 @@ const MobileMenu = styled.div`
     }
   }
   
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
+  @media (min-width: ${props => props.theme.breakpoints.desktop}) {
     display: none;
   }
 `;
@@ -243,12 +254,177 @@ const MenuItemButtonElement = styled.button`
 const DesktopNav = styled.div`
   display: none;
   align-items: center;
-  gap: ${props => props.theme.spacing.md};
+  gap: ${props => props.theme.spacing.xs};
   
-  @media (min-width: ${props => props.theme.breakpoints.tablet}) {
+  @media (min-width: ${props => props.theme.breakpoints.desktop}) {
     display: flex;
   }
 `;
+
+// Dropdown components
+const DropdownWrapper = styled.div`
+  position: relative;
+`;
+
+const DropdownTrigger = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${props => props.theme.colors.primary};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(179, 183, 146, 0.15);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+  }
+  
+  &[data-open="true"] svg {
+    transform: rotate(180deg);
+  }
+`;
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: #FFFFFF;
+  border: 1px solid rgba(179, 183, 146, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 8px;
+  z-index: 1000;
+  opacity: ${props => props.$open ? 1 : 0};
+  visibility: ${props => props.$open ? 'visible' : 'hidden'};
+  transform: ${props => props.$open ? 'translateY(0)' : 'translateY(-10px)'};
+  transition: all 0.2s ease;
+`;
+
+const DropdownItem = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  color: ${props => props.theme.colors.primary};
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  
+  svg {
+    width: 18px;
+    height: 18px;
+    opacity: 0.7;
+  }
+  
+  &:hover {
+    background: rgba(179, 183, 146, 0.15);
+    
+    svg {
+      opacity: 1;
+      color: ${props => props.theme.colors.accent};
+    }
+  }
+`;
+
+const NavButton = styled(Link)`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${props => props.theme.colors.primary};
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(179, 183, 146, 0.15);
+  }
+`;
+
+const LogoutButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid rgba(179, 183, 146, 0.4);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: ${props => props.theme.colors.primary};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  &:hover {
+    background: rgba(179, 183, 146, 0.15);
+    border-color: rgba(179, 183, 146, 0.6);
+  }
+`;
+
+// Dropdown Component
+const Dropdown = ({ label, items, icon: Icon }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  return (
+    <DropdownWrapper ref={ref}>
+      <DropdownTrigger 
+        onClick={() => setOpen(!open)} 
+        data-open={open}
+      >
+        {Icon && <Icon size={16} />}
+        {label}
+        <ChevronDown />
+      </DropdownTrigger>
+      <DropdownMenu $open={open}>
+        {items.map((item) => (
+          <DropdownItem 
+            key={item.to} 
+            to={item.to}
+            onClick={() => setOpen(false)}
+          >
+            <item.icon />
+            {item.label}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+    </DropdownWrapper>
+  );
+};
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -315,19 +491,15 @@ export const Header = () => {
   const isAdmin = userRoles.includes('admin');
   const isTransparent = isLandingPage && !isScrolled;
 
-  // Build menu items based on role - RUTAS CORREGIDAS
-  const getMenuItems = () => {
+  // Items para menú móvil (todos los items individuales)
+  const getMobileMenuItems = () => {
     const items = [];
-
-    // Common items for everyone
     items.push({ to: '/', icon: Home, label: 'Inicio' });
     items.push({ to: '/workshops', icon: Calendar, label: 'Eventos' });
 
     if (isLoggedIn) {
-      // Logged in users
       items.push({ to: '/app', icon: User, label: 'Mi Cuenta' });
       items.push({ to: '/app/cuenta', icon: User, label: 'Mis Datos' });
-
       items.push({ to: '/app/ruleta', icon: Zap, label: 'Ruleta' });
 
       if (isStaff || isAdmin) {
@@ -335,13 +507,12 @@ export const Header = () => {
       }
 
       if (isAdmin) {
-        items.push({ to: '/admin/events', icon: Plus, label: 'Eventos' });
+        items.push({ to: '/admin/events', icon: Plus, label: 'Eventos Admin' });
         items.push({ to: '/admin/clients', icon: Users, label: 'Clientes' });
         items.push({ to: '/admin/promotions', icon: Bell, label: 'Promociones' });
         items.push({ to: '/admin/roles', icon: Shield, label: 'Roles' });
       }
     } else {
-      // Not logged in - RUTAS CORREGIDAS
       items.push({ to: '/app/login', icon: LogIn, label: 'Ingresar' });
       items.push({ to: '/register', icon: UserPlus, label: 'Crear Cuenta' });
     }
@@ -349,13 +520,30 @@ export const Header = () => {
     return items;
   };
 
-  const menuItems = getMenuItems();
+  // Items agrupados para desktop
+  const accountItems = [
+    { to: '/app', icon: User, label: 'Mi Cuenta' },
+    { to: '/app/cuenta', icon: User, label: 'Mis Datos' },
+    { to: '/app/ruleta', icon: Zap, label: 'Ruleta' },
+  ];
+
+  const staffItems = [
+    { to: '/app/scan', icon: Scan, label: 'Escanear Compra' },
+  ];
+
+  const adminItems = [
+    { to: '/admin/events', icon: Plus, label: 'Eventos' },
+    { to: '/admin/clients', icon: Users, label: 'Clientes' },
+    { to: '/admin/promotions', icon: Bell, label: 'Promociones' },
+    { to: '/admin/roles', icon: Shield, label: 'Roles' },
+  ];
+
+  const mobileMenuItems = getMobileMenuItems();
 
   return (
     <HeaderWrapper $transparent={isTransparent}>
       <Container>
         <HeaderContent>
-          {/* Logo siempre va a '/' */}
           <Logo to="/">
             <img src={logo} alt="LeDuo" />
             <LogoText>
@@ -365,32 +553,53 @@ export const Header = () => {
           </Logo>
 
           <Nav>
+            {/* Botón móvil con ícono Lucide y texto */}
             <MobileMenuButton
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Menú"
             >
-              {mobileMenuOpen ? '✕' : '☰'}
+              {mobileMenuOpen ? <X /> : <Menu />}
+              <span>{mobileMenuOpen ? 'Cerrar' : 'Menú'}</span>
             </MobileMenuButton>
 
+            {/* Desktop Navigation con dropdowns */}
             <DesktopNav>
-              {menuItems.map((item) => (
-                <Button key={item.to} as={Link} to={item.to} variant="ghost" size="sm">
-                  {item.label}
-                </Button>
-              ))}
-              {isLoggedIn && (
-                <Button onClick={handleLogout} variant="outline" size="sm">
-                  Salir
-                </Button>
+              <NavButton to="/">Inicio</NavButton>
+              <NavButton to="/workshops">Eventos</NavButton>
+              
+              {isLoggedIn ? (
+                <>
+                  <Dropdown label="Mi Cuenta" items={accountItems} icon={User} />
+                  
+                  {(isStaff || isAdmin) && (
+                    <Dropdown label="Staff" items={staffItems} icon={Scan} />
+                  )}
+                  
+                  {isAdmin && (
+                    <Dropdown label="Admin" items={adminItems} icon={Shield} />
+                  )}
+                  
+                  <LogoutButton onClick={handleLogout}>
+                    <LogOut />
+                    Salir
+                  </LogoutButton>
+                </>
+              ) : (
+                <>
+                  <NavButton to="/app/login">Ingresar</NavButton>
+                  <Button as={Link} to="/register" variant="primary" size="sm">
+                    Crear Cuenta
+                  </Button>
+                </>
               )}
             </DesktopNav>
           </Nav>
         </HeaderContent>
 
-        {/* Mobile Menu - Glass effect para TODOS */}
+        {/* Mobile Menu */}
         <MobileMenu $open={mobileMenuOpen}>
           <MenuGrid>
-            {menuItems.map((item) => (
+            {mobileMenuItems.map((item) => (
               <MenuItemButton key={item.to} to={item.to} title={item.label}>
                 <item.icon size={26} />
                 <span>{item.label}</span>
