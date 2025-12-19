@@ -322,11 +322,24 @@ export async function generatePassBuffer(customerData, authToken = null) {
       altText: cleanUserId.substring(0, 8).toUpperCase()
     }],
     
-    // Geolocalización - Notificación cuando el usuario está cerca de Le Duo
+    // Geolocalización - Triángulo estratégico (~300-350m de cobertura)
     locations: [
+      // Centro - Le Duo (Coahuila 111)
       {
         latitude: 19.41608,
         longitude: -99.16274,
+        relevantText: locationText
+      },
+      // Norte - Cruce hacia Orizaba/Plaza Luis Cabrera (~200m)
+      {
+        latitude: 19.4175,
+        longitude: -99.1627,
+        relevantText: locationText
+      },
+      // Sur-Oeste - Cruce hacia Monterrey/Mercado (~200m)
+      {
+        latitude: 19.4145,
+        longitude: -99.1640,
         relevantText: locationText
       }
     ]
