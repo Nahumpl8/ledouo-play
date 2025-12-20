@@ -71,6 +71,11 @@ export const sendPromotion = async (req, res) => {
       });
     }
     
+    // IMPORTANTE: Actualizar timestamps de TODOS los dispositivos ANTES del push
+    // Esto asegura que Apple Wallet detecte cambios cuando pregunte "¿qué cambió?"
+    const timestampResult = await callProxy('update-all-devices-timestamp', {});
+    console.log(`[WalletPromo] Timestamps actualizados:`, timestampResult);
+    
     // Enviar push notifications
     const pushResult = await sendPassUpdateNotification(pushTokens);
     
