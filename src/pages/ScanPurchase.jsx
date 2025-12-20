@@ -383,7 +383,6 @@ export const ScanPurchase = () => {
               <CustomerInfo>
                 <h3>{customerData.profile.name}</h3>
                 <p><b>Sellos:</b> {customerData.state.stamps}/8</p>
-                <p><b>Puntos:</b> {customerData.state.cashback_points}</p>
                 {customerData.state.stamps >= 8 && <RewardBadge>🎁 ¡Bebida Gratis Disponible!</RewardBadge>}
               </CustomerInfo>
 
