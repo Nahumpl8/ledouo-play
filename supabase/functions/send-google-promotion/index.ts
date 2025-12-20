@@ -157,9 +157,11 @@ serve(async (req) => {
     // Obtener token de Google
     const token = await getGoogleAuthToken(email, privateKey);
 
-    let notified = 0;
+    let passesUpdated = 0;
+    let pushNotificationsSent = 0;
     let skipped = 0;
     let errors = 0;
+    let quotaExceeded = 0;
 
     // Procesar cada usuario
     for (const userId of userIds) {
@@ -178,6 +180,7 @@ serve(async (req) => {
           .single();
 
         if (!profile || !customerState) {
+          console.log(`[Send Google Promotion] Usuario ${userId} sin perfil o estado, omitido`);
           skipped++;
           continue;
         }
@@ -190,6 +193,7 @@ serve(async (req) => {
 
         const objectId = `${issuerId}.LEDUO-${userId}`;
 
+        // PASO 1: Actualizar contenido del pase con PATCH
         const patchBody = {
           hexBackgroundColor: backgroundColor,
           subheader: {
@@ -231,7 +235,7 @@ serve(async (req) => {
           ],
         };
 
-        const res = await fetch(
+        const patchRes = await fetch(
           `https://walletobjects.googleapis.com/walletobjects/v1/genericObject/${objectId}`,
           {
             method: "PATCH",
@@ -243,14 +247,60 @@ serve(async (req) => {
           }
         );
 
-        if (res.ok) {
-          notified++;
-        } else if (res.status === 404) {
+        if (patchRes.status === 404) {
           // Usuario no tiene Google Wallet pass
+          console.log(`[Send Google Promotion] Usuario ${userId} no tiene pase de Google Wallet`);
           skipped++;
-        } else {
+          continue;
+        }
+
+        if (!patchRes.ok) {
+          const errorText = await patchRes.text();
+          console.error(`[Send Google Promotion] Error PATCH para ${userId}:`, errorText);
           errors++;
-          console.error(`[Send Google Promotion] Error para ${userId}:`, await res.text());
+          continue;
+        }
+
+        passesUpdated++;
+        console.log(`[Send Google Promotion] Pase actualizado para ${userId}`);
+
+        // PASO 2: Enviar notificación push usando Add Message API con TEXT_AND_NOTIFY
+        const messageId = `promo_${promotionId}_${userId}_${Date.now()}`;
+        const addMessageBody = {
+          message: {
+            header: promotion.title,
+            body: promotion.message,
+            id: messageId,
+            messageType: "TEXT_AND_NOTIFY"  // ← Esto dispara la notificación push
+          }
+        };
+
+        const messageRes = await fetch(
+          `https://walletobjects.googleapis.com/walletobjects/v1/genericObject/${objectId}/addMessage`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(addMessageBody),
+          }
+        );
+
+        if (messageRes.ok) {
+          pushNotificationsSent++;
+          console.log(`[Send Google Promotion] Push notification enviada a ${userId}`);
+        } else {
+          const messageError = await messageRes.text();
+          
+          // Verificar si es error de cuota (máximo 3 notificaciones cada 24h)
+          if (messageError.includes("QuotaExceeded") || messageRes.status === 429) {
+            quotaExceeded++;
+            console.log(`[Send Google Promotion] Usuario ${userId} alcanzó límite de 3 notificaciones diarias`);
+          } else {
+            console.error(`[Send Google Promotion] Error addMessage para ${userId}:`, messageError);
+            // No incrementamos errors porque el pase sí se actualizó
+          }
         }
       } catch (e) {
         errors++;
@@ -258,13 +308,15 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[Send Google Promotion] Completado: ${notified} notificados, ${skipped} omitidos, ${errors} errores`);
+    console.log(`[Send Google Promotion] Completado: ${passesUpdated} pases actualizados, ${pushNotificationsSent} push enviadas, ${skipped} omitidos, ${quotaExceeded} con cuota excedida, ${errors} errores`);
 
     return json({
       success: true,
       message: `Promoción enviada a Google Wallet`,
-      notified,
+      passesUpdated,
+      pushNotificationsSent,
       skipped,
+      quotaExceeded,
       errors,
       total: userIds.length,
     });
