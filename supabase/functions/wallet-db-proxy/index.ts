@@ -499,6 +499,29 @@ Deno.serve(async (req) => {
         return jsonResponse({ success: true });
       }
 
+      // ─────────────────────────────────────────────────────────────────
+      // ACTION: update-all-devices-timestamp
+      // Updates all device timestamps to trigger pass refresh
+      // ─────────────────────────────────────────────────────────────────
+      case "update-all-devices-timestamp": {
+        const newTimestamp = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from("wallet_devices")
+          .update({ updated_at: newTimestamp })
+          .neq("id", "00000000-0000-0000-0000-000000000000")
+          .select("id");
+
+        if (error) {
+          console.error("[wallet-db-proxy] update-all-devices-timestamp error:", error);
+          return jsonResponse({ error: error.message }, 500);
+        }
+
+        const count = data?.length || 0;
+        console.log(`[wallet-db-proxy] Updated timestamp for ${count} devices to ${newTimestamp}`);
+        return jsonResponse({ success: true, updated: count, timestamp: newTimestamp });
+      }
+
       default:
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
     }
