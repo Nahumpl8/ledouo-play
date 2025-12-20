@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
 import styled from 'styled-components';
 import { supabase } from '@/integrations/supabase/client';
 import { Section } from '../components/common/Section';
@@ -30,20 +30,53 @@ const ScannerContainer = styled.div`
   margin: ${props => props.theme.spacing.lg} 0;
   border-radius: ${props => props.theme.radius};
   overflow: hidden;
-  background: #000;
+  background: #1a1a1a; /* Un gris muy oscuro en lugar de negro total */
   position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 
+  /* CORRECCIÓN DE DISEÑO PARA BOTONES NATIVOS */
   #qr-reader {
     border: none !important;
+    padding: 20px !important;
   }
-  
-  #qr-reader__scan_region {
+
+  #qr-reader__dashboard_section_csr button {
+    background-color: ${props => props.theme.colors.primary} !important;
+    color: white !important;
+    border: none !important;
+    padding: 12px 24px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    margin: 10px auto !important;
+    cursor: pointer !important;
+    display: block !important;
+    width: 80%;
+    transition: transform 0.1s ease;
+  }
+
+  #qr-reader__dashboard_section_csr button:active {
+    transform: scale(0.98);
+  }
+
+  /* Estilo para el enlace de "Scan an Image File" */
+  #qr-reader__dashboard_section_csr span {
+    color: #a1a1aa !important;
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.9rem;
+  }
+
+  #qr-reader__status_span {
     background: transparent !important;
+    color: #fbbf24 !important; /* Color ámbar para advertencias */
+    text-align: center !important;
   }
-  
+
   video {
     object-fit: cover;
     border-radius: ${props => props.theme.radius};
+    width: 100% !important;
   }
 `;
 
@@ -52,6 +85,7 @@ const CustomerInfo = styled.div`
   padding: ${props => props.theme.spacing.md};
   border-radius: ${props => props.theme.radius};
   margin: ${props => props.theme.spacing.md} 0;
+  border: 1px solid #e5e7eb;
   
   h3 {
     color: ${props => props.theme.colors.primary};
@@ -60,7 +94,7 @@ const CustomerInfo = styled.div`
   
   p {
     margin: 8px 0;
-    color: ${props => props.theme.colors.text};
+    color: #4b5563;
   }
 `;
 
@@ -73,6 +107,7 @@ const RewardBadge = styled.div`
   font-weight: bold;
   margin-top: 12px;
   font-size: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 `;
 
 const ResultMessage = styled.div`
@@ -81,22 +116,25 @@ const ResultMessage = styled.div`
   text-align: center;
   margin: ${props => props.theme.spacing.md} 0;
   white-space: pre-line; 
+  font-weight: 500;
   
   ${props => props.type === 'success' && `
     background: #d1fae5;
     color: #065f46;
+    border: 1px solid #6ee7b7;
   `}
   
   ${props => props.type === 'error' && `
     background: #fee2e2;
     color: #991b1b;
+    border: 1px solid #fca5a5;
   `}
 `;
 
 const ModeToggle = styled.div`
   display: flex;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   justify-content: center;
 `;
 
@@ -104,18 +142,21 @@ const ManualInputContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  padding: 24px;
   background: ${props => props.theme.colors.bgAlt};
   border-radius: ${props => props.theme.radius};
+  border: 1px dashed #d1d5db;
 `;
 
 const CameraErrorMessage = styled.div`
-  padding: 12px;
-  background: #fef3c7;
+  padding: 16px;
+  background: #fffbeb;
   color: #92400e;
   border-radius: 8px;
+  border: 1px solid #fef3c7;
   text-align: center;
   margin: 12px 0;
+  font-size: 0.95rem;
 `;
 
 export const ScanPurchase = () => {
@@ -135,7 +176,6 @@ export const ScanPurchase = () => {
   const [cameraError, setCameraError] = useState(null);
   const [redeemMode, setRedeemMode] = useState(false);
 
-  // NUEVO: Referencia para evitar lecturas múltiples
   const isProcessingScan = useRef(false);
 
   useEffect(() => {
@@ -143,17 +183,16 @@ export const ScanPurchase = () => {
   }, []);
 
   useEffect(() => {
-    // Solo inicializamos si NO hay usuario escaneado y NO estamos procesando ya uno
     if (!scannedUserId && isStaff && !manualMode && !isProcessingScan.current) {
       const timer = setTimeout(() => {
         initScanner();
-      }, 100);
+      }, 150);
       return () => clearTimeout(timer);
     }
 
     return () => {
       if (scanner) {
-        scanner.clear().catch(console.error);
+        scanner.clear().catch(() => { });
       }
     };
   }, [isStaff, scannedUserId, manualMode]);
@@ -180,7 +219,6 @@ export const ScanPurchase = () => {
 
   const initScanner = () => {
     setCameraError(null);
-    // Aseguramos que la bandera de proceso esté limpia al iniciar
     isProcessingScan.current = false;
 
     const html5QrcodeScanner = new Html5QrcodeScanner(
@@ -190,130 +228,69 @@ export const ScanPurchase = () => {
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
         rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true,
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
         videoConstraints: {
-          facingMode: "environment",
-          focusMode: "continuous"
+          facingMode: "environment"
         }
       },
       false
     );
 
     html5QrcodeScanner.render(onScanSuccess, (error) => {
-      if (typeof error === 'string') {
-        if (error.includes('NotAllowedError')) {
-          setCameraError('Permiso de cámara denegado.');
-        } else if (error.includes('NotFoundError')) {
-          setCameraError('No se encontró cámara.');
-        }
+      if (typeof error === 'string' && error.includes('NotAllowedError')) {
+        setCameraError('Por favor, permite el acceso a la cámara para escanear.');
       }
     });
     setScanner(html5QrcodeScanner);
   };
 
   const onScanSuccess = async (decodedText) => {
-    // 1. FRENO DE MANO: Si ya estamos procesando un código, ignoramos los siguientes
     if (isProcessingScan.current) return;
-    isProcessingScan.current = true; // Bloqueamos inmediatamente
-
-    console.log('QR Detectado (Procesando):', decodedText);
+    isProcessingScan.current = true;
 
     const userIdClean = decodedText.replace(/^leduo[-:]/i, '');
 
     if (userIdClean.length < 10) {
-      console.warn('QR inválido');
-      isProcessingScan.current = false; // Liberamos si es inválido
+      isProcessingScan.current = false;
       return;
     }
 
-    // 2. DETENER ESCÁNER ANTES DE ACTUALIZAR ESTADO
-    // Esto evita el parpadeo y errores en el DOM
     if (scanner) {
       try {
         await scanner.clear();
       } catch (e) {
-        console.error("Error limpiando scanner", e);
+        console.error(e);
       }
     }
 
-    // 3. Ahora sí actualizamos el estado (React)
     setScannedUserId(userIdClean);
     await loadCustomerData(userIdClean);
   };
 
   const handleManualSearch = async () => {
     if (!manualUserId.trim()) return;
-
     const userIdClean = manualUserId.trim().replace(/^leduo[-:]/i, '');
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!uuidRegex.test(userIdClean)) {
-      setResult({ type: 'error', message: 'ID inválido.' });
-      return;
-    }
-
     setScannedUserId(userIdClean);
     await loadCustomerData(userIdClean);
   };
 
   const loadCustomerData = async (userId) => {
     setLoading(true);
-    setResult(null);
-
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      const { data: state } = await supabase.from('customer_state').select('*').eq('user_id', userId).single();
 
-      const { data: state } = await supabase
-        .from('customer_state')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (!profile || !state) throw new Error('Cliente no encontrado.');
-
+      if (!profile || !state) throw new Error('No encontrado');
       setCustomerData({ profile, state });
     } catch (error) {
-      console.error('Error loading user:', error);
-      setResult({ type: 'error', message: 'No se encontró al cliente.' });
+      setResult({ type: 'error', message: 'Cliente no registrado o ID inválido.' });
       setScannedUserId(null);
-
       setTimeout(() => {
-        if (!manualMode) {
-          setResult(null);
-          initScanner();
-        }
+        if (!manualMode) initScanner();
       }, 3000);
     } finally {
       setLoading(false);
-      // Nota: NO ponemos isProcessingScan.current = false aquí porque
-      // ya tenemos al usuario y no queremos seguir escaneando.
     }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const amountNum = parseFloat(amount);
-    if (!amountNum || amountNum <= 0) {
-      setResult({ type: 'error', message: 'Monto inválido' });
-      return;
-    }
-    setPinError(null);
-    setRedeemMode(false);
-    setShowPinModal(true);
-  };
-
-  const handleRedeemReward = () => {
-    setPinError(null);
-    setRedeemMode(true);
-    setShowPinModal(true);
-  };
-
-  const getCustomerLevel = (levelPoints) => {
-    return levelPoints > 150 ? 'Leduo Leyend' : 'Cliente Le Duo';
   };
 
   const handlePinConfirm = async (pin) => {
@@ -321,78 +298,40 @@ export const ScanPurchase = () => {
     setPinError(null);
 
     try {
-      if (redeemMode) {
-        // Modo canje de bebida gratis
-        const { data, error } = await supabase.functions.invoke('redeem-reward', {
-          body: {
-            userId: scannedUserId,
-            staffId: currentUserId,
-            staffPin: pin
-          }
-        });
+      const endpoint = redeemMode ? 'redeem-reward' : 'register-purchase';
+      const body = {
+        userId: scannedUserId,
+        staffId: currentUserId,
+        staffPin: pin,
+        ...(redeemMode ? {} : { amount: parseFloat(amount), notes })
+      };
 
-        if (error) {
-          if (error.message?.includes('PIN incorrecto') || (error.context && error.context.status === 401)) {
-            setPinError('PIN incorrecto.');
-            setLoading(false);
-            return;
-          }
-          throw error;
+      const { data, error } = await supabase.functions.invoke(endpoint, { body });
+
+      if (error) {
+        if (error.message?.includes('PIN incorrecto')) {
+          setPinError('PIN incorrecto. Reintenta.');
+          setLoading(false);
+          return;
         }
-
-        setResult({
-          type: 'success',
-          message: '🎉 ¡Bebida gratis canjeada!\nSellos reiniciados a 0.'
-        });
-
-      } else {
-        // Modo compra normal
-        const amountNum = parseFloat(amount);
-        const { data, error } = await supabase.functions.invoke('register-purchase', {
-          body: {
-            userId: scannedUserId,
-            amount: amountNum,
-            notes,
-            staffId: currentUserId,
-            staffPin: pin
-          }
-        });
-
-        if (error) {
-          if (error.message?.includes('PIN incorrecto') || (error.context && error.context.status === 401)) {
-            setPinError('PIN incorrecto.');
-            setLoading(false);
-            return;
-          }
-          throw error;
-        }
-
-        const pointsMsg = `+${data.points.earned} pts`;
-        const stampsMsg = `+${data.stamps.earned} sello`;
-        const rewardMsg = data.rewardCreated ? ' \n🎉 ¡Recompensa!' : '';
-
-        setResult({
-          type: 'success',
-          message: `Éxito: ${pointsMsg}, ${stampsMsg}${rewardMsg}`
-        });
+        throw error;
       }
 
-      setShowPinModal(false);
-      setAmount('');
-      setNotes('');
-      setScannedUserId(null);
-      setCustomerData(null);
-      setRedeemMode(false);
+      setResult({
+        type: 'success',
+        message: redeemMode ? '🎉 ¡Canje exitoso!' : `Éxito: +${data.points.earned} pts, +${data.stamps.earned} sello`
+      });
 
-      // Reiniciar ciclo
+      setShowPinModal(false);
+      handleReset();
+
       setTimeout(() => {
         setResult(null);
         if (!manualMode) initScanner();
       }, 4000);
 
     } catch (error) {
-      console.error(error);
-      setResult({ type: 'error', message: 'Error al procesar.' });
+      setResult({ type: 'error', message: 'Error en el servidor.' });
       setShowPinModal(false);
     } finally {
       setLoading(false);
@@ -404,185 +343,61 @@ export const ScanPurchase = () => {
     setCustomerData(null);
     setAmount('');
     setNotes('');
-    setResult(null);
     setManualUserId('');
-    setCameraError(null);
-
-    // Liberamos el bloqueo para permitir escanear de nuevo
     isProcessingScan.current = false;
-
-    if (!manualMode) {
-      setTimeout(() => initScanner(), 100);
-    }
   };
-
-  if (!isStaff && result?.type === 'error') {
-    return (
-      <ScanWrapper>
-        <Section><ScanCard><Title>Acceso Restringido</Title><ResultMessage type="error">{result.message}</ResultMessage></ScanCard></Section>
-      </ScanWrapper>
-    );
-  }
 
   return (
     <ScanWrapper>
       <Section>
         <ScanCard>
-          <Title>Registrar Compra</Title>
+          <Title>Escanear Cliente</Title>
 
           {!scannedUserId && (
             <>
               <ModeToggle>
-                <Button
-                  variant={!manualMode ? 'primary' : 'outline'}
-                  onClick={() => {
-                    setManualMode(false);
-                    setResult(null);
-                    isProcessingScan.current = false;
-                    setTimeout(initScanner, 100);
-                  }}
-                >
-                  📷 Escanear QR
+                <Button variant={!manualMode ? 'primary' : 'outline'} onClick={() => { setManualMode(false); setCameraError(null); }}>
+                  📷 Escáner
                 </Button>
-                <Button
-                  variant={manualMode ? 'primary' : 'outline'}
-                  onClick={() => {
-                    setManualMode(true);
-                    if (scanner) scanner.clear().catch(() => { });
-                  }}
-                >
-                  ✏️ Entrada Manual
+                <Button variant={manualMode ? 'primary' : 'outline'} onClick={() => setManualMode(true)}>
+                  ✏️ Manual
                 </Button>
               </ModeToggle>
 
               {manualMode ? (
                 <ManualInputContainer>
-                  <Input
-                    type="text"
-                    label="ID del Cliente"
-                    placeholder="UUID"
-                    value={manualUserId}
-                    onChange={(e) => setManualUserId(e.target.value)}
-                  />
-                  <Button onClick={handleManualSearch} disabled={loading}>
-                    {loading ? 'Buscando...' : 'Buscar Cliente'}
-                  </Button>
+                  <Input label="ID del Cliente" placeholder="Pega el ID aquí" value={manualUserId} onChange={(e) => setManualUserId(e.target.value)} />
+                  <Button onClick={handleManualSearch} disabled={loading}>Buscar</Button>
                 </ManualInputContainer>
               ) : (
-                <>
-                  <p style={{ textAlign: 'center', marginBottom: '16px' }}>Apunta al QR</p>
+                <ScannerContainer>
                   {cameraError && <CameraErrorMessage>{cameraError}</CameraErrorMessage>}
-                  <ScannerContainer>
-                    <div id="qr-reader"></div>
-                  </ScannerContainer>
-                </>
+                  <div id="qr-reader"></div>
+                </ScannerContainer>
               )}
             </>
           )}
 
           {scannedUserId && customerData && (
-            <>
+            <div style={{ animation: 'fadeIn 0.3s ease' }}>
               <CustomerInfo>
-                <h3>{customerData.profile.name} • {getCustomerLevel(customerData.state.level_points || 0)}</h3>
-                <p>Email: {customerData.profile.email}</p>
-                <p>Nivel: {customerData.state.level_points || 0} puntos</p>
-                <p>Puntos cashback: {customerData.state.cashback_points}</p>
-                <p>Sellos: {customerData.state.stamps}/8</p>
-                
-                {customerData.state.stamps >= 8 && (
-                  <RewardBadge>
-                    🎁 ¡Tiene bebida gratis pendiente!
-                  </RewardBadge>
-                )}
+                <h3>{customerData.profile.name}</h3>
+                <p><b>Sellos:</b> {customerData.state.stamps}/8</p>
+                <p><b>Puntos:</b> {customerData.state.cashback_points}</p>
+                {customerData.state.stamps >= 8 && <RewardBadge>🎁 ¡Bebida Gratis Disponible!</RewardBadge>}
               </CustomerInfo>
 
-              {customerData.state.stamps >= 8 ? (
-                <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', marginTop: '16px' }}>
-                  <Button 
-                    onClick={handleRedeemReward} 
-                    disabled={loading}
-                    style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', border: 'none' }}
-                  >
-                    🎁 Canjear Bebida Gratis
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      // Mostrar formulario de compra normal
-                      document.getElementById('normal-purchase-form').style.display = 'block';
-                    }}
-                  >
-                    💵 Registrar Compra Normal
-                  </Button>
-                  
-                  <form id="normal-purchase-form" onSubmit={handleSubmit} style={{ display: 'none' }}>
-                    <Input
-                      type="number"
-                      label="Monto ($)"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      required
-                      step="0.01"
-                      min="0.01"
-                    />
-                    <Input
-                      type="text"
-                      label="Notas"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      style={{ marginTop: '16px' }}
-                    />
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                      <Button type="submit" disabled={loading} style={{ flex: 1 }}>
-                        {loading ? 'Registrando...' : 'Cobrar'}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="secondary" 
-                        onClick={() => {
-                          document.getElementById('normal-purchase-form').style.display = 'none';
-                          setAmount('');
-                          setNotes('');
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </form>
-
-                  <Button type="button" variant="secondary" onClick={handleReset}>
-                    ← Volver
-                  </Button>
+              <form onSubmit={(e) => { e.preventDefault(); setRedeemMode(false); setShowPinModal(true); }}>
+                <Input type="number" label="Monto Compra ($)" value={amount} onChange={(e) => setAmount(e.target.value)} required step="0.01" />
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <Button type="submit" style={{ flex: 2 }}>Registrar</Button>
+                  {customerData.state.stamps >= 8 && (
+                    <Button type="button" onClick={() => { setRedeemMode(true); setShowPinModal(true); }} style={{ background: '#10b981', flex: 1 }}>Canjear</Button>
+                  )}
                 </div>
-              ) : (
-                <form onSubmit={handleSubmit}>
-                  <Input
-                    type="number"
-                    label="Monto ($)"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                    step="0.01"
-                    min="0.01"
-                  />
-                  <Input
-                    type="text"
-                    label="Notas"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    style={{ marginTop: '16px' }}
-                  />
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                    <Button type="submit" disabled={loading} style={{ flex: 1 }}>
-                      {loading ? 'Registrando...' : 'Cobrar'}
-                    </Button>
-                    <Button type="button" variant="secondary" onClick={handleReset}>Cancelar</Button>
-                  </div>
-                </form>
-              )}
-            </>
+                <Button type="button" variant="secondary" onClick={handleReset} style={{ width: '100%', marginTop: '10px' }}>Cancelar</Button>
+              </form>
+            </div>
           )}
 
           {result && <ResultMessage type={result.type}>{result.message}</ResultMessage>}
@@ -591,7 +406,7 @@ export const ScanPurchase = () => {
 
       <PinConfirmModal
         isOpen={showPinModal}
-        onClose={() => { setShowPinModal(false); setPinError(null); }}
+        onClose={() => setShowPinModal(false)}
         onConfirm={handlePinConfirm}
         loading={loading}
         error={pinError}
