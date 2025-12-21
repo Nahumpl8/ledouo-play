@@ -1,9 +1,11 @@
 import React from 'react';
 import styled from 'styled-components';
+import { Link } from 'react-router-dom';
 import { Container } from '../common/Container';
 // import logo from '../../assets/images/logo-leduo.png';
 const logo = '/lovable-uploads/logoWhite.jpg';
 import { Instagram, Play, Facebook } from 'lucide-react';
+
 
 const FooterWrapper = styled.footer`
   background: ${props => props.theme.colors.accent};
@@ -132,10 +134,11 @@ const SecondaryButton = styled.a`
   }
 `;
 
-const Link = styled.a`
+const LinkFooter = styled(Link)`
   color: ${props => props.theme.colors.white}CC;
   text-decoration: none;
   transition: color 0.3s ease;
+  cursor: pointer;
   
   &:hover {
     color: ${props => props.theme.colors.white};
@@ -157,9 +160,9 @@ export const Footer = () => {
                   Café artesanal en el corazón de la Roma.
                   Únete a nuestro programa de lealtad y disfruta de beneficios exclusivos.
                 </p>
-                <Link to="/terms">Términos y Condiciones</Link>
+                <LinkFooter to="/terms">Términos y Condiciones</LinkFooter>
                 <span style={{ margin: '0 8px' }}>•</span>
-                <Link to="/privacy">Aviso de Privacidad</Link>
+                <LinkFooter to="/politica-privacidad">Aviso de Privacidad</LinkFooter>
               </LogoText>
 
             </LogoSection>
