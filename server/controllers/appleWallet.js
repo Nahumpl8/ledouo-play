@@ -253,7 +253,8 @@ export async function generatePassBuffer(customerData, authToken = null) {
           key: 'balance',
           label: 'SELLOS',
           value: `${stamps} / 8`,
-          textAlignment: 'PKTextAlignmentLeft'
+          textAlignment: 'PKTextAlignmentLeft',
+          changeMessage: '¡Felicidades! 🎉 Ahora tienes %@ sellos acumulados.'
         },
         {
           key: 'name',
