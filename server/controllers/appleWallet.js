@@ -204,7 +204,7 @@ export async function generatePassBuffer(customerData, authToken = null) {
   const ts = Date.now();
 
   // 1. PROCESAMIENTO DE IMÁGENES
-  let logoRaw = await getImageBuffer(`https://i.ibb.co/YFJgZLMs/Le-Duo-Logo.png?t=${ts}`);
+  let logoRaw = await getImageBuffer(`${STORAGE_BASE}/leduo-logo-icon.png?t=${ts}`);
   let logoBuffer = logoRaw; 
   let iconBuffer = logoRaw;
 
