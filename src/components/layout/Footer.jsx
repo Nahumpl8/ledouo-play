@@ -132,6 +132,16 @@ const SecondaryButton = styled.a`
   }
 `;
 
+const Link = styled.a`
+  color: ${props => props.theme.colors.white}CC;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: ${props => props.theme.colors.white};
+  }
+`;
+
 export const Footer = () => {
   return (
     <FooterWrapper>
@@ -147,7 +157,11 @@ export const Footer = () => {
                   Café artesanal en el corazón de la Roma.
                   Únete a nuestro programa de lealtad y disfruta de beneficios exclusivos.
                 </p>
+                <Link to="/terms">Términos y Condiciones</Link>
+                <span style={{ margin: '0 8px' }}>•</span>
+                <Link to="/privacy">Aviso de Privacidad</Link>
               </LogoText>
+
             </LogoSection>
           </FooterSection>
 
@@ -172,16 +186,16 @@ export const Footer = () => {
             </ul>
 
             <h3 style={{ marginTop: '24px' }}>Síguenos</h3>
-              <div className="followButtons" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <SecondaryButton href="https://instagram.com/leduomx" target="_blank">
-                  <Instagram size={18} />
-                  Instagram
-                </SecondaryButton>
-                <SecondaryButton href="https://tiktok.com/@leduomx" target="_blank">
-                  <Play size={18} />
-                  TikTok
-                </SecondaryButton>
-              </div>
+            <div className="followButtons" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <SecondaryButton href="https://instagram.com/leduomx" target="_blank">
+                <Instagram size={18} />
+                Instagram
+              </SecondaryButton>
+              <SecondaryButton href="https://tiktok.com/@leduomx" target="_blank">
+                <Play size={18} />
+                TikTok
+              </SecondaryButton>
+            </div>
 
           </FooterSection>
         </FooterContent>

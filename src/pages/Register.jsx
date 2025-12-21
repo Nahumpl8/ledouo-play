@@ -227,8 +227,8 @@ export const Register = () => {
             <Input
               type="text"
               name="name"
-              label="Nombre completo"
-              placeholder="Ej. Juan Pérez"
+              label="Tu nombre"
+              placeholder="Ej. Dua Lipa"
               value={formData.name}
               onChange={handleChange}
               required
@@ -257,6 +257,13 @@ export const Register = () => {
             {/* SECCIÓN DE FECHA DIVIDIDA */}
             <div>
               <Label>Fecha de nacimiento (opcional)</Label>
+              <p style={{
+                fontSize: '0.7rem',
+                color: '#01481dff',
+                marginTop: '8px',
+                marginBottom: '4px',
+                fontWeight: '500'
+              }}>Tendremos sorpresas para ti en la semana de tu cumpleaños</p>
               <div style={{ marginTop: '8px' }}>
                 <DateGrid>
                   {/* DÍA */}
@@ -324,7 +331,7 @@ export const Register = () => {
           </Form>
 
           <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: '#666' }}>
-            Al registrarte aceptas nuestros términos y condiciones
+            Al registrarte aceptas nuestros <Link to="/terms" style={{ color: '#686145', textDecoration: 'none' }}> Términos y Condiciones</Link>.
           </p>
           
           <p style={{textAlign: 'center', marginTop: '16px'}}>

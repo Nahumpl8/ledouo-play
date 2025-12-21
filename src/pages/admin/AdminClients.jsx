@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Search, User, Coffee, Star, History, Plus, Minus, Cake } from 'lucide-react'; // Agregamos Cake
+import { Search, User, Coffee, Star, History, Plus, Minus, Cake } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -60,13 +60,22 @@ const SearchBox = styled.div`
   }
 `;
 
+// --- NUEVO: Contador de clientes debajo del buscador ---
+const ClientCount = styled.p`
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.8rem;
+  font-weight: 500;
+  margin-left: 0.5rem;
+`;
+
 const ClientsGrid = styled.div`
   display: grid;
   gap: 1.25rem;
   margin-top: 1.5rem;
   
   @media (min-width: 768px) {
-    grid-template-columns: repeat(2, 1fr); /* 2 columnas en PC */
+    grid-template-columns: repeat(2, 1fr);
   }
 `;
 
@@ -106,7 +115,7 @@ const ClientHeader = styled.div`
   
   .info {
     flex: 1;
-    min-width: 0; /* Para que el texto se corte bien */
+    min-width: 0;
     
     h3 {
       margin: 0;
@@ -133,7 +142,7 @@ const ClientHeader = styled.div`
       gap: 4px;
       margin-top: 0.4rem;
       font-size: 0.75rem;
-      color: #b8860b; /* Color dorado suave */
+      color: #b8860b;
       background: #fff9e6;
       padding: 2px 8px;
       border-radius: 12px;
@@ -232,7 +241,6 @@ const LoadingState = styled.div`
 
 // --- HELPER FUNCTIONS ---
 
-// Función para formatear cumpleaños y edad
 const formatBirthdayInfo = (dobString) => {
   if (!dobString) return null;
 
@@ -240,17 +248,13 @@ const formatBirthdayInfo = (dobString) => {
     const dob = new Date(dobString);
     const today = new Date();
 
-    // Calcular edad
     let age = today.getFullYear() - dob.getFullYear();
     const m = today.getMonth() - dob.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
       age--;
     }
 
-    // Formatear fecha (Ej: "7 de Enero")
     const dateStr = dob.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
-
-    // Capitalizar mes
     const formattedDate = dateStr.replace(/\b\w/g, l => l.toUpperCase());
 
     return `${formattedDate} • ${age} Años`;
@@ -266,7 +270,6 @@ export const AdminClients = () => {
 
   const fetchClients = async () => {
     try {
-      // 1. Obtener perfiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -274,14 +277,12 @@ export const AdminClients = () => {
 
       if (profilesError) throw profilesError;
 
-      // 2. Obtener estado (puntos/sellos)
       const { data: states, error: statesError } = await supabase
         .from('customer_state')
         .select('*');
 
       if (statesError) throw statesError;
 
-      // 3. Unir datos
       const merged = profiles?.map(profile => ({
         ...profile,
         state: states?.find(s => s.user_id === profile.id) || null
@@ -300,12 +301,11 @@ export const AdminClients = () => {
     fetchClients();
   }, []);
 
-  // Función para dar sello y notificar
   const updateStamps = async (userId, currentStamps, delta, clientName) => {
-    const newStamps = Math.max(0, Math.min(10, currentStamps + delta));
+    // 🔥 CAMBIO: Límite ajustado a 8
+    const newStamps = Math.max(0, Math.min(8, currentStamps + delta));
 
     try {
-      // 1. Actualizar DB
       const { error } = await supabase
         .from('customer_state')
         .update({ stamps: newStamps })
@@ -315,24 +315,21 @@ export const AdminClients = () => {
 
       toast.success(`Sellos actualizados: ${newStamps}`);
 
-      // 2. Enviar Notificación Push (Solo si aumentamos sellos)
       if (delta > 0) {
         try {
-          // Invocamos la Edge Function para enviar push a Apple/Google Wallet
           await supabase.functions.invoke('send-wallet-notification', {
             body: {
               userId: userId,
               title: '¡Ganaste un Sello! ☕',
-              message: `¡Felicidades ${clientName.split(' ')[0]}! Tienes ${newStamps}/10 sellos. Estás más cerca de tu bebida gratis. 💚`
+              // 🔥 CAMBIO: Mensaje ajustado a /8
+              message: `¡Felicidades ${clientName.split(' ')[0]}! Tienes ${newStamps}/8 sellos. Estás más cerca de tu bebida gratis. 💚`
             }
           });
-          // Nota: No bloqueamos la UI esperando la notificación, es "fire and forget"
         } catch (notifError) {
           console.error('Error enviando notificación:', notifError);
         }
       }
 
-      // 3. Recargar lista localmente (optimistic update sería mejor, pero esto es seguro)
       setClients(prev => prev.map(c =>
         c.id === userId
           ? { ...c, state: { ...c.state, stamps: newStamps } }
@@ -358,7 +355,6 @@ export const AdminClients = () => {
 
       toast.success(`Puntos actualizados: ${newPoints}`);
 
-      // Actualizamos estado local para que se sienta instantáneo
       setClients(prev => prev.map(c =>
         c.id === userId
           ? { ...c, state: { ...c.state, cashback_points: newPoints } }
@@ -407,6 +403,10 @@ export const AdminClients = () => {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </SearchBox>
+          {/* 🔥 CAMBIO: Contador de clientes */}
+          <ClientCount>
+            Mostrando {filteredClients.length} cliente{filteredClients.length !== 1 ? 's' : ''}
+          </ClientCount>
         </Header>
 
         {filteredClients.length === 0 ? (
@@ -417,7 +417,7 @@ export const AdminClients = () => {
         ) : (
           <ClientsGrid>
             {filteredClients.map(client => {
-              const birthdayInfo = formatBirthdayInfo(client.dob); // Usamos la nueva función
+              const birthdayInfo = formatBirthdayInfo(client.dob);
 
               return (
                 <ClientCard key={client.id}>
@@ -430,7 +430,6 @@ export const AdminClients = () => {
                       <p className="contact">{client.email}</p>
                       {client.phone && <p className="contact">{client.phone}</p>}
 
-                      {/* --- NUEVO: Badge de Cumpleaños --- */}
                       {birthdayInfo && (
                         <div className="birthday-badge">
                           <Cake size={12} />
@@ -443,7 +442,8 @@ export const AdminClients = () => {
                   <StatsRow>
                     <StatBox>
                       <div className="icon"><Coffee size={18} /></div>
-                      <div className="value">{client.state?.stamps || 0}/10</div>
+                      {/* 🔥 CAMBIO: Visualización ajustada a /8 */}
+                      <div className="value">{client.state?.stamps || 0}/8</div>
                       <div className="label">Sellos</div>
                     </StatBox>
                     <StatBox>
@@ -467,7 +467,7 @@ export const AdminClients = () => {
                     </ActionButton>
                     <ActionButton
                       className="primary"
-                      style={{ flex: 2 }} // Botón de sumar más grande
+                      style={{ flex: 2 }}
                       onClick={() => updateStamps(client.id, client.state?.stamps || 0, 1, client.name)}
                     >
                       <Plus size={16} /> Sello
@@ -483,7 +483,7 @@ export const AdminClients = () => {
                     </ActionButton>
                     <ActionButton
                       className="primary"
-                      style={{ background: '#b8860b' }} // Dorado para puntos
+                      style={{ background: '#b8860b' }}
                       onClick={() => updatePoints(client.id, client.state?.cashback_points || 0, 10)}
                     >
                       <Plus size={16} /> Pts

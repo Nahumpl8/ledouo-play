@@ -352,9 +352,9 @@ export const Landing = () => {
               ) : (
                 <>
                   <CTAButton to="/register">
-                    Regístrate Gratis
+                    Regístrate Gratis a Le Duo
                   </CTAButton>
-                  <CTAButton to="/login" $variant="secondary">
+                  <CTAButton to="/app/login" $variant="secondary">
                     Ya tengo cuenta
                   </CTAButton>
                 </>

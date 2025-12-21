@@ -28,6 +28,8 @@ import { AdminClients } from './pages/admin/AdminClients';
 import { AdminPromotions } from './pages/admin/AdminPromotions';
 import AdminRoles from './pages/admin/AdminRoles';
 import { AdminEventSlots } from './pages/admin/AdminEventSlots';
+import {Terms} from './pages/Terms';
+import {PrivacyPolicy} from './pages/PrivacyPolicy';
 
 export const Router = () => {
   return (
@@ -41,6 +43,8 @@ export const Router = () => {
         <Route path="/menu" element={<MenuLeDuo />} />
         <Route path="/workshops" element={<Workshops />} />
         <Route path="/workshops/:eventId" element={<EventDetail />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/politica-privacidad" element={<PrivacyPolicy />} />
 
         {/* Auth routes */}
         <Route path="/app/login" element={<Login />} />
