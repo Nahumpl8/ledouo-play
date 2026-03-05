@@ -1,32 +1,25 @@
 
 
-## Plan: Corregir build error y desplegar
+## Plan: Crear la tabla `products` y desplegarla
 
-### 1. Fix del error en `send-auth-email/index.ts`
+### Paso 1: Ejecutar la migración SQL
 
-El error es que la librería Resend v2 devuelve `{ data, error }` en lugar de un objeto directo con `.id`.
+Usar la herramienta de migración de base de datos para ejecutar el contenido de `supabase/migrations/20260304000000_create_products_table.sql`, que incluye:
 
-**Línea 221 — cambiar:**
-```typescript
-// Antes:
-emailId: emailResponse?.id
-// Después:
-emailId: (emailResponse as any)?.data?.id || (emailResponse as any)?.id
-```
+- Crear tabla `products` con columnas: `id`, `name`, `description`, `long_description`, `price`, `category`, `images`, `stock_status`, `is_active`, `sort_order`, `created_at`, `updated_at`
+- Crear 3 índices (category, is_active, sort_order)
+- Habilitar RLS con 5 políticas:
+  - Cualquiera puede ver productos activos
+  - Admins pueden ver todos, insertar, actualizar y eliminar
+- Crear trigger para auto-actualizar `updated_at`
 
-También la línea 218 del log.
+### Verificación
 
-### 2. Ejecutar la migración SQL de productos
+Confirmar que la tabla existe y que las políticas RLS están correctas después de la migración.
 
-Usar la herramienta de migración para crear la tabla `products` con las políticas RLS ya definidas en el archivo de migración.
+### Archivos involucrados
 
-### 3. Desplegar la edge function `send-auth-email`
-
-Una vez corregido el error de tipos, desplegar la función.
-
-### Archivos a modificar
-
-| Archivo | Cambio |
+| Archivo | Acción |
 |---------|--------|
-| `supabase/functions/send-auth-email/index.ts` | Fix tipo `CreateEmailResponse` → acceder a `.data?.id` |
+| `supabase/migrations/20260304000000_create_products_table.sql` | Ejecutar migración (ya existe el archivo) |
 
