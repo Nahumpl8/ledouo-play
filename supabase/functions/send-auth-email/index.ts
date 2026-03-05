@@ -217,8 +217,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("=== EMAIL SENT ===");
     console.log("Resend response:", JSON.stringify(emailResponse));
 
+    const emailId = (emailResponse as any)?.data?.id || (emailResponse as any)?.id;
+
     return new Response(
-      JSON.stringify({ success: true, message: "Recovery email sent", emailId: emailResponse?.id }),
+      JSON.stringify({ success: true, message: "Recovery email sent", emailId }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 
