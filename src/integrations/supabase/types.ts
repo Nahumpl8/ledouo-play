@@ -379,6 +379,36 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          created_at: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          label: string
+          sort_order: number | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          label: string
+          sort_order?: number | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          sort_order?: number | null
+          value?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string
@@ -391,6 +421,7 @@ export type Database = {
           name: string
           price: number
           sort_order: number | null
+          stock_quantity: number | null
           stock_status: string
           updated_at: string | null
         }
@@ -405,6 +436,7 @@ export type Database = {
           name: string
           price: number
           sort_order?: number | null
+          stock_quantity?: number | null
           stock_status?: string
           updated_at?: string | null
         }
@@ -419,6 +451,7 @@ export type Database = {
           name?: string
           price?: number
           sort_order?: number | null
+          stock_quantity?: number | null
           stock_status?: string
           updated_at?: string | null
         }
