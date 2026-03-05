@@ -1,4 +1,4 @@
-import { Palette, Shirt, Coffee, MoreHorizontal } from 'lucide-react';
+import { Palette, Shirt, Coffee, MoreHorizontal, Package, Gem, Gift, Star } from 'lucide-react';
 
 export const PRODUCT_CATEGORIES = [
   { value: 'ceramica', label: 'Cerámica', icon: Palette },
@@ -13,7 +13,17 @@ export const STOCK_STATUS_OPTIONS = [
   { value: 'out_of_stock', label: 'Agotado', color: '#e74c3c' },
 ];
 
-export const getCategoryLabel = (value) => {
+export const ICON_MAP = {
+  Palette, Shirt, Coffee, MoreHorizontal, Package, Gem, Gift, Star,
+};
+
+export const getCategoryIcon = (iconName) => {
+  return ICON_MAP[iconName] || Package;
+};
+
+export const getCategoryLabel = (value, dynamicCategories = []) => {
+  const dynamic = dynamicCategories.find(c => c.value === value);
+  if (dynamic) return dynamic.label;
   return PRODUCT_CATEGORIES.find(c => c.value === value)?.label || value;
 };
 

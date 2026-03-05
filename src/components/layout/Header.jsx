@@ -129,6 +129,7 @@ const MobileMenu = styled.div`
   padding: ${props => props.theme.spacing.lg};
   z-index: 50;
   animation: slideDown 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
 
   @keyframes slideDown {
     from { 
@@ -146,7 +147,6 @@ const MobileMenu = styled.div`
   }
 `;
 
-// Liquid Glass Styles con colores de Le Duo
 const liquidGlassStyles = `
   display: flex;
   flex-direction: column;
@@ -154,42 +154,31 @@ const liquidGlassStyles = `
   justify-content: center;
   gap: 0.6rem;
   padding: 1.4rem 1rem;
-  
-  /* FONDO: Gradiente con toques de Le Duo */
   background: linear-gradient(
     145deg,
-    rgba(179, 183, 146, 0.12) 0%,   /* primary verde olivo */
+    rgba(179, 183, 146, 0.12) 0%,
     rgba(255, 255, 255, 0.7) 35%, 
     rgba(255, 255, 255, 0.5) 65%,
-    rgba(203, 162, 88, 0.08) 100%   /* accent dorado sutil */
+    rgba(203, 162, 88, 0.08) 100%
   );
-  
-  /* EFECTO BORROSO mejorado */
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
-  
-  /* BORDES: Con toque de Le Duo */
   border: 1px solid rgba(179, 183, 146, 0.35);
   border-top-color: rgba(255, 255, 255, 0.8);
   border-left-color: rgba(255, 255, 255, 0.6);
   border-radius: 20px;
-  
-  /* SOMBRAS MULTICAPA con colores Le Duo */
   box-shadow: 
     0 10px 40px -10px rgba(104, 97, 69, 0.15),
     0 4px 20px rgba(0, 0, 0, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
     inset 0 -1px 0 rgba(104, 97, 69, 0.05),
     inset 0 20px 40px rgba(255, 255, 255, 0.4);
-
   text-decoration: none;
   color: #686145;
   font-weight: 600;
   font-size: 0.8rem;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  
-  /* Transición elástica mejorada */
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   
   svg {
@@ -252,6 +241,21 @@ const MenuItemButtonElement = styled.button`
   width: 100%;
 `;
 
+const MenuSectionLabel = styled.div`
+  grid-column: 1 / -1;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(104, 97, 69, 0.6);
+  padding: 0.5rem 0 0 0.25rem;
+  margin-top: 0.5rem;
+
+  &:first-child {
+    margin-top: 0;
+  }
+`;
+
 const DesktopNav = styled.div`
   display: none;
   align-items: center;
@@ -262,7 +266,6 @@ const DesktopNav = styled.div`
   }
 `;
 
-// Dropdown components
 const DropdownWrapper = styled.div`
   position: relative;
 `;
@@ -386,7 +389,6 @@ const LogoutButton = styled.button`
   }
 `;
 
-// Dropdown Component
 const Dropdown = ({ label, items, icon: Icon }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -492,38 +494,68 @@ export const Header = () => {
   const isAdmin = userRoles.includes('admin');
   const isTransparent = isLandingPage && !isScrolled;
 
-  // Items para menú móvil (todos los items individuales)
-  const getMobileMenuItems = () => {
-    const items = [];
-    items.push({ to: '/', icon: Home, label: 'Inicio' });
-    items.push({ to: '/workshops', icon: Calendar, label: 'Eventos' });
-    items.push({ to: '/tienda', icon: ShoppingBag, label: 'Tienda' });
+  // Mobile menu sections
+  const getMobileMenuSections = () => {
+    const sections = [];
+
+    // General - always visible
+    sections.push({
+      label: null, // no label for first section
+      items: [
+        { to: '/', icon: Home, label: 'Inicio' },
+        { to: '/workshops', icon: Calendar, label: 'Eventos' },
+        { to: '/tienda', icon: ShoppingBag, label: 'Tienda' },
+      ]
+    });
 
     if (isLoggedIn) {
-      items.push({ to: '/app', icon: User, label: 'Mi Cuenta' });
-      items.push({ to: '/app/cuenta', icon: User, label: 'Mis Datos' });
-      items.push({ to: '/app/ruleta', icon: Zap, label: 'Ruleta' });
+      // Mi Cuenta
+      sections.push({
+        label: 'Mi Cuenta',
+        items: [
+          { to: '/app', icon: User, label: 'Mi Cuenta' },
+          { to: '/app/cuenta', icon: User, label: 'Mis Datos' },
+          { to: '/app/ruleta', icon: Zap, label: 'Ruleta' },
+        ]
+      });
 
+      // Staff
       if (isStaff || isAdmin) {
-        items.push({ to: '/app/scan', icon: Scan, label: 'Scan' });
+        sections.push({
+          label: 'Staff',
+          items: [
+            { to: '/app/scan', icon: Scan, label: 'Scan' },
+          ]
+        });
       }
 
+      // Admin
       if (isAdmin) {
-        items.push({ to: '/admin/events', icon: Plus, label: 'Eventos Admin' });
-        items.push({ to: '/admin/products', icon: Package, label: 'Productos' });
-        items.push({ to: '/admin/clients', icon: Users, label: 'Clientes' });
-        items.push({ to: '/admin/promotions', icon: Bell, label: 'Promociones' });
-        items.push({ to: '/admin/roles', icon: Shield, label: 'Roles' });
+        sections.push({
+          label: 'Admin',
+          items: [
+            { to: '/admin/events', icon: Plus, label: 'Eventos' },
+            { to: '/admin/products', icon: Package, label: 'Productos' },
+            { to: '/admin/clients', icon: Users, label: 'Clientes' },
+            { to: '/admin/promotions', icon: Bell, label: 'Promociones' },
+            { to: '/admin/roles', icon: Shield, label: 'Roles' },
+          ]
+        });
       }
     } else {
-      items.push({ to: '/app/login', icon: LogIn, label: 'Ingresar' });
-      items.push({ to: '/register', icon: UserPlus, label: 'Crear Cuenta' });
+      sections.push({
+        label: null,
+        items: [
+          { to: '/app/login', icon: LogIn, label: 'Ingresar' },
+          { to: '/register', icon: UserPlus, label: 'Crear Cuenta' },
+        ]
+      });
     }
 
-    return items;
+    return sections;
   };
 
-  // Items agrupados para desktop
+  // Desktop items
   const accountItems = [
     { to: '/app', icon: User, label: 'Mi Cuenta' },
     { to: '/app/cuenta', icon: User, label: 'Mis Datos' },
@@ -542,7 +574,7 @@ export const Header = () => {
     { to: '/admin/roles', icon: Shield, label: 'Roles' },
   ];
 
-  const mobileMenuItems = getMobileMenuItems();
+  const mobileSections = getMobileMenuSections();
 
   return (
     <HeaderWrapper $transparent={isTransparent}>
@@ -557,7 +589,6 @@ export const Header = () => {
           </Logo>
 
           <Nav>
-            {/* Botón móvil con ícono Lucide y texto */}
             <MobileMenuButton
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Menú"
@@ -566,7 +597,6 @@ export const Header = () => {
               <span>{mobileMenuOpen ? 'Cerrar' : 'Menú'}</span>
             </MobileMenuButton>
 
-            {/* Desktop Navigation con dropdowns */}
             <DesktopNav>
               <NavButton to="/">Inicio</NavButton>
               <NavButton to="/workshops">Eventos</NavButton>
@@ -601,14 +631,21 @@ export const Header = () => {
           </Nav>
         </HeaderContent>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - Grouped by sections */}
         <MobileMenu $open={mobileMenuOpen}>
           <MenuGrid>
-            {mobileMenuItems.map((item) => (
-              <MenuItemButton key={item.to} to={item.to} title={item.label}>
-                <item.icon size={26} />
-                <span>{item.label}</span>
-              </MenuItemButton>
+            {mobileSections.map((section, sIdx) => (
+              <React.Fragment key={sIdx}>
+                {section.label && (
+                  <MenuSectionLabel>{section.label}</MenuSectionLabel>
+                )}
+                {section.items.map((item) => (
+                  <MenuItemButton key={item.to} to={item.to} title={item.label}>
+                    <item.icon size={26} />
+                    <span>{item.label}</span>
+                  </MenuItemButton>
+                ))}
+              </React.Fragment>
             ))}
 
             {isLoggedIn && (
