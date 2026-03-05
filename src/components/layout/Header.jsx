@@ -4,9 +4,10 @@ import styled from 'styled-components';
 import { Container } from '../common/Container';
 import { Button } from '../common/Button';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Home, User, Zap, Calendar, LogOut, Scan, Plus, Users, 
-  LogIn, UserPlus, Bell, Shield, Menu, X, ChevronDown 
+import {
+  Home, User, Zap, Calendar, LogOut, Scan, Plus, Users,
+  LogIn, UserPlus, Bell, Shield, Menu, X, ChevronDown,
+  ShoppingBag, Package
 } from 'lucide-react';
 
 const logo = '/lovable-uploads/3eb489f6-f1b0-4d84-8bbc-971d4d1b45b0.png';
@@ -496,6 +497,7 @@ export const Header = () => {
     const items = [];
     items.push({ to: '/', icon: Home, label: 'Inicio' });
     items.push({ to: '/workshops', icon: Calendar, label: 'Eventos' });
+    items.push({ to: '/tienda', icon: ShoppingBag, label: 'Tienda' });
 
     if (isLoggedIn) {
       items.push({ to: '/app', icon: User, label: 'Mi Cuenta' });
@@ -508,6 +510,7 @@ export const Header = () => {
 
       if (isAdmin) {
         items.push({ to: '/admin/events', icon: Plus, label: 'Eventos Admin' });
+        items.push({ to: '/admin/products', icon: Package, label: 'Productos' });
         items.push({ to: '/admin/clients', icon: Users, label: 'Clientes' });
         items.push({ to: '/admin/promotions', icon: Bell, label: 'Promociones' });
         items.push({ to: '/admin/roles', icon: Shield, label: 'Roles' });
@@ -533,6 +536,7 @@ export const Header = () => {
 
   const adminItems = [
     { to: '/admin/events', icon: Plus, label: 'Eventos' },
+    { to: '/admin/products', icon: Package, label: 'Productos' },
     { to: '/admin/clients', icon: Users, label: 'Clientes' },
     { to: '/admin/promotions', icon: Bell, label: 'Promociones' },
     { to: '/admin/roles', icon: Shield, label: 'Roles' },
@@ -566,6 +570,7 @@ export const Header = () => {
             <DesktopNav>
               <NavButton to="/">Inicio</NavButton>
               <NavButton to="/workshops">Eventos</NavButton>
+              <NavButton to="/tienda">Tienda</NavButton>
               
               {isLoggedIn ? (
                 <>

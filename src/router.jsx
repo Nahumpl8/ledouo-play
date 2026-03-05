@@ -28,6 +28,9 @@ import { AdminClients } from './pages/admin/AdminClients';
 import { AdminPromotions } from './pages/admin/AdminPromotions';
 import AdminRoles from './pages/admin/AdminRoles';
 import { AdminEventSlots } from './pages/admin/AdminEventSlots';
+import { AdminProducts } from './pages/admin/AdminProducts';
+import { Tienda } from './pages/Tienda';
+import { ProductDetail } from './pages/ProductDetail';
 import {Terms} from './pages/Terms';
 import {PrivacyPolicy} from './pages/PrivacyPolicy';
 
@@ -43,6 +46,8 @@ export const Router = () => {
         <Route path="/menu" element={<MenuLeDuo />} />
         <Route path="/workshops" element={<Workshops />} />
         <Route path="/workshops/:eventId" element={<EventDetail />} />
+        <Route path="/tienda" element={<Tienda />} />
+        <Route path="/tienda/:productId" element={<ProductDetail />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/politica-privacidad" element={<PrivacyPolicy />} />
 
@@ -102,6 +107,11 @@ export const Router = () => {
         <Route path="/admin/events/:eventId/slots" element={
           <RequireAdminEvents>
             <AdminEventSlots />
+          </RequireAdminEvents>
+        } />
+        <Route path="/admin/products" element={
+          <RequireAdminEvents>
+            <AdminProducts />
           </RequireAdminEvents>
         } />
 
