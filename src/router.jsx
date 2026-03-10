@@ -19,6 +19,7 @@ import { ScanPurchase } from './pages/ScanPurchase';
 import { NotFound } from './pages/NotFound';
 import { SetupPinModal } from './components/staff/SetupPinModal';
 import MenuLeDuo from './pages/MenuLeDuo';
+import Experiencias from './pages/Experiencias';
 import { PinConfirmModal } from './components/staff/PinConfirmModal';
 import { Workshops } from './pages/Workshops';
 import { EventDetail } from './pages/EventDetail';
@@ -44,6 +45,7 @@ export const Router = () => {
         <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
         <Route path="/menu" element={<MenuLeDuo />} />
+        <Route path="/experiencias" element={<Experiencias />} />
         <Route path="/workshops" element={<Workshops />} />
         <Route path="/workshops/:eventId" element={<EventDetail />} />
         <Route path="/tienda" element={<Tienda />} />

@@ -32,13 +32,16 @@ const FallbackLink = styled.a`
 `;
 
 export default function MenuEmbed({
-    src = 'https://www.canva.com/design/DAG0r1Wn5sM/rbqkkTjnTqA_qekytp_J5Q/view?embed',
+    src = 'https://www.canva.com/design/DAG17EHUk4w/SgB4hY_u2pvoVjWotKCFUw/view?embed',
     title = 'MENÚ Le Duo',
     paddingTop, // opcional (e.g. '141.4286%')
-    linkLabel = 'Abrir menú en nueva pestaña',
+    linkLabel = 'Abrir en nueva pestaña',
 }) {
+    // Derive the fallback view URL from the embed src
+    const viewUrl = src.replace('?embed', '');
+
     return (
-        <div aria-label="Menú de productos Le Duo">
+        <div aria-label={title}>
             <FrameWrap paddingTop={paddingTop}>
                 <Iframe
                     loading="lazy"
@@ -52,7 +55,7 @@ export default function MenuEmbed({
 
             {/* Fallback/CTA */}
             <FallbackLink
-                href="https://www.canva.com/design/DAG0r1Wn5sM/rbqkkTjnTqA_qekytp_J5Q/view?utm_content=DAG0r1Wn5sM&utm_campaign=designshare&utm_medium=embeds&utm_source=link"
+                href={viewUrl}
                 target="_blank"
                 rel="noopener"
             >
